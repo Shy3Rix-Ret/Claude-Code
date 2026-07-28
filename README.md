@@ -20,12 +20,30 @@ Doppelklick vom Dateisystem.
 node tools/serve.mjs      # → http://localhost:4444/
 ```
 
-**Single-File neu bauen:**
+**Neu bauen:**
 
 ```
 npm install --no-save esbuild
-node tools/build.mjs      # → dist/level-4444.html
+node tools/build.mjs
 ```
+
+Erzeugt zwei Dateien:
+
+- `dist/level-4444.html` — vollständiges Dokument, zum direkten Öffnen.
+- `dist/level-4444.embed.html` — nur der Body-Inhalt, für Hosts, die
+  `<html>`/`<head>`/`<body>` selbst mitbringen (claude.ai-Artifacts, CMS,
+  iframes). Identischer Bundle; das Viewport-Meta wird zur Laufzeit gesetzt
+  und der schwarze Grund in beiden Farbschemata erzwungen, weil sonst der
+  Host darüber entscheidet.
+
+Ein Hinweis zu Vorschau-Ansichten: viele In-App-Dateibetrachter zeigen HTML
+und CSS an, führen aber kein JavaScript aus. Man sieht dann nur die
+Ladezeile und sonst nichts. Das ist keine kaputte Datei — die Seite gehört
+in einen echten Browser.
+
+Im iframe (also auch im Artifact) ist das Gyroskop in der Regel gesperrt;
+die Steuerung fällt sauber auf Ziehen zurück. Für die volle Fassung
+inklusive Neigungssteuerung die Datei direkt im Browser öffnen.
 
 Three.js liegt unter `vendor/` im Repo. Es gibt keine Laufzeit-Abhängigkeiten
 und keine Assets: jede Textur, jeder Ton und jedes Modell entsteht beim Start
