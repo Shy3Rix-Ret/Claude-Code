@@ -159,7 +159,20 @@ export const POST = {
 
 /* Quality tiers are chosen at boot from a quick device probe. */
 export const QUALITY = {
-  high:   { radial: 168, rings: 118, bloomDiv: 2, motes: 2400, pixelRatioCap: 2.0, droplets: 26 },
-  medium: { radial: 128, rings:  92, bloomDiv: 3, motes: 1400, pixelRatioCap: 1.6, droplets: 18 },
-  low:    { radial:  92, rings:  66, bloomDiv: 4, motes: 1000, pixelRatioCap: 1.1, droplets: 11 },
+  high: {
+    radial: 168, rings: 118, bloomDiv: 2, motes: 2400, droplets: 26,
+    pixelRatioCap: 2.0, skyOctaves: 4, motionBlurSamples: 6,
+  },
+  medium: {
+    /* 1.25 rather than 1.6: a phone at devicePixelRatio 3 is already asking
+     * the fragment stage for well over a million pixels, and the composite
+     * pass touches every one of them a dozen times. Sharpness is the cheapest
+     * thing to give back (§5). */
+    radial: 128, rings: 92, bloomDiv: 3, motes: 1200, droplets: 16,
+    pixelRatioCap: 1.25, skyOctaves: 3, motionBlurSamples: 4,
+  },
+  low: {
+    radial: 92, rings: 66, bloomDiv: 4, motes: 700, droplets: 11,
+    pixelRatioCap: 1.0, skyOctaves: 2, motionBlurSamples: 3,
+  },
 };

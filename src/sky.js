@@ -46,8 +46,8 @@ void main(){
 
   // Two layers of very slow drift, at different rates, so nothing ever loops.
   vec2 uv = d.xz / (abs(up) + 0.42);
-  float n = fbm2(uv * 0.55 + vec2(uTime * 0.0037, uTime * -0.0025), 4);
-  float n2 = fbm2(uv * 1.9 + vec2(uTime * -0.0061, uTime * 0.0044), 3);
+  float n = fbm2(uv * 0.55 + vec2(uTime * 0.0037, uTime * -0.0025), SKY_OCT);
+  float n2 = fbm2(uv * 1.9 + vec2(uTime * -0.0061, uTime * 0.0044), SKY_OCT - 1);
   float cloud = mix(n, n2, 0.35);
   col *= 0.86 + 0.28 * cloud;
 
@@ -65,7 +65,7 @@ void main(){
 `;
 
 export class Sky {
-  constructor(scene) {
+  constructor(scene, quality) {
     this.uniforms = {
       uTime:       { value: 0 },
       uFogLow:     { value: new THREE.Color(PALETTE.fogLow) },
@@ -78,6 +78,10 @@ export class Sky {
     };
 
     this.material = new THREE.ShaderMaterial({
+      // The dome fills most of the frame, so every octave here is paid for
+      // across half the screen. Mobile takes fewer; the fog is meant to be
+      // featureless anyway.
+      defines: { SKY_OCT: quality?.skyOctaves ?? 4 },
       uniforms: this.uniforms,
       vertexShader: VERT,
       fragmentShader: FRAG,

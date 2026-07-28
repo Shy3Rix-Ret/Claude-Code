@@ -188,7 +188,7 @@ void main(){
   vec3 col = base + uFogLow * rim * 0.30;
 
   // Bioluminescence bleeding through the skin — never enough to light it (§3.1).
-  float seep = fbm3(vWorld * 1.4 + vec3(0.0, uTime * 0.09, 0.0), 3);
+  float seep = fbm3(vWorld * 1.4 + vec3(0.0, uTime * 0.09, 0.0), 2);
   col += uBio * pow(seep, 3.5) * 0.055 * (0.4 + 0.6 * uEdge);
 
   col *= uAmbient;

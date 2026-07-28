@@ -77,7 +77,7 @@ class Game {
     this.camera.rotation.order = 'YXZ';
     this.scene.add(this.camera);
 
-    this.skySystem = new Sky(this.scene);
+    this.skySystem = new Sky(this.scene, this.quality);
     this.ocean = new Ocean(this.scene, this.quality);
     this.motes = new Motes(this.scene, this.quality.motes);
     this.leviathan = new Leviathan(this.scene);
@@ -202,10 +202,17 @@ class Game {
     let dt = (now - this._last) / 1000;
     this._last = now;
     if (!(dt > 0)) dt = 1 / 60;
-    dt = Math.min(dt, 0.1);               // a tab-switch must not skip an act
+    /* The cap keeps a tab-switch from skipping an act, but it must not be so
+     * tight that a slow device runs the world in slow motion: at 0.1s a phone
+     * managing 8fps advanced the clock at a fifth of real time, so the REC
+     * stamp crawled, swimming covered almost no distance, and the level looked
+     * frozen while it was in fact merely slow. Every integrator here is exact
+     * for any step, so the cap can afford to be generous. */
+    dt = Math.min(dt, 0.25);
     this._smoothDt = lerp(this._smoothDt, dt, 0.1);
 
-    this._fpsAccum += dt;
+    this._fpsAccum += Math.min((now - (this._fpsLast ?? now)) / 1000, 1);
+    this._fpsLast = now;
     this._fpsFrames++;
     if (this._fpsAccum > 0.5) {
       this._fps = this._fpsFrames / this._fpsAccum;
@@ -221,18 +228,57 @@ class Game {
 
     this.update(dt);
     this.render();
+    this._updateDiag(dt);
   }
 
-  /** If a phone cannot hold the frame rate, drop resolution before anything else. */
+  /**
+   * Resolution goes first, per §5 — detail is the thing worth keeping. But it
+   * cannot be the only lever: below the floor a struggling device used to be
+   * left struggling, and a level running at 8fps is not a slower level, it is
+   * a broken one. So once resolution is spent, effects come off too.
+   */
   _adaptQuality() {
-    if (this._fps < 24 && this.pixelRatio > 0.72) {
-      this.pixelRatio = Math.max(0.72, this.pixelRatio - 0.14);
-      this.post.setSize(window.innerWidth, window.innerHeight, this.pixelRatio);
+    const w = window.innerWidth, h = window.innerHeight;
+    const apply = () => {
+      this.post.setSize(w, h, this.pixelRatio);
       this.motes.material.uniforms.uPixelRatio.value = this.pixelRatio;
-    } else if (this._fps > 55 && this.pixelRatio < this.quality.pixelRatioCap) {
-      this.pixelRatio = Math.min(this.quality.pixelRatioCap, this.pixelRatio + 0.05);
-      this.post.setSize(window.innerWidth, window.innerHeight, this.pixelRatio);
-      this.motes.material.uniforms.uPixelRatio.value = this.pixelRatio;
+    };
+
+    if (this._fps < 26) {
+      this._slowFor = (this._slowFor || 0) + 1;
+      if (this.pixelRatio > 0.6) {
+        this.pixelRatio = Math.max(0.6, this.pixelRatio - 0.16);
+        apply();
+      } else if (this._slowFor > 4) {
+        // Still short after giving up resolution: start shedding effects.
+        this._shedEffects();
+      }
+    } else {
+      this._slowFor = 0;
+      if (this._fps > 52 && this.pixelRatio < this.quality.pixelRatioCap) {
+        this.pixelRatio = Math.min(this.quality.pixelRatioCap, this.pixelRatio + 0.05);
+        apply();
+      }
+    }
+  }
+
+  /** One rung at a time, cheapest-looking loss first. */
+  _shedEffects() {
+    const u = this.post.compositeMat.uniforms;
+    const step = (this._shed = (this._shed || 0) + 1);
+    this._slowFor = 0;
+    if (step === 1) {
+      u.uDropAmount.value = 0;                 // lens droplets: 2 samples/px
+      this.post.compositeMat.defines.MB_SAMPLES = 3;
+      this.post.compositeMat.needsUpdate = true;
+    } else if (step === 2) {
+      this.motes.points.visible = false;
+      this.skySystem.material.defines.SKY_OCT = 2;
+      this.skySystem.material.needsUpdate = true;
+    } else if (step === 3) {
+      u.uBloom.value = 0;
+      this.post.compositeMat.defines.MB_SAMPLES = 1;
+      this.post.compositeMat.needsUpdate = true;
     }
   }
 
@@ -368,8 +414,38 @@ class Game {
 
   /* ---------------------------------------------------------------- debug */
 
+  /**
+   * ?diag=1 puts the numbers on screen. Not a HUD — §6 forbids one — but the
+   * level ships to phones I cannot profile, and "it feels stuck" and "it runs
+   * at nine frames a second" look identical from here.
+   */
+  _installDiag() {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:0;left:0;z-index:99;padding:4px 7px;'
+      + 'font:11px ui-monospace,monospace;color:#7dd3a0;background:rgba(0,0,0,.62);'
+      + 'pointer-events:none;white-space:pre;line-height:1.5';
+    document.body.appendChild(el);
+    this._diagEl = el;
+    this._diagT = 0;
+  }
+
+  _updateDiag(dt) {
+    if (!this._diagEl) return;
+    this._diagT += dt;
+    if (this._diagT < 0.25) return;
+    this._diagT = 0;
+    const s = this.state;
+    this._diagEl.textContent =
+      `${this._fps.toFixed(0)} fps   ${this.quality.name}  px ${this.pixelRatio.toFixed(2)}\n`
+      + `${s.phase}  t=${s.time.toFixed(0)}s  shed ${this._shed || 0}\n`
+      + `swim ${s.swimEnabled ? 'on' : 'off'} in ${this.controls.swimInput.toFixed(2)}  `
+      + `v ${this.controls.velocity.length().toFixed(2)}\n`
+      + `hdr ${this.post.hdr}  audio ${this.audio.ctx?.state || 'none'}`;
+  }
+
   _installDebug() {
     const params = new URLSearchParams(location.search);
+    if (params.get('diag') === '1') this._installDiag();
     const skipTo = params.get('act');
     const speed = parseFloat(params.get('speed') || '1');
     if (speed > 0 && speed !== 1) this.state.timeScale = clamp(speed, 0.1, 40);

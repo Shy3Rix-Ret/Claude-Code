@@ -115,8 +115,8 @@ void main(){
   if (mlen > 0.00012) {
     col = vec3(0.0);
     float wsum = 0.0;
-    for (int i = 0; i < 6; i++) {
-      float t = float(i) / 5.0 - 0.5;
+    for (int i = 0; i < MB_SAMPLES; i++) {
+      float t = float(i) / max(float(MB_SAMPLES - 1), 1.0) - 0.5;
       float w = 1.0 - abs(t) * 0.72;
       col += sampleScene(uv + uMotion * t) * w;
       wsum += w;
@@ -238,6 +238,8 @@ export class PostStack {
     });
 
     this.compositeMat = new THREE.ShaderMaterial({
+      // Every extra tap here costs a full-resolution texture read per pixel.
+      defines: { MB_SAMPLES: quality.motionBlurSamples ?? 6 },
       uniforms: {
         tScene:      { value: null },
         tBloomA:     { value: null },
