@@ -311,8 +311,15 @@ export class Director {
     s.breathIntensity = lerp(1.0, 0.42, calm);
     s.shake = lerp(0.85, 0.42, calm);
 
-    // Look control arrives quietly, so that losing it in a moment stings.
-    if (t > 8 && !s.controlEnabled) s.controlEnabled = true;
+    /* Control arrives quietly, so that losing it in a moment stings (§2.3).
+     * Swimming comes with it: the prologue is 75 seconds long, and leaving the
+     * player unable to move for all of it reads as broken rather than as
+     * helpless. §2.3 still takes it all away again for the establishing pan,
+     * which is where the deprivation is supposed to land. */
+    if (t > 8 && !s.controlEnabled) {
+      s.controlEnabled = true;
+      s.swimEnabled = true;
+    }
 
     // Last of all, barely there: the light (§2.2).
     s.beacon = smoothstep(22, 29, t) * 0.13;

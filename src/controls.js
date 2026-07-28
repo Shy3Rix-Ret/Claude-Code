@@ -42,6 +42,8 @@ export class Controls {
     this._last = { x: 0, y: 0 };
     this._keys = new Set();
     this._swimLatched = false;
+    this._holdWindow = 0;      // rolling window used to spot a resting thumb
+    this._dragAtWindow = 0;
 
     this._bind();
   }
@@ -57,6 +59,8 @@ export class Controls {
       this.holdTime = 0;
       this.dragDistance = 0;
       this._swimLatched = false;
+      this._holdWindow = 0;
+      this._dragAtWindow = 0;
       this._last.x = e.clientX;
       this._last.y = e.clientY;
       try { dom.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
@@ -203,16 +207,24 @@ export class Controls {
     this.lastPitchDelta = dPitch;
 
     /* ---- swim ---- */
-    /* §6 separates drag (look) from tap-and-hold (swim) on one finger, so the
-     * two have to be told apart. A press becomes a swim only if the thumb has
-     * stayed put for a moment; a flick to look never does. Once it has become
-     * a swim it latches, so you can still steer while holding — swimming
-     * toward the light while keeping it at the edge of frame is the whole of
-     * Act 4, and it needs both at once. */
+    /* §6 puts look and swim on the same finger, so they have to be told apart:
+     * a thumb that is moving is looking, a thumb that has come to rest is
+     * swimming.
+     *
+     * This asks "has it moved much in the last moment", on a rolling window,
+     * rather than "has it moved much since it went down". The latter — the
+     * first version of this — could never be satisfied once the total passed
+     * the threshold, so a player who flicked to look and then held still sat
+     * there pressing forever and never moved. Once it latches it stays
+     * latched for the press, so you can steer while swimming: Act 4 is
+     * "swim toward the light while keeping it at the edge of frame". */
     if (this.pointerDown) {
       this.holdTime += dt;
-      if (!this._swimLatched && this.holdTime > 0.16 && this.dragDistance < 38) {
-        this._swimLatched = true;
+      this._holdWindow += dt;
+      if (this._holdWindow >= 0.16) {
+        if (this.dragDistance - this._dragAtWindow < 14) this._swimLatched = true;
+        this._dragAtWindow = this.dragDistance;
+        this._holdWindow = 0;
       }
     }
 
