@@ -133,10 +133,19 @@ class Game {
   async begin() {
     await this.overlay.waitForStart();
 
-    // Everything that needs a user gesture happens right here, in one go.
-    await this.audio.start();
-    this.controls.enableGyro();
-    this.controls.requestPointerLock();
+    /* Everything that needs a user gesture happens right here, in one go —
+     * and none of it is allowed to stop the level from starting. Audio, gyro
+     * and pointer lock are all routinely refused inside an embedded frame or
+     * on a locked-down browser; when that happens the player should get a
+     * silent game, not a loading screen that never goes away. */
+    try {
+      await this.audio.start();
+    } catch (err) {
+      this.audio.enabled = false;
+      console.warn('[4444] audio unavailable:', err);
+    }
+    try { this.controls.enableGyro(); } catch { /* no tilt control, fine */ }
+    try { this.controls.requestPointerLock(); } catch { /* mouse stays free */ }
     this.controls.enabled = true;
 
     this.overlay.hideBoot();
@@ -343,33 +352,58 @@ class Game {
 
 /* ------------------------------------------------------------------ boot */
 
+/** Puts a reason on screen instead of leaving the loading line up forever. */
 function fail(message, detail) {
+  const text = detail ? `${message} ${detail}` : message;
   const el = document.getElementById('boot');
   if (el) {
-    el.innerHTML = `<div class="boot-line">${message}</div>`
-      + (detail ? `<div class="boot-hint show">${detail}</div>` : '');
     el.classList.remove('gone');
     el.style.display = '';
+  }
+  if (window.__bootFail) {
+    window.__bootFail(text);
+  } else {
+    const box = document.getElementById('boot-error');
+    if (box) { box.textContent = text; box.classList.add('show'); }
   }
   // eslint-disable-next-line no-console
   console.error('[4444]', message, detail || '');
 }
 
-function hasWebGL() {
+/**
+ * Probes for a usable context and releases it again. Safari keeps a small
+ * pool of live WebGL contexts and will refuse the renderer's own request if
+ * this one is still holding a slot.
+ */
+function probeWebGL() {
   try {
     const c = document.createElement('canvas');
-    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (!gl) return false;
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return true;
   } catch { return false; }
 }
 
-if (!hasWebGL()) {
-  fail('Kein WebGL verfügbar.', 'Dieses Gerät oder dieser Browser kann das Level nicht darstellen.');
+if (!probeWebGL()) {
+  fail(
+    'Kein WebGL verfügbar.',
+    'Dieser Browser kann das Level nicht darstellen — bitte in Safari oder '
+    + 'Chrome direkt öffnen, nicht in einer App-Vorschau.',
+  );
 } else {
   try {
     const game = new Game();
     window.__level4444 = game;
-    game.begin().catch((err) => fail('Start fehlgeschlagen.', String(err && err.message || err)));
+
+    // A lost context on mobile is common enough to be worth naming.
+    game.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      fail('Grafikkontext verloren.', 'Seite neu laden.');
+    });
+
+    game.begin().catch((err) => fail('Start fehlgeschlagen —', String((err && err.message) || err)));
   } catch (err) {
-    fail('Start fehlgeschlagen.', String(err && err.message || err));
+    fail('Start fehlgeschlagen —', String((err && err.message) || err));
   }
 }

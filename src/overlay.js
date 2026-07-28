@@ -12,6 +12,7 @@ export class Overlay {
     this.root = root;
     this.boot = root.querySelector('#boot');
     this.bootHint = root.querySelector('#boot-hint');
+    this.bootError = root.querySelector('#boot-error');
     this.rec = root.querySelector('#rec');
     this.recTime = root.querySelector('#rec-time');
     this.endCard = root.querySelector('#end-card');
@@ -22,7 +23,14 @@ export class Overlay {
     this._flick = 0;
   }
 
-  /** Resolves on the first tap — the gesture that unlocks audio. */
+  /**
+   * Resolves on the first tap — the gesture that unlocks audio.
+   *
+   * Listens on the window as well as the overlay, and for touch as well as
+   * pointer events: inside an embedded frame a tap does not always arrive as
+   * the event you expect, and a start button that only sometimes works is
+   * worse than no start button.
+   */
   waitForStart() {
     return new Promise((resolve) => {
       let done = false;
@@ -30,14 +38,32 @@ export class Overlay {
         if (done) return;
         done = true;
         e?.preventDefault?.();
+        for (const [target, type] of bindings) target.removeEventListener(type, go);
         resolve();
       };
-      this.boot.addEventListener('pointerdown', go, { once: true });
-      this.boot.addEventListener('click', go, { once: true });
-      window.addEventListener('keydown', go, { once: true });
-      // The hint only appears if you hesitate. Nudge, not instruction.
-      setTimeout(() => { if (!done) this.bootHint.classList.add('show'); }, 2600);
+
+      const bindings = [
+        [this.boot, 'pointerdown'], [this.boot, 'touchstart'], [this.boot, 'click'],
+        [window, 'pointerdown'], [window, 'touchstart'], [window, 'click'],
+        [window, 'keydown'],
+      ];
+      for (const [target, type] of bindings) {
+        target.addEventListener(type, go, { passive: false });
+      }
+
+      // The hint appears quickly — it is also the only proof to a player that
+      // the page is alive at all before they touch it.
+      setTimeout(() => { if (!done) this.bootHint.classList.add('show'); }, 900);
     });
+  }
+
+  /** Something broke before the level could speak for itself. */
+  showError(message) {
+    if (window.__bootFail) { window.__bootFail(message); return; }
+    if (!this.bootError) return;
+    this.bootError.textContent = message;
+    this.bootError.classList.add('show');
+    this.bootHint?.classList.remove('show');
   }
 
   hideBoot() {

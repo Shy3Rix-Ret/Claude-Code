@@ -81,9 +81,22 @@
     letter-spacing: 0.34em;
     text-transform: uppercase;
     opacity: 0;
-    transition: opacity 2.4s ease-in-out;
+    transition: opacity 1.2s ease-in-out;
   }
   #boot-hint.show { opacity: 0.62; }
+
+  /* Shown only when something has gone wrong. A dead black screen tells the
+     player nothing; this tells them what broke and on which step. */
+  #boot-error {
+    color: #7d6a66;
+    font-size: clamp(0.60rem, 2.3vw, 0.72rem);
+    letter-spacing: 0.06em;
+    line-height: 1.7;
+    max-width: 34em;
+    opacity: 0;
+    transition: opacity 0.6s ease-in-out;
+  }
+  #boot-error.show { opacity: 0.85; }
 
   /* -------------------------------------------- the one title card (§2.4) */
 
@@ -162,6 +175,7 @@
 <div id="boot">
   <div class="boot-line">Halt still, wenn es dunkel wird.</div>
   <div id="boot-hint">Berühren zum Beginnen &middot; Kopfhörer empfohlen</div>
+  <div id="boot-error"></div>
 </div>
 
 <!-- §2.4 — appears once, for four seconds, and never again -->
@@ -171,6 +185,34 @@
 </div>
 
 <div id="end-card"><div id="end-text">LEVEL 2</div></div>
+
+<script>
+/* Boot trap. Runs before the game so it also catches a parse error in the
+ * bundle, which otherwise leaves nothing on screen but the loading line.
+ * This ships in the release build on purpose: the level is distributed as a
+ * link, and a player on a device I cannot test deserves a reason, not a
+ * black rectangle. */
+(function () {
+  var seen = false;
+  window.__bootFail = function (msg) {
+    if (seen) return;
+    seen = true;
+    var el = document.getElementById('boot-error');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    var hint = document.getElementById('boot-hint');
+    if (hint) hint.classList.remove('show');
+  };
+  window.addEventListener('error', function (e) {
+    window.__bootFail('Start fehlgeschlagen — ' + (e.message || 'unbekannter Fehler'));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e.reason;
+    window.__bootFail('Start fehlgeschlagen — ' + ((r && r.message) || r || 'unbekannter Fehler'));
+  });
+})();
+</script>
 
 <script type="importmap">
 {
