@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { QUALITY } from './config.js';
+import { PALETTE, QUALITY, SWIM } from './config.js';
 import { createState, PHASE } from './state.js';
 import { Controls } from './controls.js';
 import { Ocean } from './ocean.js';
@@ -80,6 +80,13 @@ class Game {
     this.skySystem = new Sky(this.scene, this.quality);
     this.ocean = new Ocean(this.scene, this.quality);
     this.motes = new Motes(this.scene, this.quality.motes);
+    /* Foam at the waterline. World-anchored, so it streams past as you move —
+     * in open fog it is the only thing that reads as forward motion. */
+    /* A tight box on purpose: only the first few metres of water are ever
+     * visible from 16cm above it, so the whole budget goes there. */
+    this.foam = new Motes(this.scene, Math.round(this.quality.motes * 0.8), 12, {
+      slab: 0.34, seed: 0x0f0a, sizeScale: 0.8, color: PALETTE.fogHigh,
+    });
     this.leviathan = new Leviathan(this.scene);
     this.beacon = new Beacon(this.scene);
     this.door = new Door(this.scene);
@@ -242,6 +249,7 @@ class Game {
     const apply = () => {
       this.post.setSize(w, h, this.pixelRatio);
       this.motes.material.uniforms.uPixelRatio.value = this.pixelRatio;
+      this.foam.material.uniforms.uPixelRatio.value = this.pixelRatio;
     };
 
     if (this._fps < 26) {
@@ -272,7 +280,7 @@ class Game {
       this.post.compositeMat.defines.MB_SAMPLES = 3;
       this.post.compositeMat.needsUpdate = true;
     } else if (step === 2) {
-      this.motes.points.visible = false;
+      this.motes.points.visible = false;   // foam stays: it is feedback, not decor
       this.skySystem.material.defines.SKY_OCT = 2;
       this.skySystem.material.needsUpdate = true;
     } else if (step === 3) {
@@ -325,8 +333,18 @@ class Game {
     const shakePitch = fbm1(t * 0.37 + sh + 31, 3) * 0.017 * amp;
     const shakeRoll  = fbm1(t * 0.29 + sh + 77, 3) * 0.030 * amp;
     // A slow vertical wallow on top of the actual wave height.
-    const bob = fbm1(t * 0.21 + sh + 5, 2) * 0.045 * amp
-              + Math.sin(t * 0.63) * 0.014 * amp;
+    let bob = fbm1(t * 0.21 + sh + 5, 2) * 0.045 * amp
+            + Math.sin(t * 0.63) * 0.014 * amp;
+
+    /* Stroke rhythm. Swimming in open water changes almost nothing you can
+     * see, so the motion has to be felt in the camera: a surge and a dip on
+     * every pull, scaled by how hard you are actually going. */
+    const swim01 = clamp(this.controls.velocity.length() / SWIM.maxSpeed, 0, 1);
+    if (swim01 > 0.01) {
+      this._stroke = (this._stroke || 0) + dt * (1.7 + swim01 * 1.1);
+      bob += Math.sin(this._stroke * Math.PI * 2) * 0.055 * swim01;
+      pitch += Math.sin(this._stroke * Math.PI * 2 + 1.1) * 0.022 * swim01;
+    }
 
     cam.position.set(
       p.x + fbm1(t * 0.19 + sh + 13, 2) * 0.05 * amp,
@@ -341,7 +359,11 @@ class Game {
     this.ocean.setBeaconPosition(beaconPos);
     this.ocean.update(s, cam);
     this.skySystem.update(s, cam);
-    this.motes.update(s, cam, this.pixelRatio);
+    const speed01 = clamp(this.controls.velocity.length() / SWIM.maxSpeed, 0, 1);
+    this.motes.update(s, cam, this.pixelRatio, speed01);
+    // Foam rides the surface under the camera, just above it so it is not
+    // swallowed by the opaque water.
+    this.foam.update(s, cam, this.pixelRatio, speed01, surface + 0.02);
     this.watchers.update(dt, s, cam, this.ocean);
     this.apparition.update(dt);
     this.leviathan.update(dt, s, cam);

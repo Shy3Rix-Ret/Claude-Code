@@ -21,6 +21,7 @@ uniform float uTime;
 uniform vec3  uCenter;
 uniform float uBox;
 uniform float uPixelRatio;
+uniform float uSlab;      // 1 = foam riding the surface, 0 = suspended cloud
 varying float vFade;
 varying float vDist;
 
@@ -28,11 +29,21 @@ void main(){
   // Wrap each mote into a box that follows the camera, so the cloud is endless.
   vec3 p = position;
   p.x += sin(uTime * 0.11 + aPhase * 6.28) * 0.35;
-  p.y += sin(uTime * 0.07 + aPhase * 12.9) * 0.28 - uTime * 0.045;
+  p.y += sin(uTime * 0.07 + aPhase * 12.9) * 0.28 * (1.0 - uSlab)
+       - uTime * 0.045 * (1.0 - uSlab);
   p.z += cos(uTime * 0.09 + aPhase * 9.4) * 0.35;
 
   vec3 rel = mod(p - uCenter + uBox * 0.5, uBox) - uBox * 0.5;
   vec3 world = uCenter + rel;
+
+  /* Foam has to sit on the water, and the water moves: the swell shifts the
+   * surface by nearly half a metre, so a slab pinned to absolute zero spends
+   * half its time underneath an opaque ocean, invisible. In slab mode the
+   * height comes straight from the surface instead of from the wrap. */
+  if (uSlab > 0.5) {
+    world.y = uCenter.y + p.y;
+    rel.y = 0.0;
+  }
 
   vec4 mv = viewMatrix * vec4(world, 1.0);
   vDist = -mv.z;
@@ -66,16 +77,24 @@ void main(){
 `;
 
 export class Motes {
-  constructor(scene, count, box = 26) {
-    const rng = makeRng(0x5c1e);
+  /**
+   * opts.slab flattens the cloud into a band around a height, which turns the
+   * same system into surface foam. Foam matters more than it sounds: in open
+   * fog with nothing inside the draw distance, specks streaming past the
+   * camera are the only thing that tells a player they are moving at all.
+   */
+  constructor(scene, count, box = 26, opts = {}) {
+    const rng = makeRng(opts.seed ?? 0x5c1e);
     const pos = new Float32Array(count * 3);
     const size = new Float32Array(count);
     const phase = new Float32Array(count);
     for (let i = 0; i < count; i++) {
       pos[i * 3] = (rng() - 0.5) * box;
-      pos[i * 3 + 1] = (rng() - 0.5) * box;
+      pos[i * 3 + 1] = opts.slab
+        ? (rng() - 0.5) * opts.slab
+        : (rng() - 0.5) * box;
       pos[i * 3 + 2] = (rng() - 0.5) * box;
-      size[i] = 0.4 + rng() * rng() * 2.6;
+      size[i] = (0.4 + rng() * rng() * 2.6) * (opts.sizeScale ?? 1);
       phase[i] = rng();
     }
     const geo = new THREE.BufferGeometry();
@@ -90,7 +109,8 @@ export class Motes {
         uCenter:     { value: new THREE.Vector3() },
         uBox:        { value: box },
         uPixelRatio: { value: 1 },
-        uColor:      { value: new THREE.Color(PALETTE.fogLow) },
+        uSlab:       { value: opts.slab ? 1 : 0 },
+        uColor:      { value: new THREE.Color(opts.color ?? PALETTE.fogLow) },
         uOpacity:    { value: 0 },
         uFogLow:     { value: new THREE.Color(PALETTE.fogLow) },
         uFogHigh:    { value: new THREE.Color(PALETTE.fogHigh) },
@@ -110,11 +130,12 @@ export class Motes {
     this.points.frustumCulled = false;
     scene.add(this.points);
 
-    this._colorAbove = new THREE.Color(PALETTE.fogLow);
+    this._colorAbove = new THREE.Color(opts.color ?? PALETTE.fogLow);
     this._colorBelow = new THREE.Color(PALETTE.fogHigh).multiplyScalar(1.25);
+    this._opts = opts;
   }
 
-  update(state, camera, pixelRatio) {
+  update(state, camera, pixelRatio, speed01 = 0, surfaceY = 0) {
     const u = this.material.uniforms;
     u.uTime.value = state.time;
     u.uCenter.value.copy(camera.position);
@@ -122,10 +143,17 @@ export class Motes {
     u.uFogNear.value = state.fogNear;
     u.uFogFar.value = state.fogFar;
     u.uUnderwater.value = state.submersion;
-    // Almost nothing above the surface; unavoidable once you are under it.
-    u.uOpacity.value = 0.022 + state.submersion * 0.90;
-    // Under the surface they are the only thing catching any light at all.
-    u.uColor.value.copy(this._colorAbove).lerp(this._colorBelow, state.submersion);
+
+    if (this._opts.slab) {
+      // Follows the camera horizontally, rides the real waterline vertically,
+      // and only shows up once you are disturbing it.
+      u.uCenter.value.y = surfaceY;
+      u.uOpacity.value = (0.05 + 0.50 * speed01) * (1 - state.submersion * 0.55);
+    } else {
+      // Almost nothing above the surface; unavoidable once you are under it.
+      u.uOpacity.value = 0.022 + state.submersion * 0.90;
+      u.uColor.value.copy(this._colorAbove).lerp(this._colorBelow, state.submersion);
+    }
   }
 
   dispose() { this.points.geometry.dispose(); this.material.dispose(); }

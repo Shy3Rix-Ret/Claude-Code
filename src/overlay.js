@@ -91,12 +91,13 @@ export class Overlay {
     // Cheap tube flicker: mostly on, occasionally not.
     this._flick -= dt;
     if (this._flick <= 0) {
-      this.rec.style.opacity = Math.random() < 0.12 ? '0.28' : '0.82';
+      this.rec.style.setProperty('--rec-flicker', Math.random() < 0.12 ? '0.28' : '0.82');
       this._flick = 0.04 + Math.random() * 0.22;
     }
 
     if (this._recT > 4.0) {
       this.rec.classList.remove('show');
+      this.rec.style.removeProperty('--rec-flicker');
       this._recVisible = false;
     }
   }

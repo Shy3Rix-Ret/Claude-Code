@@ -115,7 +115,11 @@
     text-shadow: 0 0 6px rgba(0,0,0,0.85), 0 0 22px rgba(0,0,0,0.6);
     mix-blend-mode: screen;
   }
-  #rec.show { opacity: 0.82; }
+  /* The flicker drives a variable, not `opacity` directly. Writing opacity
+     inline outranks this rule, so removing `.show` could not hide the stamp:
+     it stayed on screen for the rest of the run with a frozen timecode, which
+     reads exactly like a game that has hung. */
+  #rec.show { opacity: var(--rec-flicker, 0.82); }
 
   #rec .dot {
     color: #d24a3a;

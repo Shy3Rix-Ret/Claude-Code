@@ -110,10 +110,14 @@ export const WATCHERS = {
 
 /* --------------------------------------------------------------- movement */
 export const SWIM = {
-  maxSpeed:  1.15,   // m/s — slow, exhausting
+  /* In open fog with no landmark inside 50m, 1.15 m/s is invisible: the player
+   * holds the screen, the world does not appear to change, and they conclude
+   * the control is broken. Still slow and still exhausting, but now fast
+   * enough to see. */
+  maxSpeed:  2.0,
   // Terminal speed is accel/drag, so this has to exceed maxSpeed*drag or the
   // clamp never comes into play and swimming is quietly slower than stated.
-  accel:     0.78,
+  accel:     1.45,
   drag:      0.62,
   driftSpeed: 0.055, // the ocean always moves you a little, even at rest
 
