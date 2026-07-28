@@ -256,12 +256,27 @@ export class Director {
 
   /* ---------------------------------------------------------- §2.1 */
 
+  /** True only when sound is actually reaching the player. */
+  audioAudible() {
+    const a = this.g.audio;
+    return !!(a && a.enabled && a.ready && a.ctx && a.ctx.state === 'running');
+  }
+
   coldOpen(dt) {
     const s = this.state;
     s.fade = 1;
     s.exposure = 1;
-    s.grain = 0;
-    if (s.phaseT >= SCRIPT.COLD_OPEN) this.setPhase(PHASE.WAKE);
+
+    /* §2.1 is fifteen seconds of black carried entirely by sound. Silent, it
+     * is not a cold open — it is a broken page, and the player closes the tab
+     * before the level has begun. So the length is conditional on audio
+     * actually playing, re-checked each frame in case it is granted late. */
+    const duration = this.audioAudible() ? SCRIPT.COLD_OPEN : 2.4;
+
+    // The camera is running even while there is nothing to see (§5).
+    s.grain = POST.grainBase * 0.8;
+
+    if (s.phaseT >= duration) this.setPhase(PHASE.WAKE);
   }
 
   /* ---------------------------------------------------------- §2.2 */
@@ -271,15 +286,22 @@ export class Director {
     const { audio, controls } = this.g;
     const t = s.phaseT;
 
-    // "extrem langsam" — the fade takes most of the phase, in three stages so
-    // the elements arrive one at a time rather than all at once.
+    /* "extrem langsam" — the fade takes most of the phase, in three stages so
+     * the elements arrive one at a time rather than all at once.
+     *
+     * The first stage is faster than the rest on purpose. An earlier curve
+     * left the frame 80% black half a minute in, and a player who has just
+     * tapped a link has no way to tell a very slow reveal from a broken page;
+     * they close the tab before the level exists. Something faint has to be
+     * on screen within a few seconds. The full reveal still takes the whole
+     * phase — it is the floor that moved, not the ceiling. */
     let fade;
-    if (t < 7)       fade = lerp(1.00, 0.78, easeInOut(t / 7));
-    else if (t < 17) fade = lerp(0.78, 0.14, easeInOut((t - 7) / 10));
-    else             fade = lerp(0.14, 0.00, easeInOut(saturate((t - 17) / 8)));
+    if (t < 5)       fade = lerp(1.00, 0.55, easeInOut(t / 5));
+    else if (t < 16) fade = lerp(0.55, 0.12, easeInOut((t - 5) / 11));
+    else             fade = lerp(0.12, 0.00, easeInOut(saturate((t - 16) / 10)));
     s.fade = fade;
 
-    s.grain = POST.grainBase * saturate(t / 6);
+    s.grain = POST.grainBase * (0.8 + 0.2 * saturate(t / 6));
     s.ambienceLevel = saturate(t / 9);
     s.rumbleLevel = 0.05 * saturate((t - 12) / 10);
 
@@ -698,5 +720,7 @@ export class Director {
     const s = this.state;
     s.fade = 1;
     s.submersion = 0;
+    // The cut to black is final. The camera is not running any more (§4).
+    s.grain = 0;
   }
 }

@@ -324,6 +324,42 @@ class Game {
   render() {
     this.post.renderScene(this.scene, this.camera);
     this.post.present(this.state, this._motion.x, this._motion.y);
+    this._checkPicture();
+  }
+
+  /**
+   * Reads back a few pixels once, at the point in the prologue where the fade
+   * has lifted and the ocean must be on screen. A renderer that produces
+   * nothing looks exactly like a level that is meant to be dark, and on a
+   * device I cannot attach a debugger to that difference is invisible — so
+   * the level checks for itself and says so.
+   */
+  _checkPicture() {
+    if (this._pictureChecked) return;
+    const s = this.state;
+    if (s.fade > 0.25 || s.frame < 60) return;
+    this._pictureChecked = true;
+
+    try {
+      const gl = this.renderer.getContext();
+      const w = 8, h = 8;
+      const px = new Uint8Array(w * h * 4);
+      gl.readPixels(
+        Math.max(0, (gl.drawingBufferWidth >> 1) - 4),
+        Math.max(0, (gl.drawingBufferHeight >> 1) - 4),
+        w, h, gl.RGBA, gl.UNSIGNED_BYTE, px,
+      );
+      let peak = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        peak = Math.max(peak, px[i], px[i + 1], px[i + 2]);
+      }
+      if (peak < 6) {
+        this.overlay.showError(
+          'Die Grafik liefert kein Bild — dieser Browser stellt das Level nicht dar. '
+          + 'Bitte die Seite direkt in Safari oder Chrome öffnen.',
+        );
+      }
+    } catch { /* readback refused; not worth failing over */ }
   }
 
   /* ---------------------------------------------------------------- debug */

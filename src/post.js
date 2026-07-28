@@ -159,11 +159,16 @@ void main(){
   float vig = smoothstep(1.06, 0.30, vr);
   col *= mix(1.0, vig, uVignette);
 
-  /* --- grain: heavier in the shadows, like a pushed sensor --- */
-  float g = hash12(vUv * uResolution + fract(uTime * 37.0) * 733.0);
-  col += (g - 0.5) * uGrain * mix(1.0, 0.42, clamp(lum * 2.2, 0.0, 1.0));
-
   col *= 1.0 - uFade;
+
+  /* --- grain: heavier in the shadows, like a pushed sensor ---
+   * Applied after the fade, because grain belongs to the sensor and not to
+   * the scene. It is also the only thing on screen during the cold open (§2.1)
+   * that tells a player the camera is still running — fifteen seconds of
+   * mathematically pure black is indistinguishable from a crash. */
+  float glum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  float g = hash12(vUv * uResolution + fract(uTime * 37.0) * 733.0);
+  col += (g - 0.5) * uGrain * mix(1.0, 0.42, clamp(glum * 2.2, 0.0, 1.0));
 
   gl_FragColor = vec4(max(col, 0.0), 1.0);
 }
@@ -180,8 +185,20 @@ export class PostStack {
     this.quad.frustumCulled = false;
     this.scene.add(this.quad);
 
-    const caps = renderer.capabilities;
-    this.hdrType = caps.isWebGL2 ? THREE.HalfFloatType : THREE.UnsignedByteType;
+    /* Half-float buffers keep highlights above 1.0 alive for the bloom pass,
+     * but rendering *into* one needs a colour-buffer extension that not every
+     * mobile driver exposes. Where it is missing the framebuffer comes back
+     * incomplete and every pass reads black — so ask, rather than assume, and
+     * fall back to 8-bit with the bloom threshold pulled under 1.0 to
+     * compensate for the lost headroom. */
+    const gl = renderer.getContext();
+    const canRenderHalfFloat = renderer.capabilities.isWebGL2
+      ? !!(gl.getExtension('EXT_color_buffer_half_float')
+        || gl.getExtension('EXT_color_buffer_float'))
+      : !!gl.getExtension('EXT_color_buffer_half_float');
+
+    this.hdrType = canRenderHalfFloat ? THREE.HalfFloatType : THREE.UnsignedByteType;
+    this.hdr = canRenderHalfFloat;
 
     const rtOpts = {
       minFilter: THREE.LinearFilter,
@@ -203,7 +220,9 @@ export class PostStack {
     this.brightMat = new THREE.ShaderMaterial({
       uniforms: {
         tSrc: { value: null },
-        uThreshold: { value: POST.bloomThreshold },
+        // Without HDR headroom everything above 1.0 has already been clipped,
+        // so the bright pass has to reach lower to find anything to bloom.
+        uThreshold: { value: this.hdr ? POST.bloomThreshold : POST.bloomThreshold * 0.62 },
         uKnee: { value: POST.bloomKnee },
       },
       vertexShader: FULLSCREEN_VS,

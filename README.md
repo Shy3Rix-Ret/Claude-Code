@@ -95,8 +95,8 @@ tools/build.mjs     Single-File-Build
 
 | Phase | Dauer | |
 |---|---|---|
-| Cold Open | 0:15 | schwarz, nur Ton, dann 1,5 s absolute Stille (§2.1) |
-| Erwachen | 0:30 | Aufblende in drei Stufen, Atem beruhigt sich (§2.2) |
+| Cold Open | 0:15 | schwarz, nur Ton, dann 1,5 s absolute Stille (§2.1). Ohne Audio auf 2,4 s verkürzt — stumm ist derselbe Bildschirm kein Cold Open, sondern eine kaputte Seite |
+| Erwachen | 0:30 | Aufblende in drei Stufen, erstes schwaches Bild nach ~3 s, Atem beruhigt sich (§2.2) |
 | Establishing Shot | 0:30 | 180°-Schwenk ohne Input, endet auf dem Licht (§2.3) |
 | Akt 1 — Das Treiben | ~3:30 | Leere. Beobachter weit weg, verschwinden bei Blickkontakt |
 | Akt 2 — Die Präsenz | ~3:45 | sie kommen näher, das Licht kehrt zurück |
@@ -136,6 +136,24 @@ Beides ist umgesetzt: man erhascht ihn im Prolog, in Akt 1 verschwindet er
 vollständig, in Akt 2 kommt er zurück und bleibt. Damit wird das Licht zur
 selben Frage wie die Beobachter — *habe ich das gesehen oder nicht* — angewendet
 auf das einzige Element im Bild, dem man vertrauen möchte.
+
+## Wenn etwas nicht startet
+
+Das Level wird als Link weitergegeben, also muss es sich auf Geräten erklären
+können, an die kein Debugger kommt. Fehler landen sichtbar auf dem
+Ladebildschirm statt in einer Konsole, die niemand öffnet:
+
+- Ein Fehler-Trap läuft **vor** dem Bundle und fängt auch einen Parse-Fehler
+  im Spielcode ab.
+- Ton, Gyroskop und Pointer-Lock dürfen einzeln fehlschlagen, ohne den Start
+  aufzuhalten. `AudioContext.resume()` bekommt eine Frist statt eines offenen
+  `await` — iOS lehnt im iframe nicht ab, sondern lässt das Promise ewig
+  offen, und ein Start, der darauf wartet, kommt nie zurück.
+- Nach der Aufblende liest das Level einmal ein paar Pixel zurück. Kommt kein
+  Bild, sagt es das, statt schwarz zu bleiben — ein toter Renderer sieht
+  sonst exakt aus wie eine Szene, die dunkel sein soll.
+- Halbfloat-Puffer werden abgefragt, nicht angenommen; fehlt die Erweiterung,
+  läuft der Post-Stack in 8 Bit mit abgesenkter Bloom-Schwelle.
 
 ## Performance
 
