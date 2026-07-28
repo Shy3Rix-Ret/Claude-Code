@@ -74,7 +74,18 @@ export class AudioEngine {
 
     const ctx = new AC({ latencyHint: 'interactive' });
     this.ctx = ctx;
-    try { await ctx.resume(); } catch { /* handled by the gesture that called us */ }
+
+    /* iOS does not reject resume() when it will not grant audio — inside an
+     * embedded frame the promise simply stays pending forever. Anything that
+     * awaits it never continues, so it gets a hard deadline and we carry on
+     * without sound if it misses. unlockOnGesture() picks it up later if the
+     * browser changes its mind. */
+    try {
+      await Promise.race([
+        ctx.resume(),
+        new Promise((r) => setTimeout(r, 700)),
+      ]);
+    } catch { /* refused outright — the level runs silent */ }
 
     /* ---------------- master chain ---------------- */
     this.master = ctx.createGain();
@@ -138,7 +149,42 @@ export class AudioEngine {
     this.heartRate = 1.15;
 
     this.master.gain.setTargetAtTime(1, ctx.currentTime, 0.4);
+
+    this.unlockOnGesture();
+
+    // The cold open may have been requested while the graph was still being
+    // built. Play it if it is still roughly in sync with the picture (§2.1);
+    // arriving late is worse than not arriving.
+    if (this._pendingCold) {
+      const late = performance.now() - this._pendingColdAt;
+      this._pendingCold = false;
+      if (late < 2500) this.playColdOpen();
+    }
     return true;
+  }
+
+  /**
+   * Some browsers only grant audio on a later gesture than the first one, and
+   * a tab returning from the background can leave the context suspended. Keep
+   * trying quietly until it runs, then stop listening.
+   */
+  unlockOnGesture() {
+    if (!this.ctx || this._unlockBound) return;
+    this._unlockBound = true;
+
+    const tryResume = () => {
+      if (!this.ctx) return;
+      if (this.ctx.state === 'running') { detach(); return; }
+      this.ctx.resume().then(() => {
+        if (this.ctx.state === 'running') detach();
+      }).catch(() => { /* still not allowed; try again next time */ });
+    };
+    const events = ['pointerdown', 'touchstart', 'keydown'];
+    const detach = () => {
+      for (const e of events) window.removeEventListener(e, tryResume);
+      this._unlockBound = false;
+    };
+    for (const e of events) window.addEventListener(e, tryResume, { passive: true });
   }
 
   /* ------------------------------------------------------------ ambience */
@@ -356,7 +402,11 @@ export class AudioEngine {
 
   /** §2.1 — 13.5s of a remembered room, then something takes you. */
   playColdOpen() {
-    if (!this.ready) { this._pendingCold = true; return; }
+    if (!this.ready) {
+      this._pendingCold = true;
+      this._pendingColdAt = performance.now();
+      return;
+    }
     const ctx = this.ctx, t = ctx.currentTime;
 
     this.coldBus.gain.setValueAtTime(0.0001, t);

@@ -20,18 +20,29 @@ import { Director, SINK_DEPTH } from './director.js';
 import { makeDropletTexture } from './materials.js';
 import { clamp, damp, fbm1, lerp } from './util.js';
 
-/** Rough device probe. Errs toward "medium" — a stable 30fps beats a pretty 12. */
+/**
+ * Rough device probe, deciding scene detail only.
+ *
+ * Resolution is deliberately not part of this decision: the frame-rate loop
+ * adapts pixel ratio continuously and does it better than a guess at load
+ * time. An earlier version dropped any phone with a dense screen to the
+ * lowest tier, which demoted exactly the current flagships — the ones that
+ * can afford the detail — because their pixel count looked alarming.
+ *
+ * navigator.deviceMemory is Chromium-only, so on Safari it must never be the
+ * thing that decides.
+ */
 function pickQuality() {
-  const ua = navigator.userAgent;
-  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-  const cores = navigator.hardwareConcurrency || (mobile ? 4 : 8);
-  const mem = navigator.deviceMemory || (mobile ? 4 : 8);
-  const px = window.devicePixelRatio || 1;
-  const wide = Math.max(window.innerWidth, window.innerHeight) * px;
+  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
+  const cores = navigator.hardwareConcurrency || (mobile ? 6 : 8);
+  const mem = navigator.deviceMemory;   // undefined on Safari — treat as unknown
 
-  if (!mobile && cores >= 8 && mem >= 8) return { name: 'high', ...QUALITY.high };
-  if (mobile && (cores <= 4 || mem <= 3 || wide > 2400)) return { name: 'low', ...QUALITY.low };
-  if (cores <= 4 || mem <= 4) return { name: 'low', ...QUALITY.low };
+  const weak = cores <= 4 || (mem !== undefined && mem <= 3);
+  if (weak) return { name: 'low', ...QUALITY.low };
+  if (!mobile && cores >= 8 && (mem === undefined || mem >= 8)) {
+    return { name: 'high', ...QUALITY.high };
+  }
   return { name: 'medium', ...QUALITY.medium };
 }
 
@@ -133,17 +144,32 @@ class Game {
   async begin() {
     await this.overlay.waitForStart();
 
+    /* Last line of defence. If anything below still manages to stall, the
+     * player gets a sentence rather than a loading screen that never moves. */
+    const watchdog = setTimeout(() => {
+      if (this.state.frame === 0) {
+        this.overlay.showError('Start hängt fest — bitte die Seite neu laden.');
+      }
+    }, 6000);
+
     /* Everything that needs a user gesture happens right here, in one go —
-     * and none of it is allowed to stop the level from starting. Audio, gyro
-     * and pointer lock are all routinely refused inside an embedded frame or
-     * on a locked-down browser; when that happens the player should get a
-     * silent game, not a loading screen that never goes away. */
-    try {
-      await this.audio.start();
-    } catch (err) {
+     * and none of it may stop the level from starting.
+     *
+     * Audio in particular gets a deadline rather than an await. On iOS inside
+     * an embedded frame the audio graph can take an unbounded time to come up,
+     * without ever failing, and a start path that waits on it leaves the
+     * loading screen on screen forever. Give it a moment so the cold open
+     * lands in sync on devices where it works, then go regardless; the engine
+     * joins late or not at all, and the level plays either way. */
+    const audioReady = this.audio.start().catch((err) => {
       this.audio.enabled = false;
       console.warn('[4444] audio unavailable:', err);
-    }
+    });
+    await Promise.race([
+      audioReady,
+      new Promise((r) => setTimeout(r, 1200)),
+    ]);
+
     try { this.controls.enableGyro(); } catch { /* no tilt control, fine */ }
     try { this.controls.requestPointerLock(); } catch { /* mouse stays free */ }
     this.controls.enabled = true;
@@ -161,6 +187,7 @@ class Game {
       if (target) this._jumpTo(target);
     }
 
+    clearTimeout(watchdog);
     this._last = performance.now();
     this._loop(this._last);
   }
