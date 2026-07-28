@@ -41,6 +41,7 @@ export class Controls {
     this._activePointer = null;
     this._last = { x: 0, y: 0 };
     this._keys = new Set();
+    this._swimLatched = false;
 
     this._bind();
   }
@@ -55,6 +56,7 @@ export class Controls {
       this.pointerDown = true;
       this.holdTime = 0;
       this.dragDistance = 0;
+      this._swimLatched = false;
       this._last.x = e.clientX;
       this._last.y = e.clientY;
       try { dom.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
@@ -79,8 +81,9 @@ export class Controls {
       }
 
       this.dragDistance += Math.hypot(dx, dy);
-      this.targetYaw -= dx * LOOK.sensitivity;
-      this.targetPitch -= dy * LOOK.sensitivity;
+      const sens = LOOK.sensitivity * (e.pointerType === 'mouse' ? 1 : LOOK.touchScale);
+      this.targetYaw -= dx * sens;
+      this.targetPitch -= dy * sens;
       this.targetPitch = clamp(this.targetPitch, -LOOK.pitchClamp, LOOK.pitchClamp);
       if (Math.abs(dx) + Math.abs(dy) > 0.5) this.idleTime = 0;
     };
@@ -89,6 +92,7 @@ export class Controls {
       if (e.pointerId !== this._activePointer) return;
       this._activePointer = null;
       this.pointerDown = false;
+      this._swimLatched = false;
       try { dom.releasePointerCapture(e.pointerId); } catch { /* fine */ }
     };
 
@@ -199,13 +203,21 @@ export class Controls {
     this.lastPitchDelta = dPitch;
 
     /* ---- swim ---- */
-    if (this.pointerDown) this.holdTime += dt;
+    /* §6 separates drag (look) from tap-and-hold (swim) on one finger, so the
+     * two have to be told apart. A press becomes a swim only if the thumb has
+     * stayed put for a moment; a flick to look never does. Once it has become
+     * a swim it latches, so you can still steer while holding — swimming
+     * toward the light while keeping it at the edge of frame is the whole of
+     * Act 4, and it needs both at once. */
+    if (this.pointerDown) {
+      this.holdTime += dt;
+      if (!this._swimLatched && this.holdTime > 0.16 && this.dragDistance < 38) {
+        this._swimLatched = true;
+      }
+    }
 
     const keyForward = this._keys.has('KeyW') || this._keys.has('ArrowUp') || this._keys.has('Space');
-    // A press only counts as "swim" once it has been held a moment — otherwise
-    // every look-drag would shove you forward.
-    const holdSwim = this.pointerDown && this.holdTime > 0.13;
-    const wantSwim = (holdSwim || keyForward) && state.swimEnabled;
+    const wantSwim = (this._swimLatched || keyForward) && state.swimEnabled;
 
     this.swimInput = damp(this.swimInput, wantSwim ? 1 : 0, 6, dt);
     state.swimming = wantSwim;

@@ -57,9 +57,17 @@ prozedural im Code.
 | Tippen und halten | vorwärts schwimmen |
 | Loslassen | stillhalten — **in Akt 3 ist das die Mechanik** |
 
-Am Handy zusätzlich Gyroskop, falls das Gerät es erlaubt (die Abfrage passiert
-beim ersten Tippen, zusammen mit der Audio-Freigabe). Am PC: Maus für den
-Blick, `W` / Leertaste / linke Maustaste zum Schwimmen.
+Beides teilt sich einen Finger, also müssen sie unterschieden werden: ein
+Wisch dreht nur den Blick, ein Druck, der kurz liegen bleibt, wird zum
+Schwimmen — und rastet dann ein, sodass man weiter lenken kann, ohne
+loszulassen. Akt 4 braucht genau das gleichzeitig. Touch bekommt eine höhere
+Blickempfindlichkeit als die Maus; ein Daumen hat weniger Weg.
+
+Am Handy zusätzlich Gyroskop, falls das Gerät es erlaubt. Die Freigabe wird
+**innerhalb** der Berührung angefragt — iOS lehnt sonst stillschweigend ab.
+Im iframe ist der Sensor meist ohnehin gesperrt; direkt im Browser geöffnet
+funktioniert er. Am PC: Maus für den Blick, `W` / Leertaste / linke
+Maustaste zum Schwimmen.
 
 Kein HUD, keine Buttons, kein Pausemenü. **Kopfhörer werden dringend
 empfohlen** — ein großer Teil des Sounddesigns liegt unter dem, was ein

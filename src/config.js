@@ -139,6 +139,10 @@ export const DOOR = {
 /* ------------------------------------------------------------ look/camera */
 export const LOOK = {
   sensitivity: 0.0026,   // radians per CSS pixel
+  /* A thumb has far less room than a mouse: at the base rate a full-width
+   * swipe on a phone turns you only 60°, so looking behind you takes three
+   * strokes. Touch gets its own multiplier. */
+  touchScale: 1.5,
   pitchClamp: 1.32,      // ~75.6°, you can look up at the fog but not fold over
   smoothing: 18,         // exponential damping rate
   gyroBlend: 1.0,

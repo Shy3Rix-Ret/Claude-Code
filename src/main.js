@@ -142,7 +142,12 @@ class Game {
   }
 
   async begin() {
-    await this.overlay.waitForStart();
+    await this.overlay.waitForStart(() => {
+      /* Tilt control has to be asked for from inside the gesture. Requesting
+       * it after the audio await — where it used to live — meant iOS refused
+       * silently and the phone never got its motion controls at all. */
+      try { this.controls.enableGyro(); } catch { /* no tilt control, fine */ }
+    });
 
     /* Last line of defence. If anything below still manages to stall, the
      * player gets a sentence rather than a loading screen that never moves. */
@@ -170,7 +175,6 @@ class Game {
       new Promise((r) => setTimeout(r, 1200)),
     ]);
 
-    try { this.controls.enableGyro(); } catch { /* no tilt control, fine */ }
     try { this.controls.requestPointerLock(); } catch { /* mouse stays free */ }
     this.controls.enabled = true;
 

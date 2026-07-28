@@ -31,7 +31,7 @@ export class Overlay {
    * the event you expect, and a start button that only sometimes works is
    * worse than no start button.
    */
-  waitForStart() {
+  waitForStart(onGesture) {
     return new Promise((resolve) => {
       let done = false;
       const go = (e) => {
@@ -39,6 +39,10 @@ export class Overlay {
         done = true;
         e?.preventDefault?.();
         for (const [target, type] of bindings) target.removeEventListener(type, go);
+        // Runs synchronously, while the gesture is still live. iOS only grants
+        // motion access from inside the handler itself; one await later and
+        // the prompt never appears.
+        try { onGesture?.(e); } catch { /* optional extras may refuse */ }
         resolve();
       };
 
