@@ -211,6 +211,20 @@
   window.addEventListener('error', function (e) {
     window.__bootFail('Start fehlgeschlagen — ' + (e.message || 'unbekannter Fehler'));
   });
+  /* Capture phase, because a script or module that fails to load fires its
+   * error on the element and never reaches the handler above. Double-clicking
+   * this file is the common way to hit that: browsers refuse ES modules over
+   * file:// on CORS grounds, and the page just sits there saying nothing. */
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target !== window && e.target.tagName === 'SCRIPT') {
+      window.__bootFail(
+        'Diese Datei kann nicht direkt vom Dateisystem geöffnet werden — '
+        + 'Browser verbieten ES-Module über file://. '
+        + 'Nimm dist/level-4444.html (eine einzige Datei, läuft per Doppelklick) '
+        + 'oder starte einen Server: node tools/serve.mjs',
+      );
+    }
+  }, true);
   window.addEventListener('unhandledrejection', function (e) {
     var r = e.reason;
     window.__bootFail('Start fehlgeschlagen — ' + ((r && r.message) || r || 'unbekannter Fehler'));
