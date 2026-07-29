@@ -21,26 +21,21 @@ import { makeDropletTexture } from './materials.js';
 import { clamp, damp, fbm1, lerp } from './util.js';
 
 /**
- * Rough device probe, deciding scene detail only.
+ * Rough opening guess at scene detail. Resolution is deliberately not part of
+ * it — the frame-rate loop adapts pixel ratio continuously and does that
+ * better than anything decidable at load time.
  *
- * Resolution is deliberately not part of this decision: the frame-rate loop
- * adapts pixel ratio continuously and does it better than a guess at load
- * time. An earlier version dropped any phone with a dense screen to the
- * lowest tier, which demoted exactly the current flagships — the ones that
- * can afford the detail — because their pixel count looked alarming.
- *
- * navigator.deviceMemory is Chromium-only, so on Safari it must never be the
- * thing that decides.
+ * navigator.deviceMemory is Chromium-only, so it must never be the deciding
+ * vote; on Safari and Firefox it simply is not there.
  */
 function pickQuality() {
-  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-    || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
-  const cores = navigator.hardwareConcurrency || (mobile ? 6 : 8);
-  const mem = navigator.deviceMemory;   // undefined on Safari — treat as unknown
+  const cores = navigator.hardwareConcurrency || 8;
+  const mem = navigator.deviceMemory;   // undefined outside Chromium
 
-  const weak = cores <= 4 || (mem !== undefined && mem <= 3);
-  if (weak) return { name: 'low', ...QUALITY.low };
-  if (!mobile && cores >= 8 && (mem === undefined || mem >= 8)) {
+  if (cores <= 4 || (mem !== undefined && mem <= 3)) {
+    return { name: 'low', ...QUALITY.low };
+  }
+  if (cores >= 8 && (mem === undefined || mem >= 8)) {
     return { name: 'high', ...QUALITY.high };
   }
   return { name: 'medium', ...QUALITY.medium };
@@ -139,8 +134,11 @@ class Game {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.camera.aspect = w / h;
-    // Portrait phones need a wider vertical field or the frame feels like a slot.
-    this.camera.fov = h > w ? 78 : 68;
+    // Keep the horizontal field constant across window shapes, so a wide
+    // monitor shows more sea rather than a cropped strip of it.
+    const hFov = 92 * (Math.PI / 180);
+    this.camera.fov = 2 * Math.atan(Math.tan(hFov / 2) / Math.max(w / h, 0.6))
+                    * (180 / Math.PI);
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(w, h, false);
@@ -150,10 +148,8 @@ class Game {
 
   async begin() {
     await this.overlay.waitForStart(() => {
-      /* Tilt control has to be asked for from inside the gesture. Requesting
-       * it after the audio await — where it used to live — meant iOS refused
-       * silently and the phone never got its motion controls at all. */
-      try { this.controls.enableGyro(); } catch { /* no tilt control, fine */ }
+      // Capture the pointer from inside the gesture; browsers refuse it later.
+      try { this.controls.requestPointerLock(); } catch { /* drag fallback */ }
     });
 
     /* Last line of defence. If anything below still manages to stall, the
@@ -182,7 +178,6 @@ class Game {
       new Promise((r) => setTimeout(r, 1200)),
     ]);
 
-    try { this.controls.requestPointerLock(); } catch { /* mouse stays free */ }
     this.controls.enabled = true;
 
     this.overlay.hideBoot();

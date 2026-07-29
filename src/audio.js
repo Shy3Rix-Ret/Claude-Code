@@ -179,7 +179,7 @@ export class AudioEngine {
         if (this.ctx.state === 'running') detach();
       }).catch(() => { /* still not allowed; try again next time */ });
     };
-    const events = ['pointerdown', 'touchstart', 'keydown'];
+    const events = ['mousedown', 'keydown'];
     const detach = () => {
       for (const e of events) window.removeEventListener(e, tryResume);
       this._unlockBound = false;

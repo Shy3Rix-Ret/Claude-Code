@@ -41,9 +41,9 @@ und CSS an, führen aber kein JavaScript aus. Man sieht dann nur die
 Ladezeile und sonst nichts. Das ist keine kaputte Datei — die Seite gehört
 in einen echten Browser.
 
-Im iframe (also auch im Artifact) ist das Gyroskop in der Regel gesperrt;
-die Steuerung fällt sauber auf Ziehen zurück. Für die volle Fassung
-inklusive Neigungssteuerung die Datei direkt im Browser öffnen.
+Im Artifact läuft das Level in einem iframe, der den Pointer-Lock oft
+verweigert; die Steuerung fällt dann auf Klicken-und-Ziehen zurück. Direkt
+geöffnet greift der Lock, und `F11` macht es Vollbild.
 
 Three.js liegt unter `vendor/` im Repo. Es gibt keine Laufzeit-Abhängigkeiten
 und keine Assets: jede Textur, jeder Ton und jedes Modell entsteht beim Start
@@ -51,27 +51,25 @@ prozedural im Code.
 
 ## Steuerung (§6)
 
+Desktop, Maus und Tastatur. Es gibt keine Touch- oder Neigungssteuerung.
+
 | | |
 |---|---|
-| Ziehen / Maus | Blickrichtung |
-| Tippen und halten | vorwärts schwimmen |
+| Maus | Blickrichtung |
+| `W` / `↑` / Leertaste | vorwärts schwimmen |
+| Linke Maustaste | ebenfalls schwimmen, sobald der Zeiger gefangen ist |
 | Loslassen | stillhalten — **in Akt 3 ist das die Mechanik** |
 
-Beides teilt sich einen Finger, also müssen sie unterschieden werden: ein
-Wisch dreht nur den Blick, ein Druck, der kurz liegen bleibt, wird zum
-Schwimmen — und rastet dann ein, sodass man weiter lenken kann, ohne
-loszulassen. Akt 4 braucht genau das gleichzeitig. Touch bekommt eine höhere
-Blickempfindlichkeit als die Maus; ein Daumen hat weniger Weg.
-
-Am Handy zusätzlich Gyroskop, falls das Gerät es erlaubt. Die Freigabe wird
-**innerhalb** der Berührung angefragt — iOS lehnt sonst stillschweigend ab.
-Im iframe ist der Sensor meist ohnehin gesperrt; direkt im Browser geöffnet
-funktioniert er. Am PC: Maus für den Blick, `W` / Leertaste / linke
-Maustaste zum Schwimmen.
+Die Kamera läuft über Pointer-Lock: Klick fängt den Zeiger, Umsehen braucht
+kein Ziehen und hat keinen Rand. `Esc` gibt ihn frei, ein Klick holt ihn
+zurück — dieser Klick schwimmt bewusst *nicht*, sonst würde jedes
+Zurückholen einen nach vorn stoßen. Verweigert ein Browser den Lock (meist
+in einem eingeschränkten iframe), fällt der Blick auf Klicken-und-Ziehen
+zurück; die Tastatur schwimmt weiterhin.
 
 Kein HUD, keine Buttons, kein Pausemenü. **Kopfhörer werden dringend
-empfohlen** — ein großer Teil des Sounddesigns liegt unter dem, was ein
-Handylautsprecher überhaupt wiedergeben kann (§3.4).
+empfohlen** — ein großer Teil des Sounddesigns liegt unter dem, was kleine
+Lautsprecher überhaupt wiedergeben (§3.4).
 
 ## Aufbau
 

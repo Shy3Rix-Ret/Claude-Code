@@ -110,10 +110,9 @@ export const WATCHERS = {
 
 /* --------------------------------------------------------------- movement */
 export const SWIM = {
-  /* In open fog with no landmark inside 50m, 1.15 m/s is invisible: the player
-   * holds the screen, the world does not appear to change, and they conclude
-   * the control is broken. Still slow and still exhausting, but now fast
-   * enough to see. */
+  /* In open fog with no landmark inside 50m, 1.15 m/s is invisible: you hold
+   * the key, the world does not appear to change, and you conclude the control
+   * is broken. Still slow and still exhausting, but now fast enough to see. */
   maxSpeed:  2.0,
   // Terminal speed is accel/drag, so this has to exceed maxSpeed*drag or the
   // clamp never comes into play and swimming is quietly slower than stated.
@@ -142,14 +141,9 @@ export const DOOR = {
 
 /* ------------------------------------------------------------ look/camera */
 export const LOOK = {
-  sensitivity: 0.0026,   // radians per CSS pixel
-  /* A thumb has far less room than a mouse: at the base rate a full-width
-   * swipe on a phone turns you only 60°, so looking behind you takes three
-   * strokes. Touch gets its own multiplier. */
-  touchScale: 1.5,
+  sensitivity: 0.0022,   // radians per mouse-motion unit
   pitchClamp: 1.32,      // ~75.6°, you can look up at the fog but not fold over
-  smoothing: 18,         // exponential damping rate
-  gyroBlend: 1.0,
+  smoothing: 22,         // exponential damping rate; a mouse wants less lag
 };
 
 /* ------------------------------------------------------- post-processing */
@@ -162,21 +156,19 @@ export const POST = {
 };
 
 /* Quality tiers are chosen at boot from a quick device probe. */
+/* Desktop tiers. The frame-rate loop still adapts downward at runtime, so
+ * these are a starting guess rather than a verdict. */
 export const QUALITY = {
   high: {
-    radial: 168, rings: 118, bloomDiv: 2, motes: 2400, droplets: 26,
-    pixelRatioCap: 2.0, skyOctaves: 4, motionBlurSamples: 6,
+    radial: 200, rings: 136, bloomDiv: 2, motes: 3000, droplets: 30,
+    pixelRatioCap: 2.0, skyOctaves: 5, motionBlurSamples: 6,
   },
   medium: {
-    /* 1.25 rather than 1.6: a phone at devicePixelRatio 3 is already asking
-     * the fragment stage for well over a million pixels, and the composite
-     * pass touches every one of them a dozen times. Sharpness is the cheapest
-     * thing to give back (§5). */
-    radial: 128, rings: 92, bloomDiv: 3, motes: 1200, droplets: 16,
-    pixelRatioCap: 1.25, skyOctaves: 3, motionBlurSamples: 4,
+    radial: 152, rings: 108, bloomDiv: 2, motes: 1800, droplets: 20,
+    pixelRatioCap: 1.5, skyOctaves: 4, motionBlurSamples: 5,
   },
   low: {
-    radial: 92, rings: 66, bloomDiv: 4, motes: 700, droplets: 11,
+    radial: 104, rings: 74, bloomDiv: 3, motes: 900, droplets: 12,
     pixelRatioCap: 1.0, skyOctaves: 2, motionBlurSamples: 3,
   },
 };

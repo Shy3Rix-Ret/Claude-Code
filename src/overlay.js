@@ -24,12 +24,11 @@ export class Overlay {
   }
 
   /**
-   * Resolves on the first tap — the gesture that unlocks audio.
-   *
-   * Listens on the window as well as the overlay, and for touch as well as
-   * pointer events: inside an embedded frame a tap does not always arrive as
-   * the event you expect, and a start button that only sometimes works is
-   * worse than no start button.
+   * Resolves on the first click or keypress — the gesture that unlocks audio
+   * and captures the pointer. Bound on the window as well as the overlay,
+   * because inside an embedded frame the event does not always arrive where
+   * you expect, and a start button that only sometimes works is worse than no
+   * start button.
    */
   waitForStart(onGesture) {
     return new Promise((resolve) => {
@@ -39,24 +38,22 @@ export class Overlay {
         done = true;
         e?.preventDefault?.();
         for (const [target, type] of bindings) target.removeEventListener(type, go);
-        // Runs synchronously, while the gesture is still live. iOS only grants
-        // motion access from inside the handler itself; one await later and
-        // the prompt never appears.
+        // Runs synchronously, while the gesture is still live: pointer lock
+        // is only granted from inside the handler itself.
         try { onGesture?.(e); } catch { /* optional extras may refuse */ }
         resolve();
       };
 
       const bindings = [
-        [this.boot, 'pointerdown'], [this.boot, 'touchstart'], [this.boot, 'click'],
-        [window, 'pointerdown'], [window, 'touchstart'], [window, 'click'],
-        [window, 'keydown'],
+        [this.boot, 'mousedown'], [this.boot, 'click'],
+        [window, 'mousedown'], [window, 'click'], [window, 'keydown'],
       ];
       for (const [target, type] of bindings) {
         target.addEventListener(type, go, { passive: false });
       }
 
       // The hint appears quickly — it is also the only proof to a player that
-      // the page is alive at all before they touch it.
+      // the page is alive at all before they click it.
       setTimeout(() => { if (!done) this.bootHint.classList.add('show'); }, 900);
     });
   }

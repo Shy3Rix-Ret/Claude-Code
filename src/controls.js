@@ -1,18 +1,26 @@
 /**
- * §6 — the entire control scheme.
+ * §6, on a desktop.
  *
- *   drag / mouse   look
- *   tap and hold   swim forward
- *   let go         hold still
+ *   mouse            look
+ *   W / ↑ / Space    swim forward
+ *   left button      swim forward (once the pointer is captured)
+ *   let go           hold still — in Act 3 that stops being the absence of
+ *                    input and becomes the input
  *
- * There is nothing else. No buttons, no HUD, no pause. The third line is the
- * one that matters: in Act 3 "not touching the screen" stops being the absence
- * of input and becomes the input.
+ * Nothing else. No HUD, no buttons, no pause.
+ *
+ * The camera runs on pointer lock, so looking around needs no dragging and has
+ * no edge to run into. Clicking the page captures the pointer; Esc releases it
+ * and clicking again takes it back. If a browser refuses the lock — inside a
+ * restricted frame, most often — looking falls back to click-and-drag, and the
+ * keyboard still swims.
  */
 
 import * as THREE from 'three';
 import { LOOK, SWIM } from './config.js';
 import { clamp, damp } from './util.js';
+
+const FORWARD_KEYS = ['KeyW', 'ArrowUp', 'Space'];
 
 export class Controls {
   constructor(domElement) {
@@ -23,9 +31,6 @@ export class Controls {
     this.targetYaw = 0;
     this.targetPitch = 0;
 
-    this.pointerDown = false;
-    this.holdTime = 0;        // seconds the current press has lasted
-    this.dragDistance = 0;    // CSS px moved during the current press
     this.swimInput = 0;       // 0..1, smoothed
     this.enabled = false;
     this.lookSpeed = 0;
@@ -34,168 +39,120 @@ export class Controls {
     this.velocity = new THREE.Vector3();
     this.position = new THREE.Vector3(0, 0, 0);
 
-    this.gyroActive = false;
-    this._gyroPrev = null;
-    this._gyroDelta = { yaw: 0, pitch: 0 };
-
-    this._activePointer = null;
+    this.locked = false;
+    this._dragging = false;   // fallback path when the lock is unavailable
     this._last = { x: 0, y: 0 };
     this._keys = new Set();
-    this._swimLatched = false;
-    this._holdWindow = 0;      // rolling window used to spot a resting thumb
-    this._dragAtWindow = 0;
+    this._mouseDown = false;
 
     this._bind();
   }
 
   _bind() {
     const dom = this.dom;
-    const opts = { passive: false };
 
-    this._onPointerDown = (e) => {
-      if (this._activePointer !== null) return;
-      this._activePointer = e.pointerId;
-      this.pointerDown = true;
-      this.holdTime = 0;
-      this.dragDistance = 0;
-      this._swimLatched = false;
-      this._holdWindow = 0;
-      this._dragAtWindow = 0;
-      this._last.x = e.clientX;
-      this._last.y = e.clientY;
-      try { dom.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    /* ---------------- pointer lock ---------------- */
+
+    this._onLockChange = () => {
+      this.locked = document.pointerLockElement === dom;
+      if (this.locked) this._dragging = false;
+    };
+    document.addEventListener('pointerlockchange', this._onLockChange);
+    document.addEventListener('pointerlockerror', this._onLockChange);
+
+    this._onMouseDown = (e) => {
+      if (e.button !== 0) return;
+      this._mouseDown = true;
+      if (!this.locked) {
+        // First click takes the pointer; it does not also swim, or every
+        // attempt to re-capture after Esc would shove the player forward.
+        this.requestPointerLock();
+        this._dragging = true;
+        this._last.x = e.clientX;
+        this._last.y = e.clientY;
+      }
       e.preventDefault();
     };
+    this._onMouseUp = (e) => {
+      if (e.button !== 0) return;
+      this._mouseDown = false;
+      this._dragging = false;
+    };
 
-    this._onPointerMove = (e) => {
+    dom.addEventListener('mousedown', this._onMouseDown);
+    window.addEventListener('mouseup', this._onMouseUp);
+    window.addEventListener('blur', () => {
+      this._mouseDown = false;
+      this._dragging = false;
+      this._keys.clear();
+    });
+
+    /* ---------------- look ---------------- */
+
+    this._onMouseMove = (e) => {
       if (!this.enabled) return;
-      if (e.pointerType === 'mouse' && !this.pointerDown && !this._pointerLocked()) return;
-      if (this.pointerDown && e.pointerId !== this._activePointer) return;
 
       let dx, dy;
-      if (this._pointerLocked()) {
+      if (this.locked) {
         dx = e.movementX || 0;
         dy = e.movementY || 0;
-      } else {
-        if (!this.pointerDown) return;
+      } else if (this._dragging) {
         dx = e.clientX - this._last.x;
         dy = e.clientY - this._last.y;
         this._last.x = e.clientX;
         this._last.y = e.clientY;
+      } else {
+        return;
       }
 
-      this.dragDistance += Math.hypot(dx, dy);
-      const sens = LOOK.sensitivity * (e.pointerType === 'mouse' ? 1 : LOOK.touchScale);
-      this.targetYaw -= dx * sens;
-      this.targetPitch -= dy * sens;
+      this.targetYaw -= dx * LOOK.sensitivity;
+      this.targetPitch -= dy * LOOK.sensitivity;
       this.targetPitch = clamp(this.targetPitch, -LOOK.pitchClamp, LOOK.pitchClamp);
       if (Math.abs(dx) + Math.abs(dy) > 0.5) this.idleTime = 0;
     };
+    window.addEventListener('mousemove', this._onMouseMove);
 
-    this._onPointerUp = (e) => {
-      if (e.pointerId !== this._activePointer) return;
-      this._activePointer = null;
-      this.pointerDown = false;
-      this._swimLatched = false;
-      try { dom.releasePointerCapture(e.pointerId); } catch { /* fine */ }
-    };
-
-    dom.addEventListener('pointerdown', this._onPointerDown, opts);
-    window.addEventListener('pointermove', this._onPointerMove, opts);
-    window.addEventListener('pointerup', this._onPointerUp);
-    window.addEventListener('pointercancel', this._onPointerUp);
-
-    // Keep the browser from doing anything helpful.
-    dom.addEventListener('touchstart', (e) => e.preventDefault(), opts);
-    dom.addEventListener('touchmove', (e) => e.preventDefault(), opts);
     dom.addEventListener('contextmenu', (e) => e.preventDefault());
-    dom.addEventListener('gesturestart', (e) => e.preventDefault());
+
+    /* ---------------- keyboard ---------------- */
 
     this._onKeyDown = (e) => {
+      if (e.repeat) return;
       this._keys.add(e.code);
-      if (['KeyW', 'ArrowUp', 'Space'].includes(e.code)) e.preventDefault();
+      if (FORWARD_KEYS.includes(e.code)) e.preventDefault();
     };
     this._onKeyUp = (e) => this._keys.delete(e.code);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
   }
 
-  _pointerLocked() {
-    return document.pointerLockElement === this.dom;
-  }
-
-  /** Desktop nicety: click once and the mouse takes over the camera. */
   requestPointerLock() {
-    if (this.dom.requestPointerLock && !('ontouchstart' in window)) {
-      try { this.dom.requestPointerLock(); } catch { /* denied */ }
-    }
-  }
-
-  /**
-   * Device orientation, blended in as a delta on top of drag so both work at
-   * once and neither fights the other. iOS needs the permission prompt to
-   * happen inside the same gesture that starts the audio.
-   */
-  async enableGyro() {
-    const DOE = window.DeviceOrientationEvent;
-    if (!DOE) return false;
+    if (!this.dom.requestPointerLock) return;
     try {
-      if (typeof DOE.requestPermission === 'function') {
-        const res = await DOE.requestPermission();
-        if (res !== 'granted') return false;
-      }
-    } catch { return false; }
-
-    this._onOrientation = (e) => {
-      if (e.alpha === null && e.beta === null && e.gamma === null) return;
-      const yaw = THREE.MathUtils.degToRad(e.alpha ?? 0);
-      const pitch = THREE.MathUtils.degToRad(e.beta ?? 0);
-      if (this._gyroPrev) {
-        let dy = yaw - this._gyroPrev.yaw;
-        // unwrap
-        if (dy > Math.PI) dy -= Math.PI * 2;
-        if (dy < -Math.PI) dy += Math.PI * 2;
-        let dp = pitch - this._gyroPrev.pitch;
-        if (Math.abs(dy) < 0.6 && Math.abs(dp) < 0.6) {
-          this._gyroDelta.yaw += dy * LOOK.gyroBlend;
-          this._gyroDelta.pitch += dp * LOOK.gyroBlend;
-          if (Math.abs(dy) + Math.abs(dp) > 0.004) this.idleTime = 0;
-        }
-      }
-      this._gyroPrev = { yaw, pitch };
-      this.gyroActive = true;
-    };
-    window.addEventListener('deviceorientation', this._onOrientation);
-    return true;
+      const r = this.dom.requestPointerLock();
+      // Chrome returns a promise; a rejection here just means we stay on the
+      // drag fallback, which is a working control scheme, not a failure.
+      if (r && r.catch) r.catch(() => {});
+    } catch { /* denied — drag fallback stands */ }
   }
 
   /** True when the player is doing anything at all. */
   isActive() {
-    return this.pointerDown
+    return this._mouseDown
         || this._keys.size > 0
         || this.lookSpeed > 0.09;
   }
 
   /**
-   * §4 Act 3 — "let go completely and stay still". Deliberately more forgiving
-   * than isActive(): a hand holding a phone is never perfectly steady, and
-   * gyro noise must not read as disobedience. ~12°/s of drift is allowed.
+   * §4 Act 3 — "let go completely and stay still". A mouse resting on a desk
+   * really is still, so this can be strict without being unfair.
    */
   isHoldingStill() {
-    return !this.pointerDown && this._keys.size === 0 && this.lookSpeed < 0.22;
+    return !this._mouseDown && this._keys.size === 0 && this.lookSpeed < 0.12;
   }
 
   update(dt, state) {
     /* ---- look ---- */
-    if (this.enabled) {
-      this.targetYaw += this._gyroDelta.yaw;
-      this.targetPitch = clamp(
-        this.targetPitch + this._gyroDelta.pitch, -LOOK.pitchClamp, LOOK.pitchClamp,
-      );
-    }
-    this._gyroDelta.yaw = 0;
-    this._gyroDelta.pitch = 0;
-
     const prevYaw = this.yaw, prevPitch = this.pitch;
     this.yaw = damp(this.yaw, this.targetYaw, LOOK.smoothing, dt);
     this.pitch = damp(this.pitch, this.targetPitch, LOOK.smoothing, dt);
@@ -207,31 +164,13 @@ export class Controls {
     this.lastPitchDelta = dPitch;
 
     /* ---- swim ---- */
-    /* §6 puts look and swim on the same finger, so they have to be told apart:
-     * a thumb that is moving is looking, a thumb that has come to rest is
-     * swimming.
-     *
-     * This asks "has it moved much in the last moment", on a rolling window,
-     * rather than "has it moved much since it went down". The latter — the
-     * first version of this — could never be satisfied once the total passed
-     * the threshold, so a player who flicked to look and then held still sat
-     * there pressing forever and never moved. Once it latches it stays
-     * latched for the press, so you can steer while swimming: Act 4 is
-     * "swim toward the light while keeping it at the edge of frame". */
-    if (this.pointerDown) {
-      this.holdTime += dt;
-      this._holdWindow += dt;
-      if (this._holdWindow >= 0.16) {
-        if (this.dragDistance - this._dragAtWindow < 14) this._swimLatched = true;
-        this._dragAtWindow = this.dragDistance;
-        this._holdWindow = 0;
-      }
-    }
+    const keyForward = FORWARD_KEYS.some((k) => this._keys.has(k));
+    // Holding the button swims only once the pointer is captured; before that
+    // the button's job is to capture it.
+    const mouseForward = this.locked && this._mouseDown;
+    const wantSwim = (keyForward || mouseForward) && state.swimEnabled;
 
-    const keyForward = this._keys.has('KeyW') || this._keys.has('ArrowUp') || this._keys.has('Space');
-    const wantSwim = (this._swimLatched || keyForward) && state.swimEnabled;
-
-    this.swimInput = damp(this.swimInput, wantSwim ? 1 : 0, 6, dt);
+    this.swimInput = damp(this.swimInput, wantSwim ? 1 : 0, 8, dt);
     state.swimming = wantSwim;
 
     if (this.isActive()) this.idleTime = 0;
@@ -240,7 +179,7 @@ export class Controls {
     state.lookSpeed = this.lookSpeed;
   }
 
-  /** Integrates the swim + the current that never stops moving you. */
+  /** Integrates the swim plus the current that never stops moving you. */
   integrate(dt, state, camera, driftDir) {
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
@@ -270,11 +209,11 @@ export class Controls {
   }
 
   dispose() {
-    window.removeEventListener('pointermove', this._onPointerMove);
-    window.removeEventListener('pointerup', this._onPointerUp);
-    window.removeEventListener('pointercancel', this._onPointerUp);
+    document.removeEventListener('pointerlockchange', this._onLockChange);
+    document.removeEventListener('pointerlockerror', this._onLockChange);
+    window.removeEventListener('mousemove', this._onMouseMove);
+    window.removeEventListener('mouseup', this._onMouseUp);
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('keyup', this._onKeyUp);
-    if (this._onOrientation) window.removeEventListener('deviceorientation', this._onOrientation);
   }
 }
