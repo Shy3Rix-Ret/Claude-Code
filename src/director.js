@@ -8,10 +8,15 @@
  * On one contradiction in the design doc: §2.2/§2.3 have the distant light
  * appearing during the awakening and framed at the end of the establishing
  * pan, while §4 has it appearing for the first time in Act 2. Both are kept.
- * You glimpse it in the prologue, it is gone for the whole of Act 1, and it
- * comes back in Act 2 — which turns the light into the same question the
- * watchers are: did I see that, or not. The doc's own doubt mechanic, applied
- * to the one thing in the frame you want to trust.
+ * You glimpse it in the prologue, it dims to a horizon glimmer for Act 1, and
+ * it comes back at full strength in Act 2 — which turns the light into the
+ * same question the watchers are: did I see that, or not. The doc's own doubt
+ * mechanic, applied to the one thing in the frame you want to trust.
+ *
+ * Act 1 originally faded it to zero. That went too far: the establishing pan
+ * ends framed on the light by design, so a player who then finds nothing there
+ * reads a broken game rather than an uneasy one. It stays visible and stays
+ * unreachable instead — see `act1`.
  */
 
 import * as THREE from 'three';
@@ -400,8 +405,14 @@ export class Director {
     s.shake = damp(s.shake, 0.38, 1.2, dt);
     s.chroma = damp(s.chroma, 0, 2, dt);
 
-    // The light you thought you saw goes away, and stays away.
-    s.beacon = damp(s.beacon, 0, 0.13, dt);
+    /* The light does not go away — it stops being an answer. It dims to a
+     * horizon glimmer and stays exactly as far away as it has always been
+     * (§1: helplessness), because `updateBeaconPosition` re-anchors it at
+     * `horizonDistance` relative to the player every frame. Swimming at it is
+     * supposed to change nothing. Fading it to zero instead, as this did,
+     * read as a bug: the establishing pan ends framed on it (§2.3) and then
+     * the player's one landmark simply is not there. */
+    s.beacon = damp(s.beacon, 0.10, 0.16, dt);
 
     if (t >= SCRIPT.ACT1) this.setPhase(PHASE.ACT2);
   }

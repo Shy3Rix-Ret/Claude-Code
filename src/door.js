@@ -30,9 +30,14 @@ void main(){
   float r = length(d) * 2.0;
   if (r > 1.0) discard;
 
-  // Tight core, wide halo, and a faint anamorphic smear along the horizontal.
-  float core = pow(max(0.0, 1.0 - r), 26.0);
-  float halo = pow(max(0.0, 1.0 - r), 2.3) * 0.30;
+  /* Tight core, wide halo, and a faint anamorphic smear along the horizontal.
+   * The core exponent used to be 26, which at the 780m horizon distance put
+   * the entire bright part of the light inside a single pixel — additively
+   * blended onto a ~0.55-linear sky and then ACES-compressed, it measured
+   * 0.3 luma of contrast against bare fog. The light §2.3 frames the whole
+   * establishing pan on was, in practice, not on screen. */
+  float core = pow(max(0.0, 1.0 - r), 9.0);
+  float halo = pow(max(0.0, 1.0 - r), 2.3) * 0.42;
   float streak = pow(max(0.0, 1.0 - abs(d.y) * 14.0), 3.0)
                * pow(max(0.0, 1.0 - abs(d.x) * 2.1), 2.0) * 0.22;
 
@@ -159,12 +164,17 @@ export class Beacon {
     u.uTime.value = state.time;
 
     const dist = camera.position.distanceTo(worldPos);
-    // Constant apparent size far out, blooming open as you arrive.
+    // Constant apparent size far out, blooming open as you arrive. The angular
+    // size has to leave the core several pixels wide, not one — see the note
+    // on the core exponent in BEACON_FRAG.
     const near = 1 - smoothstep(14, 90, dist);
-    u.uScale.value = (0.0135 * dist) * (1 + near * 2.4);
-    // Hand off to the real geometry rather than fighting with it up close.
+    u.uScale.value = (0.030 * dist) * (1 + near * 2.4);
+    /* Hand off to the real geometry rather than fighting with it up close.
+     * The handoff is total: the sprite is now bright enough at range that
+     * leaving a residue of it burning in front of the open door reads as a
+     * stray dot rather than as glow. */
     const handoff = 1 - smoothstep(5.0, 16.0, dist);
-    u.uIntensity.value = state.beacon * (1 - handoff * 0.72);
+    u.uIntensity.value = state.beacon * (1 - handoff);
     u.uFlicker.value = 0.22 * (1 - smoothstep(30, 120, dist));
     this.mesh.visible = state.beacon > 0.002;
   }

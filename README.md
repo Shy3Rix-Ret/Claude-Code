@@ -138,10 +138,15 @@ alles wieder. Die Strömung trägt einen ohnehin zur Tür — das Level endet im
 
 §2.2/§2.3 lassen den fernen Lichtpunkt schon im Prolog erscheinen und am Ende
 des Schwenks im Bild stehen; §4 lässt ihn „zum ersten Mal" in Akt 2 auftauchen.
-Beides ist umgesetzt: man erhascht ihn im Prolog, in Akt 1 verschwindet er
-vollständig, in Akt 2 kommt er zurück und bleibt. Damit wird das Licht zur
-selben Frage wie die Beobachter — *habe ich das gesehen oder nicht* — angewendet
-auf das einzige Element im Bild, dem man vertrauen möchte.
+Beides ist umgesetzt: man erhascht ihn im Prolog, in Akt 1 dimmt er auf ein
+Horizontglimmen herunter, in Akt 2 kommt er zurück und bleibt.
+
+Ursprünglich blendete Akt 1 ihn auf null. Das war ein Fehler: der Schwenk endet
+laut §2.3 genau auf dem Licht, und danach war der einzige Orientierungspunkt im
+Bild schlicht weg — das liest sich nicht als Unheimlichkeit, sondern als Bug.
+Jetzt bleibt er sichtbar und ist trotzdem unerreichbar, weil er jeden Frame neu
+in `horizonDistance` (780 m) relativ zum Spieler verankert wird. Daraufhin
+zuzuschwimmen ändert nichts — das ist §1, nicht ein defektes Ziel.
 
 ## Wenn etwas nicht startet
 

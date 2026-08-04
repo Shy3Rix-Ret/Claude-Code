@@ -126,7 +126,11 @@ function buildEyes(seed) {
   const sep = 0.070 + rng() * 0.022;
   const y = 1.18 + rng() * 0.07;
   for (let s = -1; s <= 1; s += 2) {
-    const e = new THREE.SphereGeometry(0.0165 + rng() * 0.007, 8, 6);
+    /* Anatomically these want to be ~1.5cm across. At the 25–45m the watchers
+     * actually stand at, that is comfortably under one pixel, so the eyes
+     * contributed nothing to the bloom pass and §3.2's bright peripheral
+     * glimmer never happened. Sized to survive the distance instead. */
+    const e = new THREE.SphereGeometry(0.058 + rng() * 0.018, 8, 6);
     e.translate(s * sep, y + (rng() - 0.5) * 0.022, 0.145 + rng() * 0.02);
     parts.push(e);
   }
@@ -193,11 +197,16 @@ void main(){
 
   col *= uAmbient;
 
+  /* The body is meant to be a hole in the fog, and a hole has to stay darker
+   * than what surrounds it. Mixing all the way to the fog colour and then
+   * cutting alpha to 0.14 on top of it made the silhouette resolve to exactly
+   * the background it was drawn over — present in the frustum, invisible on
+   * screen. The mix is capped so some of the dark always survives, and the
+   * alpha keeps a floor for the same reason. */
   float f = fogAmount(vDist);
-  col = mix(col, fogColorFor(-V), f);
+  col = mix(col, fogColorFor(-V), f * 0.58);
 
-  // Fade out with fog as well as presence, so a distant watcher never pops.
-  float a = uPresence * (1.0 - f * 0.86);
+  float a = uPresence * (1.0 - f * 0.45);
   if (a < 0.004) discard;
   gl_FragColor = vec4(col, a);
 }
@@ -311,8 +320,18 @@ class Watcher {
     const camYaw = Math.atan2(
       -camera.matrixWorld.elements[8], -camera.matrixWorld.elements[10],
     );
-    // 55°..180° off the view axis: they arrive at the edge, or behind you.
-    const off = (0.96 + rng() * 2.18) * (rng() < 0.5 ? -1 : 1);
+    /* §3.2 is peripheral vision, and the periphery is inside the frame. The
+     * horizontal half-FOV is ~46° (0.80 rad), so a band starting at 55° put
+     * every watcher just past the edge of the picture: measured over 100s of
+     * Act 1, six of them spawned and not one was ever on screen. The band now
+     * straddles the frame edge — most arrive in the outer sixth of the
+     * picture, where `focus` is 0 and they are at full peripheral brightness,
+     * and a minority still materialise behind you to be found by turning. */
+    const peripheral = rng() < 0.72;
+    const mag = peripheral
+      ? 0.46 + rng() * 0.36    // 26°..47°: outer frame, never centre
+      : 1.20 + rng() * 1.90;   // 69°..178°: behind, found only by looking
+    const off = mag * (rng() < 0.5 ? -1 : 1);
     const ang = camYaw + off;
     const d = rangeFrom(rng, profile.range);
 

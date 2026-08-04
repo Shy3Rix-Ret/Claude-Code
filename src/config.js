@@ -93,10 +93,13 @@ export const WATCHERS = {
   poolSize: 7,
   // Per-act behaviour. range = [min, max] metres from the player.
   acts: {
-    ACT1: { active: 2, range: [46, 78], dwell: [5, 11],  approach: 0.00, eyeGain: 0.35 },
+    // Every range must sit inside the fog wall (`FOG.farBase` 52m, swinging
+    // down to 43m) or the watcher is fog-coloured with alpha ~0.14 and cannot
+    // be seen at all — which is exactly what Act 1 shipped as.
+    ACT1: { active: 2, range: [24, 42], dwell: [5, 11],  approach: 0.06, eyeGain: 0.70 },
     ACT2: { active: 5, range: [15, 42], dwell: [9, 20],  approach: 0.42, eyeGain: 1.00 },
     ACT3: { active: 0, range: [60, 90], dwell: [1, 2],   approach: 0.00, eyeGain: 0.00 },
-    ACT4: { active: 2, range: [38, 70], dwell: [4, 9],   approach: 0.05, eyeGain: 0.55 },
+    ACT4: { active: 2, range: [20, 44], dwell: [4, 9],   approach: 0.05, eyeGain: 0.85 },
     ACT5: { active: 0, range: [60, 90], dwell: [1, 2],   approach: 0.00, eyeGain: 0.00 },
   },
   // §3.2 peripheral vision: how centred a watcher must be before it notices
