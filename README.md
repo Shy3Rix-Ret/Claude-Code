@@ -6,6 +6,11 @@ kein Scheitern. Etwa 15 Minuten offenes Wasser, eine Tür, und ein Ortswechsel.
 Umgesetzt nach dem Design- und Regiedokument, Sektion für Sektion. Verweise wie
 `§3.2` im Code zeigen auf die jeweilige Stelle im Dokument.
 
+> Im selben Repo liegt ein zweites, eigenständiges Projekt:
+> **[`planetenfinder/`](planetenfinder/README.md)** — Handy an den Himmel
+> halten und sehen, wo Saturn gerade steht. Eigener Quellcode, eigener Build,
+> keine gemeinsamen Abhängigkeiten außer dem Entwicklungsserver.
+
 ---
 
 ## Starten

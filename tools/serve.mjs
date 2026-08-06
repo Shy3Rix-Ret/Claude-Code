@@ -28,7 +28,7 @@ const TYPES = {
 
 http.createServer((req, res) => {
   const url = decodeURIComponent((req.url || '/').split('?')[0]);
-  let rel = url === '/' ? '/index.html' : url;
+  let rel = url.endsWith('/') ? `${url}index.html` : url;
   const abs = path.join(ROOT, path.normalize(rel));
 
   if (!abs.startsWith(ROOT)) {
@@ -49,5 +49,6 @@ http.createServer((req, res) => {
     }).end(data);
   });
 }).listen(PORT, () => {
-  console.log(`LEVEL 4444 → http://localhost:${PORT}/`);
+  console.log(`LEVEL 4444      → http://localhost:${PORT}/`);
+  console.log(`Planetenfinder  → http://localhost:${PORT}/planetenfinder/`);
 });

@@ -1,0 +1,124 @@
+# Planetenfinder
+
+Handy an den Himmel halten und sehen, wo Saturn steht. Die App rechnet die
+Position von Sonne, Mond und allen Planeten für den aktuellen Standort und die
+aktuelle Sekunde aus und zeichnet sie dorthin, wo das Handy gerade hinzeigt.
+Drehst du dich weg, verschwinden sie aus dem Bild — genau wie das echte Objekt.
+
+Keine Registrierung, kein Server, keine Netzwerkanfrage. Alles rechnet das
+Gerät selbst.
+
+---
+
+## Starten
+
+**Entwicklung** (ES-Module brauchen einen echten Origin):
+
+```
+node tools/serve.mjs        # aus dem Repo-Wurzelverzeichnis
+                            # → http://localhost:4444/planetenfinder/
+```
+
+**Einzeldatei bauen:**
+
+```
+npm install --no-save esbuild
+node planetenfinder/tools/build.mjs
+```
+
+Ergebnis: `planetenfinder/dist/planetenfinder.html`, rund 67 KB, komplett
+offline lauffähig.
+
+> **Wichtig fürs Handy:** Lagesensoren, Kompass, GPS und Kamera gibt es im
+> Browser nur in einem *sicheren Kontext* — also über `https://` oder
+> `localhost`. Per Doppelklick vom Dateisystem geöffnet bleiben die Sensoren
+> stumm; die App merkt das und schaltet auf Ziehen mit dem Finger um. Zum
+> echten Ausprobieren die Datei also auf einen HTTPS-Host legen (oder im
+> lokalen Netz mit einem Tunnel wie `ngrok`/`cloudflared` servieren).
+>
+> Auf iOS fragt die App beim Start nach der Freigabe der Bewegungssensoren.
+> Diese Abfrage funktioniert nur direkt nach einem Fingertipp — deshalb der
+> Startknopf.
+
+## Die vier Ansichten
+
+| | |
+|---|---|
+| **Live** | Der Himmel in Blickrichtung. Objekte stehen dort, wo sie am Himmel stehen; wahlweise über dem Kamerabild. |
+| **Karte** | Der ganze Himmel auf einmal: Mitte = Zenit, Ring = Horizont. Ein Keil zeigt, wohin das Handy zeigt. |
+| **Objekte** | Höhe, Richtung, Helligkeit, Entfernung, Lichtlaufzeit, Auf- und Untergang, Mondphase, Dämmerungszeiten. |
+| **Zeit** | Den Himmel um bis zu 24 Stunden vor- und zurückdrehen — praktisch, um zu sehen, wann ein Planet hoch genug steht. |
+
+Ein Objekt antippen (in der Liste, in der Live-Ansicht oder auf der Karte)
+öffnet die Details. Von dort lässt sich es als **Ziel** setzen: ein Pfeil am
+Bildrand zeigt dann, in welche Richtung und wie weit noch zu drehen ist, bis es
+im Bild ist. Das ist der schnellste Weg zu Uranus und Neptun, die man ohne
+Hilfe nicht findet.
+
+Weitere Schalter: Kamerabild, Sterne, Sternbilder, Gradnetz, Beschriftungen,
+untergegangene Objekte, Karte in Blickrichtung drehen, Nachtmodus (rot),
+Sichtfeld (auch per Zwei-Finger-Zoom).
+
+## Genauigkeit — und wo sie wirklich endet
+
+Die gerechneten Positionen:
+
+| | |
+|---|---|
+| Planeten | Bahnelemente des JPL (Standish, gültig 1800–2050) mit Kepler-Lösung. Fehler unter einer Bogenminute innen, wenige Bogenminuten bei Jupiter und weiter außen. |
+| Sonne | Aus derselben Erdbahn abgeleitet. |
+| Mond | Gekürzte Mondtheorie mit den zwölf größten Störungstermen in Länge (Evektion, Variation, jährliche Gleichung …), fünf in Breite. Etwa 2 Bogenminuten. |
+| Dazu | Lichtlaufzeit, Präzession auf das Datum, Hauptterm der Nutation, topozentrische Parallaxe (beim Mond bis zu 1°!) und Refraktion. |
+
+Zum Vergleich: der Vollmond ist 30 Bogenminuten breit. Die Rechnung ist also
+deutlich genauer, als das Auge auflösen kann.
+
+**Die eigentliche Unsicherheit steckt im Magnetkompass des Handys.** 5° bis 15°
+Abweichung sind normal, im Gebäude, im Auto oder neben Lautsprechern deutlich
+mehr. Dagegen hilft nur Eichen:
+
+1. Ein Objekt in die Bildmitte nehmen, das du wirklich siehst — Mond, Venus,
+   die Sonne.
+2. In der Objektliste antippen → **„Kompass hierauf eichen“**.
+
+Danach stimmt auch alles andere, weil nur der Azimut verschoben wird. Die Höhe
+kommt aus der Schwerkraft und ist ohnehin genau. Alternativ gibt es in den
+Einstellungen einen Schieberegler für die Korrektur.
+
+Die Neigung ist übrigens immer verlässlich; wenn also etwas „daneben“ wirkt,
+ist es fast sicher die Himmelsrichtung.
+
+## Aufbau
+
+```
+src/astro.js      Ephemeriden: Bahnelemente, Kepler, Mondtheorie, Koordinaten-
+                  transformationen, Auf-/Untergang, Mondphasen
+src/sensors.js    Lagesensoren → Kamerabasis in Ost/Nord/Oben, Kompasseichung,
+                  Ersatzsteuerung per Finger
+src/skyview.js    Live-Ansicht: Projektion, Himmelsfarben, Boden, Mondphase,
+                  Zielführung
+src/mapview.js    Horizontkarte, Sichtfeldkeil, Ekliptik
+src/stars.js      Sternkatalog bis etwa 2,5 mag und ein paar Sternbildlinien
+src/bodies.js     Namen, Farben, Texte
+src/geo.js        Standort, Voreinstellungen, gespeicherte Einstellungen
+src/ui.js         Listen, Detailseiten, Einstellungen
+src/main.js       Zustand, Renderschleife, Bedienung
+```
+
+Der Trick, warum Objekte beim Wegdrehen verschwinden, steckt in einer einzigen
+Zeile: die Sensoren liefern eine Kamerabasis, und die Projektion verwirft alles
+mit negativer Vorwärtskomponente. Es gibt keine gesonderte Sichtbarkeitslogik,
+die man falsch programmieren könnte.
+
+## Was die App nicht kann
+
+- **Keine magnetische Missweisung von selbst.** Dafür bräuchte es ein
+  Weltmagnetfeldmodell; stattdessen gibt es die Eichung über ein sichtbares
+  Objekt, die zusätzlich auch alle anderen Kompassfehler mitnimmt.
+- **Keine Satelliten (ISS & Co.).** Deren Bahnen ändern sich laufend und
+  müssten aus dem Netz geladen werden — das würde das Offline-Versprechen
+  brechen.
+- **Keine Deep-Sky-Objekte.** Der Sternkatalog ist Orientierungshilfe, kein
+  Atlas.
+- **Pluto** ist mit 14 mag ein Teleskopobjekt. Er ist trotzdem dabei, weil die
+  Frage „wo wäre er?“ berechtigt ist.
