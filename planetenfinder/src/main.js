@@ -14,9 +14,10 @@ import { Orientation, azAltOf } from './sensors.js';
 import { loadSettings, saveSettings, locate } from './geo.js';
 import { renderSky } from './skyview.js';
 import { renderMap } from './mapview.js';
+import { collectEvents } from './events.js';
 import {
   el, buildList, buildDetail, buildTwilight, buildTimePanel, buildSettings,
-  fmtDateTime, altitudeWords,
+  buildEvents, tickCountdowns, fmtDateTime, altitudeWords,
 } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -32,6 +33,8 @@ const app = {
   sheetMode: null,
   cameraStream: null,
   eventCache: new Map(),
+  events: null,          // the Termine list, once computed
+  eventsAt: 0,
 
   now() {
     return new Date(Date.now() + this.timeOffsetMinutes * 60000);
@@ -271,6 +274,58 @@ function showDetail(id) {
   openSheet('detail', frag, BODIES[id].name);
 }
 
+/**
+ * Termine. The search takes a few hundred milliseconds, so the panel opens
+ * immediately with a progress line and fills itself in — a spinner nobody
+ * asked for is better than a tab that feels broken for half a second.
+ */
+async function showEvents() {
+  const site = app.settings.site;
+  const fresh = app.events
+    && Date.now() - app.eventsAt < 10 * 60000
+    && app.eventsSite === `${site.lat},${site.lon}`;
+
+  if (fresh) {
+    renderEvents();
+    return;
+  }
+
+  const status = el('div', { class: 'note', text: 'Suche Ereignisse …' });
+  openSheet('events', status, 'Termine');
+
+  const list = await collectEvents(new Date(), site, {
+    years: 2,
+    onStage: (label) => { status.textContent = `Suche Ereignisse … ${label}`; },
+  });
+
+  app.events = list;
+  app.eventsAt = Date.now();
+  app.eventsSite = `${site.lat},${site.lon}`;
+  if (app.sheetMode === 'events') renderEvents();
+}
+
+function renderEvents() {
+  openSheet('events', buildEvents(app.events, {
+    reference: new Date(),
+    onShowSky: (time) => {
+      app.setTimeOffset((time.getTime() - Date.now()) / 60000);
+      setMode('map');
+      closeSheet();
+      toast(`Himmel am ${fmtDateTime(time)} — im Zeit-Tab zurück auf „Jetzt“`);
+    },
+    onTarget: (id) => {
+      app.target = id;
+      toast(`Ziel: ${BODIES[id].name}`);
+    },
+  }), 'Termine');
+}
+
+// One shared ticker: the countdowns are the only thing in the DOM that has to
+// keep moving on its own.
+setInterval(() => {
+  if (app.sheetMode === 'events') tickCountdowns($('sheet-body'));
+}, 1000);
+
 /* ------------------------------------------------------------------ actions */
 
 app.setSetting = (key, value) => {
@@ -294,12 +349,17 @@ function applyStabilisation() {
 app.setSite = (site) => {
   app.settings.site = { ...app.settings.site, ...site };
   app.eventCache.clear();
+  app.events = null;
   saveSettings(app.settings);
   buildScene(true);
 };
 
+// A year either way: far enough for any eclipse in the Termine list, close
+// enough that the ephemeris stays inside the range its elements are fitted for.
+const MAX_OFFSET = 400 * 1440;
+
 app.setTimeOffset = (minutes) => {
-  app.timeOffsetMinutes = Math.max(-1440, Math.min(1440, minutes));
+  app.timeOffsetMinutes = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, minutes));
   app.eventCache.clear();
   buildScene(true);
 };
@@ -338,6 +398,7 @@ function syncTabs() {
   $('tab-live').setAttribute('aria-pressed', String(app.mode === 'live'));
   $('tab-map').setAttribute('aria-pressed', String(app.mode === 'map'));
   $('tab-list').setAttribute('aria-pressed', String(app.sheetMode === 'list' || app.sheetMode === 'detail'));
+  $('tab-events').setAttribute('aria-pressed', String(app.sheetMode === 'events'));
   $('tab-time').setAttribute('aria-pressed', String(app.sheetMode === 'time'));
   $('tab-settings').setAttribute('aria-pressed', String(app.sheetMode === 'settings'));
 }
@@ -470,6 +531,9 @@ $('tab-live').addEventListener('click', () => { setMode('live'); closeSheet(); }
 $('tab-map').addEventListener('click', () => { setMode('map'); closeSheet(); });
 $('tab-list').addEventListener('click', () => {
   app.sheetMode === 'list' || app.sheetMode === 'detail' ? closeSheet() : showList();
+});
+$('tab-events').addEventListener('click', () => {
+  app.sheetMode === 'events' ? closeSheet() : showEvents();
 });
 $('tab-time').addEventListener('click', () => {
   app.sheetMode === 'time' ? closeSheet() : openSheet('time', buildTimePanel(app), 'Zeitpunkt');

@@ -40,13 +40,14 @@ offline lauffähig.
 > Diese Abfrage funktioniert nur direkt nach einem Fingertipp — deshalb der
 > Startknopf.
 
-## Die vier Ansichten
+## Die fünf Ansichten
 
 | | |
 |---|---|
 | **Live** | Der Himmel in Blickrichtung. Objekte stehen dort, wo sie am Himmel stehen; wahlweise über dem Kamerabild. |
 | **Karte** | Der ganze Himmel auf einmal: Mitte = Zenit, Ring = Horizont. Ein Keil zeigt, wohin das Handy zeigt. |
 | **Objekte** | Höhe, Richtung, Helligkeit, Entfernung, Lichtlaufzeit, Auf- und Untergang, Mondphase, Dämmerungszeiten. |
+| **Termine** | Was als Nächstes passiert, mit laufendem Countdown auf die Sekunde. |
 | **Zeit** | Den Himmel um bis zu 24 Stunden vor- und zurückdrehen — praktisch, um zu sehen, wann ein Planet hoch genug steht. |
 
 Ein Objekt antippen (in der Liste, in der Live-Ansicht oder auf der Karte)
@@ -54,6 +55,31 @@ Ein Objekt antippen (in der Liste, in der Live-Ansicht oder auf der Karte)
 Bildrand zeigt dann, in welche Richtung und wie weit noch zu drehen ist, bis es
 im Bild ist. Das ist der schnellste Weg zu Uranus und Neptun, die man ohne
 Hilfe nicht findet.
+
+### Termine
+
+Der Countdown oben zeigt nicht den nächsten Sonnenuntergang, sondern das
+nächste *Highlight*. Darunter läuft die vollständige Liste, nach Heute, Diese
+Woche, Diesen Monat und Später gruppiert:
+
+- **Finsternisse**, Sonne wie Mond. Diese sind nicht nachgeschlagen, sondern
+  aus derselben Ephemeride gerechnet — deshalb steht dabei, was *von deinem
+  Standort aus* davon zu sehen ist. Dieselbe Finsternis am 12.08.2026 ist auf
+  Island total, in Zürich eine partielle mit 93 % bedeckter Sonnenfläche bei
+  3° Höhe, und in Sydney gar nichts.
+- **Oppositionen** — die Nacht, in der ein Planet der Erde am nächsten steht,
+  die ganze Nacht sichtbar ist und am hellsten leuchtet.
+- **Größte Elongationen** von Merkur und Venus, mit Abend- oder Morgenhimmel.
+- **Begegnungen**: Mond und Planeten, die sich bis auf wenige Grad nähern.
+  Kommen sie sich näher als der Mondradius, heißt es richtigerweise
+  „bedeckt“ statt „trifft“.
+- **Mondphasen**, **Sternschnuppenströme** (mit der Frage, ob der Mond stört)
+  und die Eckdaten der Nacht: Sonnenuntergang, Dämmerungsphasen, Mondaufgang.
+
+Ein Ereignis antippen öffnet zwei Knöpfe: **Himmel zu dieser Zeit** stellt die
+Uhr der ganzen App auf diesen Moment und wechselt auf die Karte — man sieht
+also vorher, wo genau am Horizont es passieren wird. Und **als Ziel setzen**
+legt den Führungspfeil auf das beteiligte Objekt.
 
 Weitere Schalter: Kamerabild, Sterne, Sternbilder, Gradnetz, Beschriftungen,
 untergegangene Objekte, Karte in Blickrichtung drehen, Nachtmodus (rot),
@@ -125,6 +151,8 @@ src/skyview.js    Live-Ansicht: Projektion, Himmelsfarben, Boden, Mondphase,
 src/mapview.js    Horizontkarte, Sichtfeldkeil, Ekliptik
 src/stars.js      Sternkatalog bis etwa 2,5 mag und ein paar Sternbildlinien
 src/bodies.js     Namen, Farben, Texte
+src/events.js     Termine: Finsternisse, Oppositionen, Elongationen,
+                  Begegnungen, Mondphasen, Sternschnuppen
 src/geo.js        Standort, Voreinstellungen, gespeicherte Einstellungen
 src/ui.js         Listen, Detailseiten, Einstellungen
 src/main.js       Zustand, Renderschleife, Bedienung

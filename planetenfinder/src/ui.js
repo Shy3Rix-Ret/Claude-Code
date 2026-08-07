@@ -224,22 +224,225 @@ export function buildTwilight(sun) {
   ]);
 }
 
+/* -------------------------------------------------------------- Termine */
+
+/**
+ * Countdown wording. Seconds only appear inside a day, where they mean
+ * something — a ticking seconds field on a countdown of eight months is
+ * decoration, not information.
+ */
+export function countdownText(ms) {
+  if (ms <= 0) return 'jetzt';
+  const s = Math.floor(ms / 1000);
+  const days = Math.floor(s / 86400);
+  const hours = Math.floor((s % 86400) / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+
+  if (days >= 2) return `in ${days} Tagen ${hours} h`;
+  if (days === 1) return `in 1 Tag ${hours} h`;
+  if (hours >= 1) return `in ${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} h`;
+  if (mins >= 1) return `in ${mins}:${String(secs).padStart(2, '0')} min`;
+  return `in ${secs} s`;
+}
+
+const ECLIPSE_KIND = {
+  total: 'total', annular: 'ringförmig', partial: 'partiell', penumbral: 'Halbschatten',
+};
+
+/** Title, detail line and colour for one event. */
+export function describeEvent(e) {
+  const body = (id) => BODIES[id]?.name || id;
+  const colour = (id) => BODIES[id]?.color || '#9fb6d4';
+
+  switch (e.key) {
+    case 'solar-eclipse': {
+      const title = e.kind === 'none'
+        ? 'Sonnenfinsternis (hier nicht sichtbar)'
+        : `Sonnenfinsternis, ${ECLIPSE_KIND[e.kind]}`;
+      const detail = e.kind === 'none'
+        ? 'Findet statt, aber von deinem Standort aus nicht zu sehen.'
+        : `${nf(e.covered * 100)} % der Sonnenfläche bedeckt · Sonne ${nf(e.sunAltitude)}° hoch`
+          + (e.sunAltitude < 0 ? ' — leider schon untergegangen' : '')
+          + (e.begins && e.ends ? ` · ${fmtTime(e.begins)} bis ${fmtTime(e.ends)}` : '');
+      return { title, detail, colour: colour('sun'), major: e.kind !== 'none', warn: e.kind !== 'none' };
+    }
+    case 'lunar-eclipse':
+      return {
+        title: `Mondfinsternis, ${ECLIPSE_KIND[e.kind]}`,
+        detail: e.visible
+          ? `Mond steht dabei ${nf(e.moonAltitude)}° hoch im ${compassName(e.moonAzimuth)}`
+          : 'Von hier aus nicht zu sehen — der Mond ist dann unter dem Horizont.',
+        colour: colour('moon'), major: e.visible,
+      };
+    case 'opposition':
+      return {
+        title: `${body(e.id)} in Opposition`,
+        detail: `Die ganze Nacht sichtbar und so hell wie das Jahr über nicht mehr: `
+          + `${nf(e.magnitude, 1)} mag, ${nf(e.distanceAu, 2)} AE entfernt.`,
+        colour: colour(e.id), major: true,
+      };
+    case 'elongation':
+      return {
+        title: `${body(e.id)} im größten Abstand zur Sonne`,
+        detail: `${nf(e.separation, 1)}° ${e.east ? 'östlich — am Abendhimmel' : 'westlich — am Morgenhimmel'}`
+          + `, ${nf(e.magnitude, 1)} mag. Die beste Gelegenheit dieser Sichtbarkeit.`,
+        colour: colour(e.id), major: e.id === 'mercury',
+      };
+    case 'conjunction': {
+      const [a, b] = e.ids;
+      const title = e.occultation
+        ? `${body(a)} bedeckt ${body(b)}`
+        : `${body(a)} trifft ${body(b)}`;
+      const detail = `${nf(e.separation, 1)}° Abstand`
+        + (e.bestTime
+          ? ` · am besten ${fmtClock(e.bestTime, new Date())} bei ${nf(e.bestAltitude)}° Höhe`
+          : ' · steht in der Dunkelheit leider zu tief');
+      return { title, detail, colour: colour(a), major: e.separation < 1 || e.occultation };
+    }
+    case 'meteors':
+      return {
+        title: `${e.name} — Sternschnuppen`,
+        detail: `bis zu ${e.rate} pro Stunde im Maximum. `
+          + (e.moonSpoils
+            ? `Der Mond ist zu ${nf(e.moonIllumination * 100)} % beleuchtet und stört.`
+            : `Der Mond stört kaum (${nf(e.moonIllumination * 100)} % beleuchtet).`),
+        colour: '#b6c7e6', major: !e.moonSpoils && e.rate >= 100,
+      };
+    case 'new': case 'full': case 'first': case 'last':
+      return { title: e.title, detail: e.note, colour: colour('moon') };
+    default:
+      return { title: e.title, detail: e.note || '', colour: '#9fb6d4' };
+  }
+}
+
+/**
+ * The Termine panel. Rows carry a `data-at` timestamp so the countdown can be
+ * refreshed once a second without rebuilding any of this.
+ */
+export function buildEvents(events, { onShowSky, onTarget, reference }) {
+  const frag = document.createDocumentFragment();
+
+  if (!events.length) {
+    frag.appendChild(el('div', { class: 'note', text: 'Keine Ereignisse gefunden.' }));
+    return frag;
+  }
+
+  // The card at the top is for the thing worth waiting for. The next event
+  // is usually a sunset, and a countdown to a sunset is not why anyone opens
+  // this panel — so a highlight wins, and only if there is none does the
+  // plain next event take the spot.
+  const next = events.find((e) => describeEvent(e).major) || events[0];
+  const lead = describeEvent(next);
+
+  const hero = el('div', { class: 'hero' }, [
+    el('div', { class: 'hero-label', text: lead.major ? 'Nächstes Highlight' : 'Als Nächstes' }),
+    el('div', { class: 'hero-title', text: lead.title }),
+    el('div', {
+      class: 'hero-count countdown',
+      'data-at': String(next.time.getTime()),
+      text: countdownText(next.time - Date.now()),
+    }),
+    el('div', { class: 'hero-when', text: fmtDateTime(next.time) + ' Uhr' }),
+    el('div', { class: 'hero-detail', text: lead.detail }),
+  ]);
+  frag.appendChild(hero);
+
+  let heading = null;
+  for (const e of events) {
+    const group = groupFor(e.time, reference);
+    if (group !== heading) {
+      heading = group;
+      frag.appendChild(el('h3', { text: group }));
+    }
+
+    const d = describeEvent(e);
+    const row = el('div', { class: `row event${d.major ? ' major' : ''}` }, [
+      el('div', { class: 'dot', style: `background:${d.colour};color:${d.colour}` }),
+      el('div', { class: 'grow' }, [
+        el('div', { class: 'name', text: d.title }),
+        el('div', { class: 'meta', text: d.detail }),
+        el('div', { class: 'when', text: `${fmtDateTime(e.time)} Uhr` }),
+      ]),
+      el('div', { class: 'right' }, [
+        el('b', {
+          class: 'countdown',
+          'data-at': String(e.time.getTime()),
+          text: countdownText(e.time - Date.now()),
+        }),
+      ]),
+    ]);
+
+    row.addEventListener('click', () => {
+      const open = row.nextSibling?.classList?.contains('actions');
+      document.querySelectorAll('.actions').forEach((n) => n.remove());
+      if (open) return;
+
+      const ids = e.ids || (e.id ? [e.id] : []);
+      const actions = el('div', { class: 'actions btnrow' }, [
+        el('button', {
+          class: 'btn small primary', text: 'Himmel zu dieser Zeit',
+          onclick: () => onShowSky(e.time),
+        }),
+        ...ids.map((id) => el('button', {
+          class: 'btn small ghost', text: `${BODIES[id]?.name || id} als Ziel`,
+          onclick: () => onTarget(id),
+        })),
+      ]);
+      row.after(actions);
+    });
+
+    frag.appendChild(row);
+  }
+
+  frag.appendChild(el('div', {
+    class: 'note',
+    text: 'Alle Zeiten für deinen Standort und in deiner Zeitzone, aus derselben '
+      + 'Rechnung wie die Himmelsansicht. Finsternisse sind nicht nachgeschlagen, '
+      + 'sondern ausgerechnet — deshalb steht dabei, was von hier aus davon zu '
+      + 'sehen ist.',
+  }));
+
+  return frag;
+}
+
+function groupFor(time, reference) {
+  const days = (time - reference) / 86400000;
+  if (time.toDateString() === reference.toDateString()) return 'Heute';
+  if (days < 2) return 'Morgen';
+  if (days < 8) return 'Diese Woche';
+  if (days < 32) return 'Diesen Monat';
+  if (days < 190) return 'Die nächsten Monate';
+  return 'Später';
+}
+
+/** Called once a second while the panel is open. */
+export function tickCountdowns(root) {
+  const now = Date.now();
+  for (const node of root.querySelectorAll('.countdown')) {
+    node.textContent = countdownText(Number(node.dataset.at) - now);
+  }
+}
+
 /* ----------------------------------------------------------- time panel */
 
 export function buildTimePanel(app) {
   const frag = document.createDocumentFragment();
   const readout = el('div', { class: 'note' });
-  const slider = el('input', {
-    type: 'range', min: '-1440', max: '1440', step: '5',
-    value: String(Math.round(app.timeOffsetMinutes)),
-  });
+  const slider = el('input', { type: 'range', step: '5' });
 
+  // The slider spans a day either side of wherever the clock currently sits,
+  // rather than a day either side of now — otherwise jumping to an eclipse
+  // eight months out would leave the control unable to represent its own
+  // position, and the first touch would yank the sky back to today.
   const sync = () => {
-    const off = app.timeOffsetMinutes;
+    const off = Math.round(app.timeOffsetMinutes);
     readout.textContent = off === 0
       ? `Jetzt — ${fmtDateTime(app.now())}`
-      : `${fmtDateTime(app.now())} (${off > 0 ? '+' : ''}${nf(off / 60, 1)} h)`;
-    slider.value = String(Math.round(off));
+      : `${fmtDateTime(app.now())} (${describeOffset(off)})`;
+    slider.min = String(off - 1440);
+    slider.max = String(off + 1440);
+    slider.value = String(off);
   };
 
   slider.addEventListener('input', () => {
@@ -268,10 +471,21 @@ export function buildTimePanel(app) {
   frag.appendChild(el('div', {
     class: 'note',
     text: 'Verschiebt den Himmel in der Zeit — praktisch, um zu sehen, wann ein Planet '
-      + 'hoch genug steht. Die Live-Ansicht folgt weiter deiner Blickrichtung.',
+      + 'hoch genug steht. Die Live-Ansicht folgt weiter deiner Blickrichtung. '
+      + 'Aus den Terminen heraus springt die Zeit auch weiter, bis zu einem Jahr.',
   }));
   sync();
   return frag;
+}
+
+/** "+3,5 h", "in 12 Tagen", "vor 2 Monaten" — for the time readout. */
+function describeOffset(minutes) {
+  const abs = Math.abs(minutes);
+  const ahead = minutes > 0;
+  if (abs < 90) return `${ahead ? '+' : '−'}${nf(abs)} min`;
+  if (abs < 1440) return `${ahead ? '+' : '−'}${nf(abs / 60, 1)} h`;
+  if (abs < 60 * 1440) return `${ahead ? 'in ' : 'vor '}${nf(abs / 1440)} Tagen`;
+  return `${ahead ? 'in ' : 'vor '}${nf(abs / 1440 / 30.44, 1)} Monaten`;
 }
 
 /* ------------------------------------------------------- settings panel */

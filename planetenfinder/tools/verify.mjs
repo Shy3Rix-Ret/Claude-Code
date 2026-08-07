@@ -159,11 +159,12 @@ check(Math.abs(best.t - Date.UTC(2026, 7, 12, 17, 46)) < 5 * 60000,
 
 // Without the observer's own position on the globe there is no eclipse here
 // at all — worth showing, because it is the correction most sky apps skip.
-const centre = { lat: 0, lon: 0, elevation: -6371000 };
+const centre = { lat: 0, lon: 0, elevation: 0 };
+const geocentric_ = (id, when) => bodyState(id, when, centre, { topocentric: false });
 const at = new Date(best.t);
 const sepGeo = separationAltAz(
-  bodyState('sun', at, centre).alt, bodyState('sun', at, centre).az,
-  bodyState('moon', at, centre).alt, bodyState('moon', at, centre).az);
+  geocentric_('sun', at).alt, geocentric_('sun', at).az,
+  geocentric_('moon', at).alt, geocentric_('moon', at).az);
 console.log(`     (ohne Standortkorrektur wären es ${(sepGeo * 60).toFixed(0)}′ — keine Finsternis)`);
 
 /* 2 --------------------------------------------------- equinox / solstice */
@@ -173,7 +174,7 @@ console.log('\nTagundnachtgleichen und Sonnenwenden 2026, gegen den Kalender:\n'
 const scanSun = (from, to, pick) => {
   let found = null;
   for (let t = from; t <= to; t += 600000) {
-    const dec = bodyState('sun', new Date(t), centre).dec;
+    const dec = bodyState('sun', new Date(t), centre, { topocentric: false }).dec;
     if (!found || pick(dec, found.dec)) found = { t, dec };
   }
   return found;

@@ -425,14 +425,19 @@ export const BODY_IDS = ['sun', 'moon', ...PLANET_IDS];
  * `alt` is geometric, `altApparent` includes refraction — the second one is
  * where you actually see it, so that is what the views draw.
  */
-export function bodyState(id, date, site) {
+export function bodyState(id, date, site, { topocentric = true } = {}) {
   const jdUT = julianDay(date);
   const T = centuries(jdUT);
   const jde = jdUT + deltaTSeconds(jdUT) / 86400;
   const lst = lstFor(jdUT, T, site.lon);
 
   const geo = geocentricEquatorial(id, jde);
-  const topo = toTopocentric(geo, geo.distKm, site, lst);
+  // Eclipses are events in the Earth's own shadow geometry, not something an
+  // observer's few thousand kilometres of offset take part in — those want
+  // the geocentric position.
+  const topo = topocentric
+    ? toTopocentric(geo, geo.distKm, site, lst)
+    : { ra: geo.ra, dec: geo.dec, distKm: geo.distKm };
   const hor = toHorizon(topo.ra, topo.dec, site.lat, lst);
   const alt = hor.alt;
   const altApparent = alt + refraction(alt);
@@ -469,6 +474,11 @@ export function bodyState(id, date, site) {
       date,
       ra: topo.ra,
       dec: topo.dec,
+      // Apparent geocentric ecliptic coordinates of date. Longitude is what
+      // tells a first quarter from a last quarter, and two planets meeting
+      // from two planets merely passing on opposite sides of the sky.
+      eclLon: geo.lon,
+      eclLat: geo.lat,
       az: hor.az,
       alt,
       altApparent,

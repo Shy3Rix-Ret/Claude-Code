@@ -98,9 +98,9 @@
     position: absolute;
     left: 0; right: 0; bottom: 0;
     z-index: 8;
-    padding: 8px 10px calc(8px + var(--safe-b));
+    padding: 8px 8px calc(8px + var(--safe-b));
     display: flex;
-    gap: 6px;
+    gap: 5px;
     background: rgba(5, 7, 15, 0.88);
     border-top: 1px solid var(--line);
     backdrop-filter: blur(10px);
@@ -112,13 +112,15 @@
     background: rgba(12, 16, 26, 0.8);
     color: var(--text);
     border-radius: 12px;
-    padding: 10px 6px;
-    font-size: 12px;
+    padding: 10px 4px;
+    font-size: 11.5px;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
     backdrop-filter: blur(8px);
+    white-space: nowrap;
   }
+  .btn.narrow { flex: 0 0 auto; padding: 10px 12px; font-size: 14px; }
   .btn[aria-pressed="true"] { background: rgba(124, 196, 255, 0.18); border-color: rgba(124, 196, 255, 0.55); color: #cfe8ff; }
   .btn:active { transform: translateY(1px); }
   .btn.small { flex: 0 0 auto; padding: 8px 12px; font-size: 12px; font-weight: 500; }
@@ -223,6 +225,36 @@
 
   .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
 
+  /* ------------------------------------------------------------ Termine */
+
+  .hero {
+    background: linear-gradient(160deg, rgba(124, 196, 255, 0.16), rgba(124, 196, 255, 0.04));
+    border: 1px solid rgba(124, 196, 255, 0.32);
+    border-radius: 14px;
+    padding: 14px 15px;
+    margin: 8px 0 4px;
+  }
+  .hero-label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--accent); font-weight: 650;
+  }
+  .hero-title { font-size: 16px; font-weight: 650; margin-top: 3px; }
+  .hero-count {
+    font-size: 26px; font-weight: 700; margin-top: 8px; letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-when { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+  .hero-detail { font-size: 12.5px; color: var(--text); opacity: 0.85; margin-top: 8px; line-height: 1.45; }
+
+  .row.event { align-items: flex-start; }
+  .row.event .dot { margin-top: 3px; }
+  .row.event .grow { flex: 1; min-width: 0; }
+  .row.event .when { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .row.event .right b { font-variant-numeric: tabular-nums; }
+  .row.event.major .name { color: var(--accent); }
+
+  .actions { margin: 0 0 10px 24px; }
+
   /* ---------------------------------------------------------- overlays */
 
   #start {
@@ -282,8 +314,9 @@
     <button class="btn" id="tab-live" aria-pressed="true">Live</button>
     <button class="btn" id="tab-map" aria-pressed="false">Karte</button>
     <button class="btn" id="tab-list">Objekte</button>
+    <button class="btn" id="tab-events">Termine</button>
     <button class="btn" id="tab-time">Zeit</button>
-    <button class="btn" id="tab-settings">⚙</button>
+    <button class="btn narrow" id="tab-settings" aria-label="Einstellungen">⚙</button>
   </div>
 
   <section id="sheet" aria-hidden="true">
