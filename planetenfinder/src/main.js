@@ -7,7 +7,7 @@
  * opinions about buttons.
  */
 
-import { allBodies, findEvents, sunEvents, moonPhaseEvents, starHorizon, separationAltAz } from './astro.js';
+import { allBodies, findEvents, sunEvents, moonPhaseEvents, starHorizon, separationAltAz, saturnRingTilt } from './astro.js';
 import { STARS, CONSTELLATION_LINES } from './stars.js';
 import { BODIES, compassShort, compassName } from './bodies.js';
 import { Orientation, azAltOf } from './sensors.js';
@@ -96,7 +96,7 @@ function buildScene(force = false) {
       const positions = new Map();
       cachedStars = STARS.map((s) => {
         const h = starHorizon(s.ra, s.dec, date, site);
-        const entry = { name: s.name, mag: s.mag, alt: h.alt, az: h.az };
+        const entry = { name: s.name, mag: s.mag, colour: s.colour, alt: h.alt, az: h.az };
         positions.set(s.id, entry);
         return entry;
       });
@@ -105,7 +105,12 @@ function buildScene(force = false) {
       })).filter((l) => l.a && l.b);
     }
 
-    app.scene = { bodies, stars: cachedStars, lines: cachedLines, sunAlt: sun.altApparent, date };
+    app.scene = {
+      bodies, stars: cachedStars, lines: cachedLines,
+      sunAlt: sun.altApparent, date,
+      // Changes over years, not frames, but it costs one Kepler solution.
+      ringTilt: saturnRingTilt(date),
+    };
   }
   return app.scene;
 }

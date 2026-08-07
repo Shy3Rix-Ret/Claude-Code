@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS = {
   constellations: true,
   grid: true,
   labels: true,
+  realistic: true,
   nightMode: false,
   smoothing: true,
   levelHorizon: true,

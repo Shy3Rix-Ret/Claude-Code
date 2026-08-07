@@ -102,8 +102,44 @@ const CATALOGUE = [
   ['Regor', 8.158, -47.337, 1.83],
 ];
 
+/**
+ * Spectral colours, for the realistic mode.
+ *
+ * These are real differences, not decoration: Beteigeuze and Antares are
+ * visibly orange-red to the naked eye, Rigel and Spica are blue-white, and
+ * seeing that in the app is half of learning to recognise them. Only stars
+ * whose class is unambiguous are listed; the rest stay neutral white.
+ */
+const COLOURS = {
+  O: '#c6d8ff', B: '#cfe0ff', A: '#e6eeff', F: '#fff4e4', G: '#ffedc4',
+  K: '#ffcf9a', M: '#ffab74',
+};
+
+const CLASSES = {
+  Sirius: 'A', Canopus: 'F', 'Rigil Kentaurus': 'G', Arktur: 'K', Wega: 'A',
+  Capella: 'G', Rigel: 'B', Prokyon: 'F', Achernar: 'B', Beteigeuze: 'M',
+  Hadar: 'B', Altair: 'A', Acrux: 'B', Aldebaran: 'K', Antares: 'M',
+  Spica: 'B', Pollux: 'K', Fomalhaut: 'A', Deneb: 'A', Mimosa: 'B',
+  Regulus: 'B', Adhara: 'B', Castor: 'A', Gacrux: 'M', Shaula: 'B',
+  Bellatrix: 'B', Elnath: 'B', Miaplacidus: 'A', Alnilam: 'B', Alnitak: 'O',
+  Mintaka: 'O', Alioth: 'A', Dubhe: 'K', Mirfak: 'F', Wezen: 'F',
+  Sargas: 'F', 'Kaus Australis': 'B', Avior: 'K', Alkaid: 'B',
+  Menkalinan: 'A', Atria: 'K', Alhena: 'A', Peacock: 'B', Polaris: 'F',
+  Mirzam: 'B', Alphard: 'K', Algieba: 'K', Hamal: 'K', Diphda: 'K',
+  Nunki: 'B', Menkent: 'K', Alpheratz: 'B', Mirach: 'M', Rasalhague: 'A',
+  Kochab: 'K', Saiph: 'B', Denebola: 'A', Algol: 'B', Merak: 'A',
+  Phecda: 'A', Megrez: 'A', Mizar: 'A', Izar: 'K', Enif: 'K',
+  Markab: 'B', Scheat: 'M', Algenib: 'B', Schedar: 'K', Caph: 'F',
+  Tsih: 'B', Ruchbah: 'A', Segin: 'B', Sadr: 'F', Albireo: 'K',
+  'Gienah Cygni': 'K', Fawaris: 'B', Dschubba: 'B', Acrab: 'B', Lesath: 'B',
+  'Kaus Media': 'K', Ascella: 'A', Alderamin: 'A', Eltanin: 'K',
+  Vindemiatrix: 'G', Zosma: 'A', Alnair: 'B', 'Gamma Vel': 'O',
+  Suhail: 'K', Regor: 'O',
+};
+
 export const STARS = CATALOGUE.map(([name, ra, dec, mag], i) => ({
   id: `star-${i}`, name, ra, dec, mag,
+  colour: COLOURS[CLASSES[name]] || '#eef3ff',
 }));
 
 const byName = new Map(STARS.map((s) => [s.name, s]));

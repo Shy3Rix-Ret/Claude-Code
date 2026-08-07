@@ -8,6 +8,8 @@
  */
 
 import { BODIES, compassShort } from './bodies.js';
+import { paintSky, paintGround, paintBody, spikes, twinkle } from './realistic.js';
+import { eclipticPointHorizon } from './astro.js';
 
 const DEG = Math.PI / 180;
 
@@ -117,15 +119,23 @@ export function renderSky(ctx, view) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
+  const real = !!settings.realistic;
+
   if (!cameraOn) {
-    drawBackground(ctx, view, project, day);
+    if (real) {
+      paintSky(ctx, view);
+      paintGround(ctx, view, project);
+      drawHorizonLine(ctx, project, 'rgba(255,255,255,0.16)', 1);
+    } else {
+      drawBackground(ctx, view, project, day);
+    }
   } else {
     drawHorizonOnly(ctx, view, project);
   }
 
   if (settings.stars && (!cameraOn || day < 0.4)) {
     if (settings.constellations) drawConstellations(ctx, scene, project, day, cameraOn);
-    drawStars(ctx, scene, project, scale, day, cameraOn);
+    drawStars(ctx, scene, project, scale, day, cameraOn, real);
   }
 
   if (settings.grid) drawGrid(ctx, project, w, h);
@@ -269,19 +279,24 @@ function starRadius(mag, scale) {
   return Math.max(0.8, 4.6 - mag * 0.85) * scale * 0.85;
 }
 
-function drawStars(ctx, scene, project, scale, day, cameraOn) {
+function drawStars(ctx, scene, project, scale, day, cameraOn, real) {
   const alpha = (1 - day) * (cameraOn ? 0.75 : 1);
   if (alpha <= 0.02) return;
-  for (const s of scene.stars) {
+  const now = performance.now() / 1000;
+  for (let i = 0; i < scene.stars.length; i++) {
+    const s = scene.stars[i];
     if (s.alt < -2) continue;
     const p = project(unitVector(s.az, s.alt));
     if (!p) continue;
-    const r = starRadius(s.mag, scale);
-    ctx.globalAlpha = alpha * Math.max(0.45, 1 - s.mag / 6);
-    ctx.fillStyle = '#eef3ff';
+    // Real stars flicker, and they flicker hardest near the horizon.
+    const flicker = real ? twinkle(i, s.alt, now) : 1;
+    const r = starRadius(s.mag, scale) * (real ? flicker : 1);
+    ctx.globalAlpha = alpha * Math.max(0.45, 1 - s.mag / 6) * (real ? Math.min(1, flicker) : 1);
+    ctx.fillStyle = real ? (s.colour || '#eef3ff') : '#eef3ff';
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
+    if (real && s.mag < 1.2) spikes(ctx, r, [235, 242, 255], 0.22 * alpha, 3.5);
     if (s.mag < 1.6) {
       ctx.globalAlpha = alpha * 0.75;
       ctx.font = `500 ${9.5 * scale}px ui-sans-serif, system-ui, sans-serif`;
@@ -312,6 +327,40 @@ function drawConstellations(ctx, scene, project, day, cameraOn) {
 
 /* ---------------------------------------------------------------- bodies */
 
+/**
+ * Screen angle of the ecliptic where a body sits.
+ *
+ * Saturn's rings lie within 27° of this plane, so aligning them to it puts
+ * them the right way round in the sky — which the previous fixed offset from
+ * the Sun direction did not, leaving them standing on end.
+ */
+function eclipticAngle(view, project, body) {
+  const a = eclipticPointHorizon(body.eclLon - 1.5, view.date, view.site);
+  const b = eclipticPointHorizon(body.eclLon + 1.5, view.date, view.site);
+  const p1 = project(unitVector(a.az, a.alt));
+  const p2 = project(unitVector(b.az, b.alt));
+  if (!p1 || !p2) return 0;
+  return Math.atan2(p2.y - p1.y, p2.x - p1.x);
+}
+
+/** Radius in pixels a body's real disc covers at the current zoom. */
+function angularRadiusPx(body, view) {
+  const f = (Math.min(view.w, view.h) / 2) / Math.tan((view.fov / 2) * DEG);
+  return f * Math.tan((body.angularDiameter / 7200) * DEG);
+}
+
+/**
+ * Screen angle towards the Sun, which is the direction every phase has to
+ * point. Defined even when the Sun is behind the observer, since the Moon is
+ * usually lit from below the horizon.
+ */
+function limbAngle(view, body) {
+  const sun = view.scene.bodies.find((b) => b.id === 'sun');
+  if (!sun || body.id === 'sun') return 0;
+  const d = planeDirection(view.basis, unitVector(sun.az, sun.altApparent));
+  return Math.atan2(d.y, d.x);
+}
+
 /** Marker radius: bright things are bigger, but never microscopic. */
 function bodyRadius(body, scale) {
   const meta = BODIES[body.id];
@@ -321,6 +370,7 @@ function bodyRadius(body, scale) {
 
 function drawBodies(ctx, view, project, scale, day) {
   const { scene, settings } = view;
+  const real = !!settings.realistic;
   const drawn = [];
   // Two lines per label — name and altitude — so the whole block is reserved.
   const placeLabel = makeLabelPlacer(26 * scale);
@@ -337,28 +387,50 @@ function drawBodies(ctx, view, project, scale, day) {
     if (p.x < -80 || p.x > view.w + 80 || p.y < -80 || p.y > view.h + 80) continue;
 
     const meta = BODIES[body.id] || {};
-    const r = bodyRadius(body, scale);
     const alpha = below ? 0.4 : 1;
     ctx.globalAlpha = alpha;
 
-    // Glow.
-    const glowR = r * (body.id === 'sun' ? 6 : 3.4);
-    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
-    grad.addColorStop(0, hexAlpha(meta.glow || '#ffffff', 0.55));
-    grad.addColorStop(1, hexAlpha(meta.glow || '#ffffff', 0));
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
-    ctx.fill();
+    let r = bodyRadius(body, scale);
 
-    if (body.id === 'moon') {
-      drawMoon(ctx, view, p, r, body);
+    if (real) {
+      // The Sun and the Moon are half a degree across and grow as you zoom
+      // in, the way they should. Everything else stays a symbol: Jupiter's
+      // true disc is a twentieth of a pixel at normal zoom, and a dot that
+      // small is not a planet finder.
+      if (body.id === 'sun' || body.id === 'moon') {
+        r = Math.max(r * 0.55, angularRadiusPx(body, view));
+      } else {
+        // Everything else is drawn as though through a small telescope at
+        // 100×, which is about the magnification at which Saturn's rings
+        // become obvious. Zooming in therefore grows the planets, and at
+        // normal fields of view the symbolic dot still wins.
+        r = Math.max(r, Math.min(120, angularRadiusPx(body, view) * 100));
+      }
+      paintBody(ctx, body, p, r, {
+        limb: limbAngle(view, body),
+        ringAngle: body.id === 'saturn' ? eclipticAngle(view, project, body) : 0,
+        ringTilt: scene.ringTilt ?? -9,
+        dayness: day,
+      });
     } else {
-      ctx.fillStyle = meta.color || '#fff';
+      const glowR = r * (body.id === 'sun' ? 6 : 3.4);
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
+      grad.addColorStop(0, hexAlpha(meta.glow || '#ffffff', 0.55));
+      grad.addColorStop(1, hexAlpha(meta.glow || '#ffffff', 0));
+      ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
       ctx.fill();
-      if (body.id === 'sun') drawSunRays(ctx, p, r);
+
+      if (body.id === 'moon') {
+        drawMoon(ctx, view, p, r, body);
+      } else {
+        ctx.fillStyle = meta.color || '#fff';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (body.id === 'sun') drawSunRays(ctx, p, r);
+      }
     }
 
     // Ring for the ones that need finding rather than admiring.

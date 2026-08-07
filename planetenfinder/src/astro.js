@@ -499,6 +499,25 @@ export function allBodies(date, site) {
   return BODY_IDS.map((id) => bodyState(id, date, site));
 }
 
+/**
+ * Opening angle of Saturn's rings, degrees, signed by which face we see.
+ *
+ * Worth having rather than guessing: the ring plane crossed the Earth in
+ * 2025, so through 2026 the rings are all but edge-on — a drawing with them
+ * wide open would be a picture of a different decade. Meeus, chapter 45.
+ */
+export function saturnRingTilt(date) {
+  const jd = julianDay(date);
+  const T = centuries(jd);
+  const s = bodyState('saturn', date, { lat: 0, lon: 0, elevation: 0 }, { topocentric: false });
+  const inclination = 28.075 - 0.012 * T;      // ring plane to the ecliptic
+  const node = 169.508 + 1.394 * T;            // its ascending node
+  return Math.asin(Math.max(-1, Math.min(1,
+    sind(inclination) * cosd(s.eclLat) * sind(s.eclLon - node)
+    - cosd(inclination) * sind(s.eclLat),
+  ))) * RAD;
+}
+
 /** Angular distance between two equatorial positions, degrees. */
 export function angularSeparation(ra1, dec1, ra2, dec2) {
   const c =

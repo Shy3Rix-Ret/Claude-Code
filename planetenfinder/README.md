@@ -81,6 +81,39 @@ Uhr der ganzen App auf diesen Moment und wechselt auf die Karte — man sieht
 also vorher, wo genau am Horizont es passieren wird. Und **als Ziel setzen**
 legt den Führungspfeil auf das beteiligte Objekt.
 
+### Realistische Grafik
+
+Standardmäßig an, in den Einstellungen abschaltbar.
+
+**Die Umgebung** ist kein Farbverlauf mehr, sondern ein Streumodell, das pro
+Blickrichtung ausgewertet wird: der helle Hof um die Sonne, der Dunst, der zum
+Horizont hin dichter wird, das orange Band bei Sonnenuntergang — und
+gegenüber davon der Erdschatten, der aus dem Horizont steigt, mit dem rosa
+Band der Venusgürtels darüber. Nachts kommen Mondlicht und die Lichtglocke
+über dem Horizont dazu. Sterne funkeln, und zwar am Horizont stärker als im
+Zenit, weil dort mehr Luft im Weg ist; ihre Farben sind die echten
+Spektralfarben, Beteigeuze also orangerot und Rigel blauweiß.
+
+**Die Körper** bekommen ihr richtiges Gesicht: Saturn mit Ringen im
+tatsächlichen Öffnungswinkel des Jahres (2026 fast auf der Kante, nach dem
+Ringebenendurchgang von 2025), Jupiter abgeplattet und gebändert, Mars rötlich
+mit Polkappe, Venus und Merkur mit Phase, die Sonne mit Korona, der Mond mit
+seinen Maria. Phasen zeigen immer zur Sonne, auch wenn die längst untergegangen
+ist.
+
+Zur Größe, weil das sonst irreführend wäre: **Sonne und Mond werden in wahrer
+Größe gezeichnet** und wachsen beim Zoomen mit. Die Planeten dagegen bleiben
+absichtlich viel zu groß — sie werden gezeichnet, als sähe man sie durch ein
+kleines Teleskop bei 100-facher Vergrößerung, was ungefähr die Vergrößerung
+ist, ab der Saturns Ringe auffallen. In Wahrheit misst Jupiter 47
+Bogensekunden, ein Zwanzigstel Pixel.
+
+Kostenpunkt: nichts. Das Modell läuft in einen kleinen Puffer, der
+hochskaliert wird; gemessen 60 fps mit und ohne. (Der teure Teil war nicht die
+Rechnung, sondern der Hochskalier-Filter — `imageSmoothingQuality: 'high'`
+halbierte die Bildrate, bilinear aus einem dichteren Puffer sieht bei
+Farbverläufen gleich aus und kostet nichts.)
+
 Weitere Schalter: Kamerabild, Sterne, Sternbilder, Gradnetz, Beschriftungen,
 untergegangene Objekte, Karte in Blickrichtung drehen, Nachtmodus (rot),
 Sichtfeld (auch per Zwei-Finger-Zoom).
@@ -167,6 +200,7 @@ src/sensors.js    Lagesensoren → Kamerabasis in Ost/Nord/Oben, Kompasseichung,
                   Ersatzsteuerung per Finger
 src/skyview.js    Live-Ansicht: Projektion, Himmelsfarben, Boden, Mondphase,
                   Zielführung
+src/realistic.js  Streumodell der Atmosphäre, Ringe, Bänder, Phasen, Funkeln
 src/mapview.js    Horizontkarte, Sichtfeldkeil, Ekliptik
 src/stars.js      Sternkatalog bis etwa 2,5 mag und ein paar Sternbildlinien
 src/bodies.js     Namen, Farben, Texte

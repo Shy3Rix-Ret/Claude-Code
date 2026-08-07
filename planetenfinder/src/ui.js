@@ -629,6 +629,8 @@ export function buildSettings(app) {
   /* ------------------------------------------------------------- view */
 
   frag.appendChild(el('h3', { text: 'Ansicht' }));
+  frag.appendChild(toggle('realistic', 'Realistische Grafik',
+    'Atmosphäre statt Farbverlauf, Ringe am Saturn, Phasen bei Venus und Merkur'));
   frag.appendChild(toggle('camera', 'Kamerabild', 'Planeten über das Livebild legen'));
   frag.appendChild(toggle('stars', 'Sterne'));
   frag.appendChild(toggle('constellations', 'Sternbilder'));
@@ -658,6 +660,15 @@ export function buildSettings(app) {
   frag.appendChild(el('div', { class: 'field' }, [el('label', { text: 'Aktuell' }), fovValue]));
 
   /* ------------------------------------------------------------ about */
+
+  frag.appendChild(el('div', {
+    class: 'note',
+    text: 'Zur realistischen Grafik: Himmelsfarbe, Dunst am Horizont, Dämmerungsband '
+      + 'und Erdschatten sind aus dem Sonnenstand gerechnet, Saturns Ringe aus dem '
+      + 'echten Öffnungswinkel des Jahres. Nur die Größe stimmt nicht — Sonne und '
+      + 'Mond werden in wahrer Größe gezeichnet, die Planeten absichtlich viel zu '
+      + 'groß. Jupiter misst 47 Bogensekunden, das wäre ein Zwanzigstel Pixel.',
+  }));
 
   frag.appendChild(el('h3', { text: 'Genauigkeit' }));
   frag.appendChild(el('div', {
