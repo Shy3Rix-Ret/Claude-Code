@@ -278,8 +278,18 @@ app.setSetting = (key, value) => {
   saveSettings(app.settings);
   if (key === 'nightMode') $('app').classList.toggle('night', value);
   if (key === 'smoothing') app.orientation.smoothing = value;
+  if (key === 'levelHorizon') applyStabilisation();
   if (key === 'camera') value ? startCamera() : stopCamera();
 };
+
+/**
+ * Keeping the horizon flat is a help right up until the camera is on: the
+ * live image tips with the phone, so an overlay that refuses to would slide
+ * off the world behind it.
+ */
+function applyStabilisation() {
+  app.orientation.levelHorizon = !!app.settings.levelHorizon && !app.cameraStream;
+}
 
 app.setSite = (site) => {
   app.settings.site = { ...app.settings.site, ...site };
@@ -350,6 +360,7 @@ async function startCamera() {
       video: { facingMode: { ideal: 'environment' } }, audio: false,
     });
     app.cameraStream = stream;
+    applyStabilisation();
     const video = $('cam');
     video.srcObject = stream;
     video.classList.add('on');
@@ -365,6 +376,7 @@ function stopCamera() {
   if (!app.cameraStream) return;
   app.cameraStream.getTracks().forEach((t) => t.stop());
   app.cameraStream = null;
+  applyStabilisation();
   const video = $('cam');
   video.srcObject = null;
   video.classList.remove('on');
@@ -508,6 +520,7 @@ async function requestWakeLock() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     if (!wakeLock) requestWakeLock();
+    app.orientation.resnap();
     buildScene(true);
   }
 });
@@ -523,6 +536,7 @@ app.orientation.addEventListener('modechange', () => {
 
 /* Boot. */
 app.orientation.smoothing = app.settings.smoothing;
+applyStabilisation();
 app.orientation.setHeadingOffset(app.settings.headingOffset || 0);
 $('app').classList.toggle('night', !!app.settings.nightMode);
 resize();

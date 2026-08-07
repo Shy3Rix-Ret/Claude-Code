@@ -40,6 +40,7 @@ const DEFAULT_SETTINGS = {
   labels: true,
   nightMode: false,
   smoothing: true,
+  levelHorizon: true,
   belowHorizon: true,
   mapHeadingUp: false,
   ecliptic: true,

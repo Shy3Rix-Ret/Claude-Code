@@ -111,6 +111,47 @@ export function vectorFor(az, alt) {
   return [ca * Math.sin(az * DEG), ca * Math.cos(az * DEG), Math.sin(alt * DEG)];
 }
 
+/**
+ * Take the roll out of a camera basis: same aim, but the horizon lies flat
+ * across the screen instead of tipping with every twitch of the wrist.
+ *
+ * Pointing straight up the levelled basis is undefined — there is no "flat
+ * horizon" at the zenith — so the device's own roll is faded back in above
+ * 55° of elevation and used alone above 75°. Without that fade the picture
+ * would spin on the spot exactly where people hold the phone to look at the
+ * sky.
+ */
+function levelled({ right, up, forward }) {
+  const horizontal = Math.hypot(forward[0], forward[1]);
+  if (horizontal < 1e-4) return { right, up, forward };
+
+  const alt = Math.abs(Math.asin(Math.max(-1, Math.min(1, forward[2]))) * RAD);
+  const blend = Math.max(0, Math.min(1, (alt - 55) / 20));
+  if (blend >= 1) return { right, up, forward };
+
+  // Level frame: right stays horizontal, up completes the right-handed set.
+  const rightL = [forward[1] / horizontal, -forward[0] / horizontal, 0];
+  const upL = [
+    rightL[1] * forward[2] - rightL[2] * forward[1],
+    rightL[2] * forward[0] - rightL[0] * forward[2],
+    rightL[0] * forward[1] - rightL[1] * forward[0],
+  ];
+
+  // How far the device is rolled away from that frame, and how much of it we
+  // keep. Rotating the level frame back by the kept amount preserves the aim.
+  const roll = Math.atan2(
+    right[0] * upL[0] + right[1] * upL[1] + right[2] * upL[2],
+    right[0] * rightL[0] + right[1] * rightL[1] + right[2] * rightL[2],
+  ) * blend;
+
+  const c = Math.cos(roll), s = Math.sin(roll);
+  return {
+    right: rightL.map((v, i) => v * c + upL[i] * s),
+    up: rightL.map((v, i) => -v * s + upL[i] * c),
+    forward,
+  };
+}
+
 /* ------------------------------------------------------------------ class */
 
 export class Orientation extends EventTarget {
@@ -121,9 +162,12 @@ export class Orientation extends EventTarget {
     this.compassAccuracy = null;  // iOS only, degrees
     this.headingOffset = 0;       // user calibration, added to the azimuth
     this.smoothing = true;
+    this.levelHorizon = true;     // damp the device roll, see basis()
 
     this._raw = null;             // {alpha, beta, gamma}
-    this._compassOffset = 0;      // derived from webkitCompassHeading
+    this._compassOffset = null;   // eased from webkitCompassHeading
+    this._compassAt = 0;
+    this._resnap = false;
     this._q = [0, 0, 0, 1];
     this._qTarget = [0, 0, 0, 1];
     this._lastEvent = 0;
@@ -213,7 +257,7 @@ export class Orientation extends EventTarget {
     if (typeof ev.webkitCompassHeading === 'number' && !Number.isNaN(ev.webkitCompassHeading)) {
       // iOS: the heading is true north referenced, alpha is not. The compass
       // counts clockwise, alpha counterclockwise — hence 360 - heading.
-      this._compassOffset = norm180(ev.alpha - (360 - ev.webkitCompassHeading));
+      this._blendCompass(norm180(ev.alpha - (360 - ev.webkitCompassHeading)));
       this.absolute = true;
       if (typeof ev.webkitCompassAccuracy === 'number' && ev.webkitCompassAccuracy >= 0) {
         this.compassAccuracy = ev.webkitCompassAccuracy;
@@ -231,11 +275,52 @@ export class Orientation extends EventTarget {
     }
   }
 
+  /**
+   * Complementary filter for the compass.
+   *
+   * `alpha` is gyro-driven: smooth, fast, and slowly drifting. The magnetic
+   * heading is the opposite — absolutely referenced but jumpy, and it lurches
+   * whenever the magnetometer recalibrates or the app comes back from being
+   * interrupted. Taking the offset raw on every event, as this used to, made
+   * the azimuth follow the magnetometer 1:1 while the tilt still came from
+   * the gyro, and the sky wobbled and span between the two.
+   *
+   * So the offset is eased instead: short-term motion follows the smooth
+   * alpha, and the compass only pulls the heading towards true north over a
+   * few seconds. A large disagreement is treated as a genuine re-reference —
+   * after a phone call, for instance, alpha's origin can reset — and is
+   * closed off quickly rather than crawled towards.
+   */
+  _blendCompass(target) {
+    const now = performance.now();
+    const dt = Math.min((now - (this._compassAt || now)) / 1000, 1);
+    this._compassAt = now;
+
+    if (this._compassOffset == null || this._resnap) {
+      this._compassOffset = target;
+      this._resnap = false;
+      return;
+    }
+
+    const diff = norm180(target - this._compassOffset);
+    const tau = Math.abs(diff) > 90 ? 0.4 : 2.5;
+    this._compassOffset = norm180(this._compassOffset + diff * (1 - Math.exp(-dt / tau)));
+  }
+
+  /**
+   * Take the next compass reading as gospel instead of easing into it. Used
+   * when the app comes back to the foreground, where the reference alpha is
+   * measured against may have moved while we were not looking.
+   */
+  resnap() {
+    this._resnap = true;
+  }
+
   _computeQuaternion() {
     const { alpha, beta, gamma } = this._raw;
     // A negative offset here turns the sky the other way, so it is applied
     // as a subtraction from alpha and read back as an addition to azimuth.
-    const a = (alpha - this._compassOffset - this.headingOffset) * DEG;
+    const a = (alpha - (this._compassOffset ?? 0) - this.headingOffset) * DEG;
     let q = qFromEulerYXZ(beta * DEG, a, -gamma * DEG);
     q = qMul(q, Q_SCREEN);
     q = qMul(q, qFromAxisZ(-this._screenAngle));
@@ -257,11 +342,12 @@ export class Orientation extends EventTarget {
   /** Camera basis in ENU: where the back of the phone is aimed. */
   basis() {
     if (this.mode === 'sensor' && this._raw) {
-      return {
+      const raw = {
         right: toENU(qRotate(this._q, [1, 0, 0])),
         up: toENU(qRotate(this._q, [0, 1, 0])),
         forward: toENU(qRotate(this._q, [0, 0, -1])),
       };
+      return this.levelHorizon ? levelled(raw) : raw;
     }
     // Manual: no roll, so the horizon stays level.
     const { az, alt } = this.manual;

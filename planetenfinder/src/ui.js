@@ -406,6 +406,8 @@ export function buildSettings(app) {
   frag.appendChild(toggle('belowHorizon', 'Untergegangene zeigen', 'gedimmt, mit Richtung'));
   frag.appendChild(toggle('mapHeadingUp', 'Karte in Blickrichtung drehen'));
   frag.appendChild(toggle('nightMode', 'Nachtmodus (rot)', 'schont die Dunkeladaption der Augen'));
+  frag.appendChild(toggle('levelHorizon', 'Horizont waagrecht halten',
+    'ruhigeres Bild; beim Kamerabild automatisch aus'));
   frag.appendChild(toggle('smoothing', 'Bewegung glätten'));
 
   const fovValue = el('b', { text: `${nf(s.fov)}°` });
