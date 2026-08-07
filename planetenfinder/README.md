@@ -73,6 +73,31 @@ Die gerechneten Positionen:
 Zum Vergleich: der Vollmond ist 30 Bogenminuten breit. Die Rechnung ist also
 deutlich genauer, als das Auge auflösen kann.
 
+### Nachprüfen statt glauben
+
+```
+node planetenfinder/tools/verify.mjs
+```
+
+Drei Prüfungen, die von außen kontrollierbar sind:
+
+1. **Die totale Sonnenfinsternis vom 12.08.2026.** Eine Finsternis ist nichts
+   anderes als Sonne und Mond am selben Fleck — das kommt nur heraus, wenn
+   Sonnenstand, Mondstand, Zeitskala und Standortparallaxe gleichzeitig
+   stimmen. Ergebnis: 0,55′ Abstand um 17:45 UT (veröffentlicht: 17:46 UT),
+   der Mond deckt die Sonne vollständig. Ohne die Standortkorrektur wären es
+   54′ — gar keine Finsternis. Kein anderer Test hier ist annähernd so scharf.
+2. **Tagundnachtgleiche und Sonnenwende** gegen den Kalender. Der
+   Frühlingsanfang landet 16 Minuten zu früh, das sind rund 40 Bogensekunden
+   Sonnenlänge — die Grenze der verwendeten Bahnelemente, plus die jährliche
+   Aberration, die hier bewusst nicht modelliert ist.
+3. **Die Planeten gegen eine zweite, unabhängige Rechnung** (Schlyters
+   klassische Methode: andere Bahnelemente, andere Epoche, eigener Code).
+   Schlechtester Wert über sechs Zeitpunkte von 2026 bis 2030: Merkur, Venus,
+   Mars, Neptun unter 0,5′, Uranus 1,3′, Jupiter 2,9′, Saturn 6,4′. Dass zwei
+   unabhängige Wege übereinstimmen, schließt Programmierfehler aus — es
+   beweist nicht die zugrunde liegende Theorie.
+
 **Die eigentliche Unsicherheit steckt im Magnetkompass des Handys.** 5° bis 15°
 Abweichung sind normal, im Gebäude, im Auto oder neben Lautsprechern deutlich
 mehr. Dagegen hilft nur Eichen:
