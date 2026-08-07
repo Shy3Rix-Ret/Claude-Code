@@ -3,7 +3,7 @@
  *
  *   node planetenfinder/tools/verify.mjs
  *
- * Three tests, in descending order of how much they prove:
+ * Four tests, in descending order of how much they prove:
  *
  *   1. The total solar eclipse of 12 August 2026. An eclipse is the Sun and
  *      the Moon at the same place in the sky, which only comes out right if
@@ -17,9 +17,13 @@
  *      Two implementations agreeing rules out coding mistakes; it does not
  *      prove the underlying theory, so the thresholds are set at the accuracy
  *      both methods claim rather than at zero.
+ *   4. The dates the Termine panel produces, against figures published by
+ *      NASA, timeanddate, EarthSky, in-the-sky.org and the IMO. Those were
+ *      looked up once and written into this file, so they keep testing.
  */
 
 import { bodyState, angularSeparation, separationAltAz } from '../src/astro.js';
+import { moonPhases, solarEclipses, lunarEclipses, oppositions, greatestElongations } from '../src/events.js';
 
 const D = Math.PI / 180;
 const sin = (x) => Math.sin(x * D);
@@ -154,8 +158,11 @@ check(best.sep * 60 < 3, 'Sonne und Mond stehen übereinander',
   `${(best.sep * 60).toFixed(2)}′ Abstand`);
 check(best.sep < moonR - sunR, 'Mond bedeckt die Sonne vollständig',
   `Mondradius ${(moonR * 60).toFixed(1)}′ > Sonnenradius ${(sunR * 60).toFixed(1)}′`);
-check(Math.abs(best.t - Date.UTC(2026, 7, 12, 17, 46)) < 5 * 60000,
-  'Zeitpunkt trifft die veröffentlichte Vorhersage', `${clock} UT, erwartet 17:46 UT`);
+// The published instant of greatest eclipse is 17:45:51 UT, 45 km off the
+// west coast of Iceland at 65°10.3′ N, 25°12.3′ W.
+check(Math.abs(best.t - Date.UTC(2026, 7, 12, 17, 45, 51)) < 60000,
+  'Zeitpunkt trifft die veröffentlichte Vorhersage',
+  `${new Date(best.t).toISOString().slice(11, 19)} UT, veröffentlicht 17:45:51 UT`);
 
 // Without the observer's own position on the globe there is no eclipse here
 // at all — worth showing, because it is the correction most sky apps skip.
@@ -227,6 +234,55 @@ for (const name of Object.keys(ELEMENTS)) {
   check(worst < LIMIT[name], `${name} stimmt mit der Zweitrechnung überein`,
     `${worst.toFixed(2)}′ (Grenze ${LIMIT[name]}′)`);
 }
+
+/* 4 ------------------------------------------- the Termine, against sources */
+
+/**
+ * The dates the Termine panel produces, checked against published values.
+ *
+ * These reference figures were looked up once (NASA, timeanddate, EarthSky,
+ * in-the-sky.org, IMO) and written down here, so the agreement is a standing
+ * test rather than something that was true on the afternoon it was checked.
+ * Everything on the left-hand side is computed from the ephemeris.
+ */
+console.log('\nTermine gegen veröffentlichte Werte:\n');
+
+const zurich = { lat: 47.3769, lon: 8.5417, elevation: 408 };
+const now = Date.now();
+const phases = moonPhases(now, 900);
+
+const solar = solarEclipses(phases.filter((p) => p.key === 'new'), zurich)
+  .find((e) => e.time.getUTCFullYear() === 2026 && e.time.getUTCMonth() === 7);
+check(solar && Math.abs(solar.time - Date.UTC(2026, 7, 12, 18, 18)) < 4 * 60000,
+  'Sonnenfinsternis 12.08.2026, Maximum in Zürich',
+  `${solar ? solar.time.toISOString().slice(11, 16) : '—'} UT, veröffentlicht 18:17–18:21 UT`);
+check(solar && solar.covered > 0.9 && solar.covered < 0.95,
+  '… und deckt gut 90 % der Sonnenfläche',
+  `${(solar.covered * 100).toFixed(1)} % (Schweiz: „rund 90 bis 92 %“)`);
+
+const lunar = lunarEclipses(phases.filter((p) => p.key === 'full'), zurich)
+  .find((e) => e.time.getUTCFullYear() === 2026 && e.time.getUTCMonth() === 7);
+check(lunar && Math.abs(lunar.time - Date.UTC(2026, 7, 28, 4, 12)) < 4 * 60000,
+  'Mondfinsternis 28.08.2026, Maximum',
+  `${lunar ? lunar.time.toISOString().slice(11, 16) : '—'} UT, veröffentlicht 04:12 UT`);
+
+const opps = oppositions(now, 900);
+const oppDates = {
+  saturn: [Date.UTC(2026, 9, 4), 'EarthSky: 4. Oktober 2026'],
+  jupiter: [Date.UTC(2027, 1, 11), 'veröffentlicht: 11. Februar 2027'],
+  mars: [Date.UTC(2027, 1, 19), 'veröffentlicht: 19. Februar 2027'],
+};
+for (const [id, [expected, label]] of Object.entries(oppDates)) {
+  const found = opps.find((o) => o.id === id);
+  const off = found ? (found.time - expected) / 86400000 : 99;
+  check(Math.abs(off) < 1, `Opposition ${id}`,
+    `${found ? found.time.toISOString().slice(0, 10) : '—'} · ${label}`);
+}
+
+const venus = greatestElongations(now, 400).find((e) => e.id === 'venus' && e.east);
+check(venus && Math.abs(venus.time - Date.UTC(2026, 7, 15)) < 86400000 && Math.abs(venus.separation - 45.88) < 0.2,
+  'Venus, größte östliche Elongation',
+  `${venus ? venus.time.toISOString().slice(0, 10) : '—'}, ${venus ? venus.separation.toFixed(2) : '—'}° · veröffentlicht 15.08.2026, 45°53′`);
 
 console.log('\nZum Einordnen: der Vollmond ist 30′ breit, das bloße Auge trennt');
 console.log('bestenfalls 1′, und der Magnetkompass eines Handys irrt sich um');

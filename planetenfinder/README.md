@@ -123,6 +123,25 @@ Drei Prüfungen, die von außen kontrollierbar sind:
    Mars, Neptun unter 0,5′, Uranus 1,3′, Jupiter 2,9′, Saturn 6,4′. Dass zwei
    unabhängige Wege übereinstimmen, schließt Programmierfehler aus — es
    beweist nicht die zugrunde liegende Theorie.
+4. **Die Termine gegen veröffentlichte Werte.** Einmal nachgeschlagen (NASA,
+   timeanddate, EarthSky, in-the-sky.org, IMO) und fest eingetragen, damit die
+   Übereinstimmung weiter geprüft wird:
+
+   | gerechnet | veröffentlicht |
+   |---|---|
+   | Größte Verfinsterung 12.08.2026, 17:45:50 UT | 17:45:51 UT |
+   | Maximum in Zürich 20:17 MESZ, 92,8 % der Fläche | 20:17–20:21, „rund 90 bis 92 %“ |
+   | Mondfinsternis 28.08.2026, 04:13 UT | 04:12 UT |
+   | Saturn in Opposition 04.10.2026 | 4. Oktober 2026 |
+   | Jupiter in Opposition 11.02.2027 | 11. Februar 2027 |
+   | Mars in Opposition 19.02.2027 | 19. Februar 2027 |
+   | Venus, größte Elongation 15.08.2026, 45,89° | 15.08.2026, 45°53′ |
+
+Die **Sternschnuppenströme** sind der einzige Teil der Termine, der nicht
+gerechnet ist: Meteorströme sind Staubspuren, keine Zweikörperbahnen, da gibt
+es nichts zu integrieren. Deren Maxima stehen als Mittelwerte von IMO und AMS
+in einer Tabelle, und die App schreibt dazu, dass das Maximum um etwa einen
+Tag schwanken kann.
 
 **Die eigentliche Unsicherheit steckt im Magnetkompass des Handys.** 5° bis 15°
 Abweichung sind normal, im Gebäude, im Auto oder neben Lautsprechern deutlich

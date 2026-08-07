@@ -246,11 +246,14 @@ export function oppositions(from, days) {
     let prev = diff(from);
     for (let t = from + step; t <= from + days * DAY; t += step) {
       const cur = diff(t);
-      if (prev < 0 && cur >= 0 && Math.abs(prev) < 90) {
+      // The Sun gains about a degree a day on any outer planet, so this
+      // difference runs *down* through opposition, not up. Watching for the
+      // rising crossing found nothing at all.
+      if (prev > 0 && cur <= 0 && Math.abs(prev) < 90) {
         let lo = t - step, hi = t;
         for (let k = 0; k < 24; k++) {
           const mid = (lo + hi) / 2;
-          if (diff(mid) < 0) lo = mid; else hi = mid;
+          if (diff(mid) > 0) lo = mid; else hi = mid;
         }
         const when = (lo + hi) / 2;
         const body = geo(id, when);
@@ -391,16 +394,24 @@ export function conjunctions(from, days, site) {
 
 /* -------------------------------------------------------- meteor showers */
 
-// Peak dates drift by a day either way from year to year; these are the
-// long-term averages, which is the accuracy the subject deserves.
+/**
+ * The one thing in this file that is looked up rather than derived.
+ *
+ * Meteor streams are debris trails, not two-body orbits, so there is nothing
+ * here to integrate — the peaks come from the long-term averages published by
+ * the IMO and the AMS. `day` is the morning the peak night runs into, since
+ * most of these are richest in the small hours; the real maximum wanders by
+ * about a day from year to year, and the panel says so.
+ */
 const SHOWERS = [
-  { name: 'Quadrantiden', month: 1, day: 3, rate: 110, note: 'Kurzes, scharfes Maximum — nur wenige Stunden.' },
+  { name: 'Quadrantiden', month: 1, day: 4, rate: 120, note: 'Kurzes, scharfes Maximum — nur wenige Stunden.' },
   { name: 'Lyriden', month: 4, day: 22, rate: 18, note: 'Gelegentlich helle Boliden.' },
-  { name: 'Eta-Aquariiden', month: 5, day: 6, rate: 50, note: 'Reste des Halleyschen Kometen, tief am Morgenhimmel.' },
-  { name: 'Perseiden', month: 8, day: 12, rate: 100, note: 'Der Klassiker: warme Nächte, hohe Rate, ganze Nacht.' },
+  { name: 'Eta-Aquariiden', month: 5, day: 6, rate: 55, note: 'Reste des Halleyschen Kometen, tief am Morgenhimmel.' },
+  { name: 'Perseiden', month: 8, day: 13, rate: 100, note: 'Der Klassiker: warme Nächte, hohe Rate, die ganze Nacht.' },
   { name: 'Orioniden', month: 10, day: 21, rate: 20, note: 'Ebenfalls vom Halleyschen Kometen, sehr schnelle Meteore.' },
   { name: 'Leoniden', month: 11, day: 17, rate: 15, note: 'Alle 33 Jahre ein Sturm — dazwischen ruhig.' },
   { name: 'Geminiden', month: 12, day: 14, rate: 150, note: 'Der reichste Strom des Jahres, auch schon am Abend.' },
+  { name: 'Ursiden', month: 12, day: 22, rate: 10, note: 'Klein, zirkumpolar, kurz vor Weihnachten.' },
 ];
 
 /** Next peak of each shower, with the Moon's verdict on it. */
@@ -419,6 +430,7 @@ export function meteorShowers(from, days) {
       out.push({
         key: 'meteors', time: peak, name: shower.name, rate: shower.rate,
         note: shower.note,
+        approximate: true,
         moonIllumination: illum,
         moonSpoils: illum > 0.6,
       });

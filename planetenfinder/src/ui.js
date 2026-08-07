@@ -231,18 +231,25 @@ export function buildTwilight(sun) {
  * something — a ticking seconds field on a countdown of eight months is
  * decoration, not information.
  */
-export function countdownText(ms) {
+export function countdownText(ms, precise = false) {
   if (ms <= 0) return 'jetzt';
   const s = Math.floor(ms / 1000);
   const days = Math.floor(s / 86400);
   const hours = Math.floor((s % 86400) / 3600);
   const mins = Math.floor((s % 3600) / 60);
   const secs = s % 60;
+  const pad = (n) => String(n).padStart(2, '0');
 
+  // The card at the top runs to the second whatever the distance — that is
+  // the whole point of a countdown to an eclipse. The rows below stay coarse,
+  // because sixty of them ticking is noise.
+  if (precise && days >= 1) {
+    return `${days} ${days === 1 ? 'Tag' : 'Tage'} ${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+  }
   if (days >= 2) return `in ${days} Tagen ${hours} h`;
   if (days === 1) return `in 1 Tag ${hours} h`;
-  if (hours >= 1) return `in ${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} h`;
-  if (mins >= 1) return `in ${mins}:${String(secs).padStart(2, '0')} min`;
+  if (hours >= 1) return `in ${hours}:${pad(mins)}:${pad(secs)} h`;
+  if (mins >= 1) return `in ${mins}:${pad(secs)} min`;
   return `in ${secs} s`;
 }
 
@@ -300,15 +307,22 @@ export function describeEvent(e) {
           : ' · steht in der Dunkelheit leider zu tief');
       return { title, detail, colour: colour(a), major: e.separation < 1 || e.occultation };
     }
-    case 'meteors':
+    case 'meteors': {
+      // The peak is a night, not an instant, and its date is a long-term
+      // average — the only entry in this list that is not computed, so it is
+      // the only one that says so.
+      const eve = new Date(e.time.getTime() - 6 * 3600000);
       return {
         title: `${e.name} — Sternschnuppen`,
-        detail: `bis zu ${e.rate} pro Stunde im Maximum. `
+        detail: `Maximum in der Nacht vom ${eve.getDate()}. auf den ${e.time.getDate()}., `
+          + `bis zu ${e.rate} pro Stunde. `
           + (e.moonSpoils
             ? `Der Mond ist zu ${nf(e.moonIllumination * 100)} % beleuchtet und stört.`
-            : `Der Mond stört kaum (${nf(e.moonIllumination * 100)} % beleuchtet).`),
+            : `Der Mond stört kaum (${nf(e.moonIllumination * 100)} % beleuchtet).`)
+          + ' Richtwert, das Maximum schwankt um etwa einen Tag.',
         colour: '#b6c7e6', major: !e.moonSpoils && e.rate >= 100,
       };
+    }
     case 'new': case 'full': case 'first': case 'last':
       return { title: e.title, detail: e.note, colour: colour('moon') };
     default:
@@ -341,7 +355,8 @@ export function buildEvents(events, { onShowSky, onTarget, reference }) {
     el('div', {
       class: 'hero-count countdown',
       'data-at': String(next.time.getTime()),
-      text: countdownText(next.time - Date.now()),
+      'data-precise': '1',
+      text: countdownText(next.time - Date.now(), true),
     }),
     el('div', { class: 'hero-when', text: fmtDateTime(next.time) + ' Uhr' }),
     el('div', { class: 'hero-detail', text: lead.detail }),
@@ -398,9 +413,11 @@ export function buildEvents(events, { onShowSky, onTarget, reference }) {
   frag.appendChild(el('div', {
     class: 'note',
     text: 'Alle Zeiten für deinen Standort und in deiner Zeitzone, aus derselben '
-      + 'Rechnung wie die Himmelsansicht. Finsternisse sind nicht nachgeschlagen, '
-      + 'sondern ausgerechnet — deshalb steht dabei, was von hier aus davon zu '
-      + 'sehen ist.',
+      + 'Rechnung wie die Himmelsansicht. Finsternisse, Oppositionen und '
+      + 'Begegnungen sind nicht nachgeschlagen, sondern ausgerechnet — deshalb '
+      + 'steht dabei, was von hier aus davon zu sehen ist. Einzige Ausnahme sind '
+      + 'die Sternschnuppenströme: die lassen sich nicht aus Bahnen ableiten und '
+      + 'stehen als Mittelwerte in einer Tabelle.',
   }));
 
   return frag;
@@ -420,7 +437,7 @@ function groupFor(time, reference) {
 export function tickCountdowns(root) {
   const now = Date.now();
   for (const node of root.querySelectorAll('.countdown')) {
-    node.textContent = countdownText(Number(node.dataset.at) - now);
+    node.textContent = countdownText(Number(node.dataset.at) - now, !!node.dataset.precise);
   }
 }
 
