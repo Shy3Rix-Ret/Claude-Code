@@ -8,8 +8,9 @@
  */
 
 import { BODIES, compassShort } from './bodies.js';
-import { paintSky, paintGround, paintBody, spikes, twinkle } from './realistic.js';
+import { paintSky, paintGround, paintBody, paintMilkyWay, spikes, twinkle } from './realistic.js';
 import { eclipticPointHorizon } from './astro.js';
+import { DSO_KINDS } from './deepsky.js';
 
 const DEG = Math.PI / 180;
 
@@ -130,12 +131,21 @@ export function renderSky(ctx, view) {
       drawBackground(ctx, view, project, day);
     }
   } else {
+    drawCameraFrame(ctx, view);
     drawHorizonOnly(ctx, view, project);
+  }
+
+  if (settings.milkyWay && scene.milkyWay && (!cameraOn)) {
+    paintMilkyWay(ctx, project, scene.milkyWay, (1 - day) * (real ? 1 : 0.6), w, h);
   }
 
   if (settings.stars && (!cameraOn || day < 0.4)) {
     if (settings.constellations) drawConstellations(ctx, scene, project, day, cameraOn);
     drawStars(ctx, scene, project, scale, day, cameraOn, real);
+  }
+
+  if (settings.deepSky && scene.deepSky) {
+    drawDeepSky(ctx, view, project, scale, day);
   }
 
   if (settings.grid) drawGrid(ctx, project, w, h);
@@ -199,6 +209,26 @@ function drawGround(ctx, project, day) {
     }
   }
   drawHorizonLine(ctx, project, 'rgba(255,255,255,0.28)', 1.5);
+}
+
+/**
+ * The camera image, painted into the canvas rather than left showing through
+ * from behind it.
+ *
+ * The video element underneath letterboxed itself on the phone — a 4:3 stream
+ * in a tall frame, with `object-fit` not doing what it promises there — which
+ * left the overlay drawing sky onto black bars. Cropping it here by hand
+ * removes the whole class of problem: the canvas covers the screen, so
+ * whatever the video does behind it no longer matters.
+ */
+function drawCameraFrame(ctx, view) {
+  const video = view.video;
+  if (!video || video.readyState < 2 || !video.videoWidth) return;
+  const { w, h } = view;
+  const scale = Math.max(w / video.videoWidth, h / video.videoHeight);
+  const dw = video.videoWidth * scale;
+  const dh = video.videoHeight * scale;
+  ctx.drawImage(video, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
 /** With the camera on, only the horizon itself is drawn — the rest is real. */
@@ -321,6 +351,76 @@ function drawConstellations(ctx, scene, project, day, cameraOn) {
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
     ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/**
+ * Deep-sky objects, drawn at their real angular size where that is bigger
+ * than a marker — which for the Andromeda galaxy and the Pleiades it very
+ * much is. Seeing that Andromeda is six Moon-widths across is the single most
+ * surprising thing in this app.
+ */
+function drawDeepSky(ctx, view, project, scale, day) {
+  const alpha = (1 - day) * 0.9;
+  if (alpha <= 0.05) return;
+
+  const f = (Math.min(view.w, view.h) / 2) / Math.tan((view.fov / 2) * DEG);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  for (const o of view.scene.deepSky) {
+    if (o.alt < -2) continue;
+    const p = project(unitVector(o.az, o.alt));
+    if (!p) continue;
+    if (p.x < -60 || p.x > view.w + 60 || p.y < -60 || p.y > view.h + 60) continue;
+
+    const kind = DSO_KINDS[o.kind];
+    const trueR = f * Math.tan((o.size / 120) * DEG);
+    const r = Math.max(3.5 * scale, Math.min(trueR, Math.min(view.w, view.h) * 0.45));
+
+    ctx.globalAlpha = alpha * (o.mag < 6 ? 0.95 : 0.7);
+    ctx.strokeStyle = kind.colour;
+    ctx.fillStyle = kind.colour;
+    ctx.lineWidth = 1.2;
+
+    if (o.kind === 'galaxy') {
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, r, r * 0.45, -0.5, 0, Math.PI * 2);
+      ctx.globalAlpha = alpha * 0.18;
+      ctx.fill();
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.stroke();
+    } else if (o.kind === 'nebula') {
+      ctx.globalAlpha = alpha * 0.18;
+      ctx.fillRect(p.x - r, p.y - r * 0.7, r * 2, r * 1.4);
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(p.x - r, p.y - r * 0.7, r * 2, r * 1.4);
+      ctx.setLineDash([]);
+    } else {
+      // Both kinds of cluster: a dotted ring, filled a little for globulars.
+      ctx.globalAlpha = alpha * (o.kind === 'globular' ? 0.25 : 0.12);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (view.settings.labels && (o.mag < 7 || r > 12 * scale)) {
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.font = `500 ${10 * scale}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = 3 * scale;
+      ctx.strokeText(o.name, p.x, p.y + r + 3 * scale);
+      ctx.fillStyle = kind.colour;
+      ctx.fillText(o.name, p.x, p.y + r + 3 * scale);
+    }
   }
   ctx.globalAlpha = 1;
 }
@@ -560,12 +660,13 @@ function drawReticle(ctx, view, scale) {
  */
 function drawTarget(ctx, view, project, scale, target) {
   const { w, h, basis } = view;
-  const body = view.scene.bodies.find((b) => b.id === target);
+  const body = view.scene.bodies.find((b) => b.id === target)
+    || (view.scene.deepSky || []).find((o) => o.id === target);
   if (!body) return;
 
   const vec = unitVector(body.az, body.altApparent);
   const p = project(vec);
-  const meta = BODIES[body.id] || {};
+  const meta = BODIES[body.id] || { name: body.name, color: DSO_KINDS[body.kind]?.colour };
   const onScreen = p && p.x > 30 && p.x < w - 30 && p.y > 30 && p.y < h - 30;
 
   const centerVec = basis.forward;

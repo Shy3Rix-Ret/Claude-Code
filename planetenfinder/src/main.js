@@ -7,8 +7,12 @@
  * opinions about buttons.
  */
 
-import { allBodies, findEvents, sunEvents, moonPhaseEvents, starHorizon, separationAltAz, saturnRingTilt } from './astro.js';
-import { STARS, CONSTELLATION_LINES } from './stars.js';
+import {
+  allBodies, findEvents, sunEvents, moonPhaseEvents, starHorizon,
+  separationAltAz, saturnRingTilt, j2000ToHorizon, findFixedEvents, bodyState,
+} from './astro.js';
+import { STARS, CONSTELLATION_LINES, MILKY_WAY } from './stars.js';
+import { DEEP_SKY } from './deepsky.js';
 import { BODIES, compassShort, compassName } from './bodies.js';
 import { Orientation, azAltOf } from './sensors.js';
 import { loadSettings, saveSettings, locate } from './geo.js';
@@ -16,8 +20,8 @@ import { renderSky } from './skyview.js';
 import { renderMap } from './mapview.js';
 import { collectEvents } from './events.js';
 import {
-  el, buildList, buildDetail, buildTwilight, buildTimePanel, buildSettings,
-  buildEvents, tickCountdowns, fmtDateTime, altitudeWords,
+  el, buildList, buildListRows, buildDetail, buildDeepSkyDetail, buildTwilight, buildTimePanel,
+  buildSettings, buildEvents, tickCountdowns, fmtDateTime, altitudeWords,
 } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -35,6 +39,7 @@ const app = {
   eventCache: new Map(),
   events: null,          // the Termine list, once computed
   eventsAt: 0,
+  listFilter: '',
 
   now() {
     return new Date(Date.now() + this.timeOffsetMinutes * 60000);
@@ -80,6 +85,8 @@ let sceneAt = 0;
 let starsAt = 0;
 let cachedStars = [];
 let cachedLines = [];
+let cachedDeepSky = [];
+let cachedMilkyWay = [];
 
 function buildScene(force = false) {
   const t = performance.now();
@@ -103,10 +110,25 @@ function buildScene(force = false) {
       cachedLines = CONSTELLATION_LINES.map((l) => ({
         a: positions.get(l.a.id), b: positions.get(l.b.id),
       })).filter((l) => l.a && l.b);
+
+      cachedDeepSky = DEEP_SKY.map((o) => {
+        const h = starHorizon(o.ra, o.dec, date, site);
+        // altApparent and aboveHorizon so targeting and the summary can treat
+        // these exactly like a planet.
+        return { ...o, alt: h.alt, az: h.az, altApparent: h.alt, aboveHorizon: h.alt > 0 };
+      });
+
+      // The band is fixed against the stars, so only the horizon rotation
+      // has to be redone — the galactic transform happened once at load.
+      cachedMilkyWay = MILKY_WAY.map((row) => row.map((pt) => {
+        const h = j2000ToHorizon(pt.ra, pt.dec, date, site);
+        return { alt: h.alt, az: h.az, weight: pt.weight };
+      }));
     }
 
     app.scene = {
       bodies, stars: cachedStars, lines: cachedLines,
+      deepSky: cachedDeepSky, milkyWay: cachedMilkyWay,
       sunAlt: sun.altApparent, date,
       // Changes over years, not frames, but it costs one Kepler solution.
       ringTilt: saturnRingTilt(date),
@@ -125,6 +147,29 @@ function eventsFor(id) {
     app.eventCache.set(key, id === 'sun' ? sunEvents(date, site) : findEvents(id, date, site));
   }
   return app.eventCache.get(key);
+}
+
+/**
+ * Altitude of one thing over the next 24 hours, alongside the Sun's, for the
+ * chart in the detail panels. Ninety-six samples is one every quarter hour —
+ * enough for a smooth curve, cheap enough to compute on tap.
+ */
+function altitudeSamples(target) {
+  const site = app.settings.site;
+  const start = app.now().getTime();
+  const out = [];
+  // Discriminated explicitly: deep-sky objects carry an `id` too, and keying
+  // off that alone sent 'dso-2' into the planetary ephemeris.
+  const fixed = target.kind === 'fixed';
+  for (let i = 0; i <= 96; i++) {
+    const t = start + i * 15 * 60000;
+    const when = new Date(t);
+    const alt = fixed
+      ? starHorizon(target.ra, target.dec, when, site).alt
+      : bodyState(target.id, when, site).altApparent;
+    out.push({ t, alt, sunAlt: bodyState('sun', when, site).altApparent });
+  }
+  return out;
 }
 
 /* -------------------------------------------------------------- render loop */
@@ -146,6 +191,7 @@ function frame(now) {
     scene, settings: app.settings,
     target: app.target,
     cameraOn: !!app.cameraStream,
+    video: $('cam'),
     date: scene.date, site: app.settings.site,
   };
 
@@ -183,10 +229,11 @@ function summaryNode(aim) {
   const bodies = app.scene?.bodies || [];
 
   if (app.target) {
-    const body = bodies.find((b) => b.id === app.target);
+    const body = bodies.find((b) => b.id === app.target)
+      || (app.scene?.deepSky || []).find((o) => o.id === app.target);
     if (body) {
       const sep = separationAltAz(aim.alt, aim.az, body.altApparent, body.az);
-      const name = BODIES[body.id].name;
+      const name = BODIES[body.id]?.name || body.name;
       if (sep < 6) {
         return el('span', {}, [
           el('b', { text: name }), document.createTextNode(' ist in der Bildmitte.'),
@@ -239,10 +286,53 @@ function closeSheet() {
 }
 
 function showList() {
-  openSheet('list', buildList(buildScene(true).bodies, {
+  openSheet('list', buildList({
+    filter: app.listFilter,
+    onFilter: (value) => { app.listFilter = value; refreshListRows(); },
+  }), 'Objekte');
+  refreshListRows();
+}
+
+/** Only the rows — the search field above them is never rebuilt. */
+function refreshListRows() {
+  const container = $('sheet-body').querySelector('.rows');
+  if (!container) return;
+  const scene = buildScene(true);
+  buildListRows(container, scene.bodies, {
     target: app.target,
     onSelect: showDetail,
-  }), 'Objekte');
+    deepSky: scene.deepSky,
+    onSelectDeepSky: showDeepSkyDetail,
+    filter: app.listFilter,
+  });
+}
+
+function showDeepSkyDetail(id) {
+  const scene = buildScene(true);
+  const object = scene.deepSky.find((o) => o.id === id);
+  if (!object) return;
+
+  const content = buildDeepSkyDetail(
+    object,
+    findFixedEvents(object.ra, object.dec, app.now(), app.settings.site),
+    altitudeSamples({ kind: 'fixed', ra: object.ra, dec: object.dec }),
+    {
+      isTarget: app.target === id,
+      onTarget: () => {
+        app.target = app.target === id ? null : id;
+        toast(app.target ? `Ziel: ${object.name}` : 'Ziel aufgehoben');
+        showDeepSkyDetail(id);
+      },
+      onShowMap: () => { setMode('map'); closeSheet(); },
+    },
+  );
+
+  const frag = document.createDocumentFragment();
+  frag.appendChild(el('div', { class: 'btnrow' }, [
+    el('button', { class: 'btn small ghost', text: '‹ Alle Objekte', onclick: showList }),
+  ]));
+  frag.appendChild(content);
+  openSheet('detail', frag, object.name);
 }
 
 function showDetail(id) {
@@ -250,7 +340,7 @@ function showDetail(id) {
   const body = scene.bodies.find((b) => b.id === id);
   if (!body) return;
 
-  const extra = {};
+  const extra = { samples: altitudeSamples({ kind: 'body', id }) };
   if (id === 'moon') Object.assign(extra, moonPhaseEvents(app.now(), app.settings.site));
   if (id === 'sun') extra.twilight = buildTwilight(eventsFor('sun'));
 
@@ -535,7 +625,8 @@ window.addEventListener('keydown', (ev) => {
 $('tab-live').addEventListener('click', () => { setMode('live'); closeSheet(); });
 $('tab-map').addEventListener('click', () => { setMode('map'); closeSheet(); });
 $('tab-list').addEventListener('click', () => {
-  app.sheetMode === 'list' || app.sheetMode === 'detail' ? closeSheet() : showList();
+  // From a detail page this is a "back" button, not a toggle.
+  app.sheetMode === 'list' ? closeSheet() : showList();
 });
 $('tab-events').addEventListener('click', () => {
   app.sheetMode === 'events' ? closeSheet() : showEvents();
@@ -551,13 +642,8 @@ $('chip-place').addEventListener('click', () => openSheet('settings', buildSetti
 
 // The list drifts out of date as the sky turns; refresh it gently.
 setInterval(() => {
-  if (app.sheetMode === 'list') {
-    const body = $('sheet-body');
-    const scroll = body.scrollTop;
-    body.innerHTML = '';
-    body.appendChild(buildList(buildScene(true).bodies, { target: app.target, onSelect: showDetail }));
-    body.scrollTop = scroll;
-  }
+  // Rows only, so a search in progress and the scroll position both survive.
+  if (app.sheetMode === 'list') refreshListRows();
 }, 5000);
 
 /* ----------------------------------------------------------------- startup */

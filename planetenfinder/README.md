@@ -24,6 +24,7 @@ node tools/serve.mjs        # aus dem Repo-Wurzelverzeichnis
 ```
 npm install --no-save esbuild
 node planetenfinder/tools/build.mjs
+node planetenfinder/tools/icons.mjs     # nur nötig, wenn sich das Icon ändert
 ```
 
 Ergebnis: `planetenfinder/dist/planetenfinder.html`, rund 67 KB, komplett
@@ -86,7 +87,8 @@ legt den Führungspfeil auf das beteiligte Objekt.
 Standardmäßig an, in den Einstellungen abschaltbar.
 
 **Die Umgebung** ist kein Farbverlauf mehr, sondern ein Streumodell, das pro
-Blickrichtung ausgewertet wird: der helle Hof um die Sonne, der Dunst, der zum
+Blickrichtung ausgewertet wird. Dazu die Milchstraße, aus galaktischen
+Koordinaten in den Himmel zurückgerechnet: der helle Hof um die Sonne, der Dunst, der zum
 Horizont hin dichter wird, das orange Band bei Sonnenuntergang — und
 gegenüber davon der Erdschatten, der aus dem Horizont steigt, mit dem rosa
 Band der Venusgürtels darüber. Nachts kommen Mondlicht und die Lichtglocke
@@ -114,9 +116,46 @@ Rechnung, sondern der Hochskalier-Filter — `imageSmoothingQuality: 'high'`
 halbierte die Bildrate, bilinear aus einem dichteren Puffer sieht bei
 Farbverläufen gleich aus und kostet nichts.)
 
-Weitere Schalter: Kamerabild, Sterne, Sternbilder, Gradnetz, Beschriftungen,
-untergegangene Objekte, Karte in Blickrichtung drehen, Nachtmodus (rot),
-Sichtfeld (auch per Zwei-Finger-Zoom).
+### Deep-Sky
+
+Rund dreißig Objekte, die sich mit bloßem Auge oder einem Fernglas wirklich
+lohnen: Andromedagalaxie, Orionnebel, Plejaden, Herkuleshaufen, das
+Doppelsternhaufen-Paar in Perseus und so weiter. Kein Katalog mit
+achttausend Galaxien — auf einem Handydisplay im Dunkeln wäre das eine
+schlechtere App.
+
+Sie werden **in wahrer Größe** gezeichnet, und das ist der Punkt: die
+Andromedagalaxie ist sechsmal so breit wie der Vollmond, und fast niemand
+weiß das, bevor er es einmal maßstäblich gesehen hat. In der Objektliste
+steht zu jedem, was man dafür braucht — bloßes Auge, Fernglas oder Teleskop.
+
+### Höhenkurve
+
+In jeder Detailseite steckt ein Diagramm der Höhe über die nächsten 24
+Stunden, mit dem Tageslicht als hellem Hintergrund. Das beantwortet die
+Frage, die eine Liste von Auf- und Untergangszeiten nicht beantwortet:
+*wann* lohnt es sich rauszugehen. Ein Objekt, das die ganze Nacht über
+knapp über den Dächern hängt, ist etwas anderes als eines, das drei Stunden
+lang 60° hoch steht — und die Form der Kurve zeigt sofort, welches von
+beiden es ist.
+
+### Offline und auf dem Home-Bildschirm
+
+Die App bringt ein Web-App-Manifest, ein Icon und einen Service Worker mit.
+Über „Zum Home-Bildschirm hinzufügen“ startet sie ohne Browserleiste im
+Vollbild, und sie läuft danach **ohne Netz** weiter — was genau dort
+gebraucht wird, wo man sie benutzt: auf einer Wiese ohne Empfang. Gerechnet
+wird ohnehin alles auf dem Gerät; das Einzige, was je Netz brauchte, war der
+Download.
+
+Der Worker holt bewusst zuerst aus dem Netz und erst dann aus dem Cache —
+umgekehrt bekäme jemand mit Empfang klaglos den Build von letzter Woche
+serviert.
+
+Weitere Schalter: Kamerabild, Sterne, Milchstraße, Sternbilder, Deep-Sky,
+Gradnetz, Beschriftungen, untergegangene Objekte, Karte in Blickrichtung
+drehen, Nachtmodus (rot), Sichtfeld (auch per Zwei-Finger-Zoom). Die
+Objektliste hat ein Suchfeld.
 
 ## Genauigkeit — und wo sie wirklich endet
 
@@ -200,7 +239,9 @@ src/sensors.js    Lagesensoren → Kamerabasis in Ost/Nord/Oben, Kompasseichung,
                   Ersatzsteuerung per Finger
 src/skyview.js    Live-Ansicht: Projektion, Himmelsfarben, Boden, Mondphase,
                   Zielführung
-src/realistic.js  Streumodell der Atmosphäre, Ringe, Bänder, Phasen, Funkeln
+src/realistic.js  Streumodell der Atmosphäre, Milchstraße, Ringe, Bänder,
+                  Phasen, Funkeln
+src/deepsky.js    Galaxien, Nebel und Sternhaufen fürs bloße Auge und Fernglas
 src/mapview.js    Horizontkarte, Sichtfeldkeil, Ekliptik
 src/stars.js      Sternkatalog bis etwa 2,5 mag und ein paar Sternbildlinien
 src/bodies.js     Namen, Farben, Texte

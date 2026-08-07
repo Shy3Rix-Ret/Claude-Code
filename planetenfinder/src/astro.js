@@ -531,6 +531,30 @@ export function separationAltAz(alt1, az1, alt2, az2) {
   return Math.acos(Math.min(1, Math.max(-1, c))) * RAD;
 }
 
+/**
+ * Galactic coordinates -> equatorial J2000. The Milky Way is defined in the
+ * galactic frame, so drawing it means coming back out of that frame.
+ */
+export function galacticToEquatorial(l, b) {
+  const raPole = 192.85948;
+  const decPole = 27.12825;
+  const lNorth = 122.93192;          // galactic longitude of the celestial pole
+
+  const dec = Math.asin(
+    sind(decPole) * sind(b) + cosd(decPole) * cosd(b) * cosd(lNorth - l),
+  ) * RAD;
+  const ra = raPole + Math.atan2(
+    cosd(b) * sind(lNorth - l),
+    cosd(decPole) * sind(b) - sind(decPole) * cosd(b) * cosd(lNorth - l),
+  ) * RAD;
+  return { ra: norm360(ra), dec };
+}
+
+/** Anything fixed on the sky, given in J2000 -> where it is right now. */
+export function j2000ToHorizon(raDeg, decDeg, date, site) {
+  return starHorizon(raDeg / 15, decDeg, date, site);
+}
+
 /** Fixed star (J2000 RA/Dec) -> horizon coordinates for a moment and place. */
 export function starHorizon(raHours, decDeg, date, site) {
   const jdUT = julianDay(date);
@@ -642,6 +666,54 @@ export function findEvents(id, date, site, { hoursBack = 14, hoursAhead = 30, th
     lastSet: [...past].reverse().find((e) => !e.rising)?.time || null,
     circumpolar: horizon.length === 0 && maxAlt > 0,
     neverRises: horizon.length === 0 && maxAlt <= 0,
+  };
+}
+
+/**
+ * Rise, set and culmination for something fixed on the sky — a deep-sky
+ * object or a star. Same sampling as the planets; only the position function
+ * differs, since these do not move against the stars at all.
+ */
+export function findFixedEvents(raHours, decDeg, date, site, { hoursBack = 14, hoursAhead = 30 } = {}) {
+  const step = 10 * MIN;
+  const samples = [];
+  for (let t = date.getTime() - hoursBack * 3600000; t <= date.getTime() + hoursAhead * 3600000; t += step) {
+    samples.push({ t, alt: starHorizon(raHours, decDeg, new Date(t), site).alt });
+  }
+
+  const events = [];
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1], b = samples[i];
+    if ((a.alt < 0) === (b.alt < 0)) continue;
+    let lo = a.t, hi = b.t, loAlt = a.alt;
+    for (let k = 0; k < 14; k++) {
+      const mid = (lo + hi) / 2;
+      const midAlt = starHorizon(raHours, decDeg, new Date(mid), site).alt;
+      if ((midAlt < 0) === (loAlt < 0)) { lo = mid; loAlt = midAlt; } else { hi = mid; }
+    }
+    events.push({ rising: b.alt > a.alt, time: new Date((lo + hi) / 2) });
+  }
+
+  const peaks = [];
+  for (let i = 1; i < samples.length - 1; i++) {
+    if (samples[i].alt >= samples[i - 1].alt && samples[i].alt >= samples[i + 1].alt) peaks.push(samples[i]);
+  }
+  const peak = peaks.length
+    ? peaks.reduce((best, p) => (Math.abs(p.t - date.getTime()) < Math.abs(best.t - date.getTime()) ? p : best))
+    : samples.reduce((best, p) => (p.alt > best.alt ? p : best), samples[0]);
+
+  const now = date.getTime();
+  const past = events.filter((e) => e.time <= now);
+  return {
+    events,
+    maxAltitude: peak.alt,
+    transit: new Date(peak.t),
+    nextRise: events.find((e) => e.rising && e.time > now)?.time || null,
+    nextSet: events.find((e) => !e.rising && e.time > now)?.time || null,
+    lastRise: [...past].reverse().find((e) => e.rising)?.time || null,
+    lastSet: [...past].reverse().find((e) => !e.rising)?.time || null,
+    circumpolar: events.length === 0 && peak.alt > 0,
+    neverRises: events.length === 0 && peak.alt <= 0,
   };
 }
 

@@ -8,6 +8,7 @@
 
 import { BODIES, DISPLAY_ORDER, compassName, compassShort, moonPhaseName } from './bodies.js';
 import { PRESETS, formatCoords } from './geo.js';
+import { DSO_KINDS, equipmentFor } from './deepsky.js';
 
 /* ------------------------------------------------------------ formatting */
 
@@ -75,13 +76,34 @@ export function altitudeWords(alt) {
 
 /* ------------------------------------------------------------- the list */
 
-export function buildList(bodies, { target, onSelect, sortBy = 'view' }) {
-  const byId = new Map(bodies.map((b) => [b.id, b]));
-  const ordered = sortBy === 'altitude'
-    ? [...bodies].sort((a, b) => b.altApparent - a.altApparent)
-    : DISPLAY_ORDER.map((id) => byId.get(id)).filter(Boolean);
-
+/**
+ * The object list: a search field that stays put, and rows underneath it.
+ *
+ * The two are separate on purpose. Rebuilding the input on every keystroke
+ * replaces the focused element, which on a phone closes the keyboard between
+ * letters — so only the rows are ever re-rendered.
+ */
+export function buildList({ filter = '', onFilter }) {
   const frag = document.createDocumentFragment();
+  frag.appendChild(el('input', {
+    type: 'text', class: 'search', placeholder: 'Objekt suchen …', value: filter,
+    oninput: (ev) => onFilter?.(ev.target.value),
+  }));
+  frag.appendChild(el('div', { class: 'rows' }));
+  return frag;
+}
+
+/** Fills (or refills) the rows under the search field. */
+export function buildListRows(container, bodies, { target, onSelect, deepSky = [], onSelectDeepSky, filter = '' }) {
+  container.innerHTML = '';
+  const needle = filter.trim().toLowerCase();
+  const matches = (text) => !needle || text.toLowerCase().includes(needle);
+
+  const byId = new Map(bodies.map((b) => [b.id, b]));
+  const ordered = DISPLAY_ORDER.map((id) => byId.get(id)).filter(Boolean)
+    .filter((b) => matches(BODIES[b.id].name));
+
+  if (ordered.length) container.appendChild(el('h3', { text: 'Sonnensystem' }));
   for (const body of ordered) {
     const meta = BODIES[body.id];
     const visible = body.aboveHorizon;
@@ -91,25 +113,205 @@ export function buildList(bodies, { target, onSelect, sortBy = 'view' }) {
       ? `${altitudeWords(body.altApparent)} im ${compassName(body.az)}`
       : `${nf(Math.abs(body.altApparent))}° unter dem Horizont`;
 
-    const row = el('div', {
+    container.appendChild(el('div', {
       class: `row${visible ? '' : ' faded'}${body.id === target ? ' active' : ''}`,
       onclick: () => onSelect(body.id),
     }, [
       el('div', { class: 'dot', style: `background:${meta.color};color:${meta.glow}` }),
-      el('div', {}, [
+      el('div', { class: 'grow' }, [
         el('div', { class: 'name', text: meta.name }),
-        el('div', {
-          class: 'meta',
-          text: `${state}${naked ? '' : ' · nur optisch'}`,
-        }),
+        el('div', { class: 'meta', text: `${state}${naked ? '' : ' · nur optisch'}` }),
       ]),
       el('div', { class: 'right' }, [
         el('b', { text: `${nf(body.altApparent)}°` }),
         el('span', { text: `${compassShort(body.az)} ${nf(body.az)}°` }),
       ]),
-    ]);
-    frag.appendChild(row);
+    ]));
   }
+
+  // Deep sky sorted by altitude — the useful order when deciding what to look
+  // at, unlike the solar system where the names are the point.
+  const dso = deepSky
+    .filter((o) => matches(o.name) || matches(DSO_KINDS[o.kind].label))
+    .sort((a, b) => b.alt - a.alt);
+
+  if (dso.length) container.appendChild(el('h3', { text: 'Deep-Sky' }));
+  for (const o of dso) {
+    const kind = DSO_KINDS[o.kind];
+    const visible = o.alt > 0;
+    container.appendChild(el('div', {
+      class: `row${visible ? '' : ' faded'}${o.id === target ? ' active' : ''}`,
+      onclick: () => onSelectDeepSky?.(o.id),
+    }, [
+      el('div', { class: 'dot', style: `background:${kind.colour};color:${kind.colour}` }),
+      el('div', { class: 'grow' }, [
+        el('div', { class: 'name', text: o.name }),
+        el('div', {
+          class: 'meta',
+          text: `${kind.label} · ${equipmentFor(o.mag, o.size)}`
+            + (visible ? ` · ${altitudeWords(o.alt)} im ${compassName(o.az)}` : ' · unter dem Horizont'),
+        }),
+      ]),
+      el('div', { class: 'right' }, [
+        el('b', { text: `${nf(o.alt)}°` }),
+        el('span', { text: `${compassShort(o.az)} ${nf(o.mag, 1)} mag` }),
+      ]),
+    ]));
+  }
+
+  if (!ordered.length && !dso.length) {
+    container.appendChild(el('div', { class: 'note', text: `Nichts gefunden für „${filter}“.` }));
+  }
+}
+
+/**
+ * Altitude over the next 24 hours, with the sky's own darkness behind it.
+ *
+ * This answers the question a list of rise and set times cannot: *when* is it
+ * worth going outside. An object that is up all night but never clears the
+ * rooftops is a different proposition from one that stands at 60° for three
+ * hours, and the shape of the curve says which is which at a glance.
+ */
+export function buildAltitudeChart(samples, { height = 96 } = {}) {
+  const canvas = el('canvas', { class: 'chart' });
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+
+  // The panel width is not known until the node is in the document, so the
+  // drawing waits for a layout pass.
+  requestAnimationFrame(() => {
+    const w = canvas.clientWidth || 300;
+    const h = height;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const t0 = samples[0].t;
+    const span = samples[samples.length - 1].t - t0;
+    const x = (t) => ((t - t0) / span) * w;
+    // Below the horizon everything is squashed: down there the only fact is
+    // "not yet".
+    const y = (alt) => h - 6 - ((alt < 0 ? alt / 6 : alt) / 90) * (h - 16);
+
+    // Daylight painted *onto* night, not night onto the panel: the panel is
+    // already dark, so shading the night into it showed nothing at all.
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, w, h);
+    // Adjacent quarter-hours of the same brightness are merged into one
+    // rectangle. Drawn individually they overlapped by a pixel each and the
+    // band came out striped.
+    const levelAt = (s) => (s > 0 ? 1 : s > -6 ? 0.55 : s > -12 ? 0.3 : s > -18 ? 0.14 : 0);
+    let runStart = 0;
+    for (let i = 1; i <= samples.length; i++) {
+      const level = levelAt(samples[runStart].sunAlt);
+      if (i < samples.length && levelAt(samples[i].sunAlt) === level) continue;
+      if (level > 0) {
+        ctx.fillStyle = `rgba(86,126,186,${(level * 0.5).toFixed(2)})`;
+        const x0 = x(samples[runStart].t);
+        const x1 = i < samples.length ? x(samples[i].t) : w;
+        ctx.fillRect(x0, 0, x1 - x0, h);
+      }
+      runStart = i;
+    }
+
+    ctx.strokeStyle = 'rgba(150,180,220,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y(0));
+    ctx.lineTo(w, y(0));
+    ctx.stroke();
+
+    ctx.strokeStyle = '#7cc4ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    samples.forEach((s, i) => {
+      const px = x(s.t), py = y(s.alt);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(200,215,240,0.5)';
+    ctx.font = '9px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (const s of samples) {
+      const d = new Date(s.t);
+      // Samples come every quarter hour, so only the exact hour may label —
+      // otherwise every mark was drawn twice, on top of itself.
+      if (d.getMinutes() !== 0 || d.getHours() % 6 !== 0) continue;
+      const px = x(s.t);
+      ctx.fillRect(px, h - 5, 1, 4);
+      ctx.fillText(`${d.getHours()}`, px, h - 7);
+    }
+    // "Now" is the left edge.
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(0, 0, 1.5, h);
+  });
+
+  return canvas;
+}
+
+/**
+ * Detail page for a deep-sky object. Different questions matter here than for
+ * a planet: not how far away it is, but what you need to see it and how big
+ * it will look — hence the comparison with the Moon, which is the only
+ * angular size anybody has an intuition for.
+ */
+export function buildDeepSkyDetail(object, events, samples, actions) {
+  const kind = DSO_KINDS[object.kind];
+  const frag = document.createDocumentFragment();
+  const kv = (label, value) => el('div', { class: 'kv' }, [
+    document.createTextNode(label), el('b', { text: value }),
+  ]);
+
+  frag.appendChild(el('div', { class: 'note' }, [
+    el('b', { text: object.alt > 0 ? 'Über dem Horizont' : 'Unter dem Horizont' }),
+    document.createTextNode(object.alt > 0
+      ? ` — ${altitudeWords(object.alt)}, ${compassName(object.az)}.`
+      : ' — jetzt gerade nicht erreichbar.'),
+  ]));
+
+  const moons = object.size / 31;
+  frag.appendChild(el('div', { class: 'grid2' }, [
+    kv('Art', kind.label),
+    kv('Helligkeit', `${nf(object.mag, 1)} mag`),
+    kv('Größe', object.size >= 60 ? `${nf(object.size / 60, 1)}°` : `${nf(object.size)}′`),
+    kv('Im Vergleich', moons >= 1.2 ? `${nf(moons, 1)}× Vollmond` : `${nf(1 / moons, 1)}× kleiner als der Mond`),
+    kv('Dafür brauchst du', equipmentFor(object.mag, object.size)),
+    kv('Höhe', `${nf(object.alt, 1)}°`),
+  ]));
+
+  frag.appendChild(el('h3', { text: 'Höhe über 24 Stunden' }));
+  frag.appendChild(buildAltitudeChart(samples));
+  frag.appendChild(el('div', {
+    class: 'note',
+    text: 'Heller Hintergrund heißt Tag oder Dämmerung. Am besten steht es dort, wo die '
+      + 'Kurve hoch läuft und der Hintergrund schwarz ist.',
+  }));
+
+  if (events.neverRises) {
+    frag.appendChild(el('div', { class: 'note', text: 'Geht von deinem Standort aus nie auf — zu weit im Süden.' }));
+  } else if (events.circumpolar) {
+    frag.appendChild(el('div', { class: 'note', text: 'Zirkumpolar: geht hier nie unter.' }));
+  } else {
+    const rise = object.alt > 0 ? (events.lastRise || events.nextRise) : events.nextRise;
+    frag.appendChild(el('div', { class: 'grid2' }, [
+      kv(object.alt > 0 ? 'Aufgegangen' : 'Aufgang', fmtClock(rise, new Date())),
+      kv('Untergang', fmtClock(events.nextSet, new Date())),
+      kv('Höchststand', fmtClock(events.transit, new Date())),
+      kv('Höhe dabei', `${nf(events.maxAltitude, 1)}°`),
+    ]));
+  }
+
+  frag.appendChild(el('div', { class: 'btnrow' }, [
+    el('button', {
+      class: 'btn small primary',
+      text: actions.isTarget ? 'Ziel aufheben' : 'Als Ziel setzen',
+      onclick: actions.onTarget,
+    }),
+    el('button', { class: 'btn small ghost', text: 'Auf der Karte zeigen', onclick: actions.onShowMap }),
+  ]));
+
+  frag.appendChild(el('div', { class: 'note', text: object.note }));
   return frag;
 }
 
@@ -174,6 +376,11 @@ export function buildDetail(body, events, extra, actions) {
       kv('Höchststand', fmtClock(events.transit, body.date)),
       kv('Höhe dabei', `${nf(events.maxAltitude, 1)}°`),
     ]));
+  }
+
+  if (extra.samples) {
+    frag.appendChild(el('h3', { text: 'Höhe über 24 Stunden' }));
+    frag.appendChild(buildAltitudeChart(extra.samples));
   }
 
   if (extra.twilight) frag.appendChild(extra.twilight);
@@ -633,6 +840,9 @@ export function buildSettings(app) {
     'Atmosphäre statt Farbverlauf, Ringe am Saturn, Phasen bei Venus und Merkur'));
   frag.appendChild(toggle('camera', 'Kamerabild', 'Planeten über das Livebild legen'));
   frag.appendChild(toggle('stars', 'Sterne'));
+  frag.appendChild(toggle('milkyWay', 'Milchstraße'));
+  frag.appendChild(toggle('deepSky', 'Deep-Sky-Objekte',
+    'Galaxien, Nebel und Sternhaufen in wahrer Größe'));
   frag.appendChild(toggle('constellations', 'Sternbilder'));
   frag.appendChild(toggle('grid', 'Gradnetz'));
   frag.appendChild(toggle('labels', 'Beschriftungen'));

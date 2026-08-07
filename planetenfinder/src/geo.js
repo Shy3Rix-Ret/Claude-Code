@@ -39,6 +39,8 @@ const DEFAULT_SETTINGS = {
   grid: true,
   labels: true,
   realistic: true,
+  milkyWay: true,
+  deepSky: true,
   nightMode: false,
   smoothing: true,
   levelHorizon: true,

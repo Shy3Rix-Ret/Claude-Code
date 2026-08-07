@@ -48,6 +48,13 @@ const result = await esbuild.build({
 const js = result.outputFiles[0].text;
 let html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 
+// The single file has no siblings, so the manifest, the icon and the worker
+// would all be dead links. The app is fully offline in this form anyway.
+html = html
+  .replace(/\s*<link rel="manifest"[^>]*>/, '')
+  .replace(/\s*<link rel="apple-touch-icon"[^>]*>/, '')
+  .replace(/\s*<script>\s*\/\* Offline support[\s\S]*?<\/script>/, '');
+
 html = html.replace(
   '<script type="module" src="./src/main.js"></script>',
   () => `<script>\n${js}\n</script>`,

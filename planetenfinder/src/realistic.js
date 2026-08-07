@@ -266,6 +266,68 @@ export function paintGround(ctx, view, project) {
   }
 }
 
+/**
+ * The Milky Way: a soft band along the galactic plane, brighter towards the
+ * centre in Sagittarius and fading out well before the poles. Drawn additively
+ * so it lifts the sky rather than painting over it, and only once the sky is
+ * dark enough that the real one would be visible too.
+ */
+export function paintMilkyWay(ctx, project, bands, strength, w, h) {
+  if (strength <= 0.02) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  for (let r = 0; r < bands.length - 1; r++) {
+    const top = bands[r];
+    const bottom = bands[r + 1];
+    for (let i = 0; i < top.length - 1; i++) {
+      if (top[i].weight < 0.02 && bottom[i].weight < 0.02) continue;
+      // Below the horizon there is ground in the way.
+      if (top[i].alt < -8 && bottom[i].alt < -8) continue;
+
+      const quad = [
+        project(unitOf(top[i])), project(unitOf(top[i + 1])),
+        project(unitOf(bottom[i + 1])), project(unitOf(bottom[i])),
+      ];
+      if (quad.some((q) => !q)) continue;
+
+      // Cull before building a gradient. The band wraps the whole sky while
+      // the screen shows a fraction of it, and creating a gradient object for
+      // every off-screen patch cost half the frame rate.
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const q of quad) {
+        if (q.x < minX) minX = q.x;
+        if (q.x > maxX) maxX = q.x;
+        if (q.y < minY) minY = q.y;
+        if (q.y > maxY) maxY = q.y;
+      }
+      if (maxX < 0 || minX > w || maxY < 0 || minY > h) continue;
+
+      // A gradient across the quad rather than one flat value: with flat
+      // fills the band came out as a row of visible trapezoids, because
+      // neighbouring strips differ in brightness and nothing blends the seam.
+      const aTop = top[i].weight * strength * 0.19;
+      const aBottom = bottom[i].weight * strength * 0.19;
+      const g = ctx.createLinearGradient(
+        (quad[0].x + quad[1].x) / 2, (quad[0].y + quad[1].y) / 2,
+        (quad[2].x + quad[3].x) / 2, (quad[2].y + quad[3].y) / 2,
+      );
+      g.addColorStop(0, `rgba(152,168,208,${aTop.toFixed(3)})`);
+      g.addColorStop(1, `rgba(152,168,208,${aBottom.toFixed(3)})`);
+      ctx.fillStyle = g;
+
+      ctx.beginPath();
+      ctx.moveTo(quad[0].x, quad[0].y);
+      for (let k = 1; k < 4; k++) ctx.lineTo(quad[k].x, quad[k].y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+const unitOf = (p) => unit(p.az, p.alt);
+
 /* ---------------------------------------------------------------- bodies */
 
 /**

@@ -1,3 +1,5 @@
+import { galacticToEquatorial } from './astro.js';
+
 /**
  * A small bright-star catalogue, purely as scenery.
  *
@@ -101,6 +103,27 @@ const CATALOGUE = [
   ['Suhail', 9.133, -43.433, 2.21],
   ['Regor', 8.158, -47.337, 1.83],
 ];
+
+/**
+ * The Milky Way, as a band in galactic coordinates converted once to J2000.
+ *
+ * Nothing about the band moves relative to the stars, so the expensive part
+ * happens here at load time; per frame it is only the same horizon rotation
+ * every star already goes through.
+ */
+export const MILKY_WAY_LATITUDES = [-18, -14, -11, -8, -5.5, -3, 0, 3, 5.5, 8, 11, 14, 18];
+
+export const MILKY_WAY = MILKY_WAY_LATITUDES.map((b) => {
+  const row = [];
+  for (let l = 0; l <= 360; l += 5) {
+    const { ra, dec } = galacticToEquatorial(l, b);
+    // Brightness falls off away from the plane and towards the anticentre,
+    // where we are looking out of the galaxy instead of through it.
+    const towardsCentre = 0.55 + 0.45 * Math.cos(l * Math.PI / 180);
+    row.push({ ra, dec, l, b, weight: Math.pow(Math.max(0, 1 - Math.abs(b) / 19), 1.7) * towardsCentre });
+  }
+  return row;
+});
 
 /**
  * Spectral colours, for the realistic mode.
