@@ -63,3 +63,75 @@ fs.writeFileSync(OUT_FILE, html);
 
 const kb = (Buffer.byteLength(html) / 1024).toFixed(0);
 console.log(`planetenfinder/dist/planetenfinder.html  ${kb} KB  (self-contained)`);
+
+/* ------------------------------------------------------------------------
+ * Second target: body-only, for hosts that bring their own document shell
+ * (claude.ai artifacts, CMS embeds, iframes). Same bundle, same markup —
+ * only the wrapper is stripped, plus the two things the host would otherwise
+ * decide for us: the viewport meta, injected at runtime, and the background,
+ * forced dark in both colour schemes. A white page behind a night sky is not
+ * a theme choice.
+ *
+ * Worth knowing before embedding: orientation sensors, compass, geolocation
+ * and camera are gated behind a permissions policy in a cross-origin frame.
+ * A host that does not grant them leaves the app in drag-to-look mode with
+ * the default location — everything else, including the whole ephemeris,
+ * works unchanged.
+ * ---------------------------------------------------------------------- */
+
+const EMBED_FILE = path.join(OUT_DIR, 'planetenfinder.embed.html');
+
+const grab = (tag) => {
+  const m = html.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
+  return m ? m[1] : '';
+};
+
+const css = grab('style');
+const body = html
+  .slice(html.indexOf('<body>') + '<body>'.length, html.lastIndexOf('</body>'))
+  .trim();
+
+const embed = `<style>
+/* The app is deliberately single-theme — it is a night sky — so the viewer's
+   light mode must not put a white ground behind it. */
+:root, :root[data-theme="light"], :root[data-theme="dark"] {
+  color-scheme: dark;
+  background: #05070f;
+}
+html, body { background: #05070f !important; height: 100%; }
+${css}
+/* The host owns the document height; fall back to the dynamic viewport so a
+   mobile address bar does not crop the sky. */
+#app { height: 100dvh; }
+</style>
+
+${body}
+
+<script>
+/* The wrapper owns the document head, so the viewport tag has to be added
+   from here. Without it a phone lays the page out at 980px wide and renders
+   a postage stamp. */
+(function () {
+  try {
+    if (!document.querySelector('meta[name="viewport"]')) {
+      var m = document.createElement('meta');
+      m.name = 'viewport';
+      m.content = 'width=device-width, initial-scale=1, maximum-scale=1, ' +
+                  'user-scalable=no, viewport-fit=cover';
+      (document.head || document.documentElement).appendChild(m);
+    }
+  } catch (e) { /* embedded somewhere strict; the app still runs */ }
+})();
+</script>
+`;
+
+if (/<\/?(?:html|head|body|!doctype)\b/i.test(embed)) {
+  console.error('Embed variant must not contain document-level tags.');
+  process.exit(1);
+}
+
+fs.writeFileSync(EMBED_FILE, embed);
+console.log(
+  `planetenfinder/dist/planetenfinder.embed.html  ${(Buffer.byteLength(embed) / 1024).toFixed(0)} KB` +
+  '  (body-only, for hosts that supply the document shell)',
+);
