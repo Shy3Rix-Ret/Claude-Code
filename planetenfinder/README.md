@@ -27,7 +27,7 @@ node planetenfinder/tools/build.mjs
 node planetenfinder/tools/icons.mjs     # nur nötig, wenn sich das Icon ändert
 ```
 
-Ergebnis: `planetenfinder/dist/planetenfinder.html`, rund 67 KB, komplett
+Ergebnis: `planetenfinder/dist/planetenfinder.html`, rund 120 KB, komplett
 offline lauffähig.
 
 > **Wichtig fürs Handy:** Lagesensoren, Kompass, GPS und Kamera gibt es im
@@ -156,6 +156,32 @@ Weitere Schalter: Kamerabild, Sterne, Milchstraße, Sternbilder, Deep-Sky,
 Gradnetz, Beschriftungen, untergegangene Objekte, Karte in Blickrichtung
 drehen, Nachtmodus (rot), Sichtfeld (auch per Zwei-Finger-Zoom). Die
 Objektliste hat ein Suchfeld.
+
+### Die Oberfläche
+
+Die Vorlage ist ein Messinginstrument bei Nacht: warmes Messing als einzige
+Akzentfarbe gegen den kalten Himmel, eine Serifenschrift für Namen und
+Überschriften, eine Monospace mit Tabellenziffern für alles Gemessene — damit
+ein laufender Countdown nicht bei jeder Sekunde die Breite wechselt. Keine
+zweite Akzentfarbe, keine Verläufe, die um Aufmerksamkeit bitten. Was leuchtet,
+leuchtet, weil es am Himmel leuchtet.
+
+Bewegung gibt es, wo sie etwas erklärt, und sonst nicht:
+
+* Eine Messingmarke unter der Leiste gleitet auf den aktiven Reiter, statt
+  einfach umzuspringen — das Auge folgt der Bewegung, statt die Änderung zu
+  suchen.
+* Panels fahren mit einer leichten Federung hoch, ihre Zeilen treffen
+  gestaffelt ein. Nur beim Öffnen: die Objektliste frischt sich alle fünf
+  Sekunden auf, und eine Liste, die dabei jedes Mal neu einfliegt, ist ein
+  Zappeln, kein Detail.
+* Der Wechsel Live ↔ Karte blendet kurz durch. Beide teilen sich dieselbe
+  Leinwand, da gibt es nichts zu schieben.
+* Hinter dem Startbildschirm zieht ein eigener kleiner Sternenhimmel, gelegentlich
+  mit Sternschnuppe. Er hält an, sobald der Bildschirm weg ist.
+
+`prefers-reduced-motion` schaltet alles davon ab, inklusive des Startbildschirm-
+Himmels, der dann einmal steht statt zu laufen.
 
 ## Genauigkeit — und wo sie wirklich endet
 

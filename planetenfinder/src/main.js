@@ -75,6 +75,7 @@ function resize() {
   canvas.height = Math.round(cssH * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   measureInsets();
+  syncTabs();   // the tab widths changed, so the brass mark has moved with them
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 250));
@@ -275,7 +276,23 @@ function openSheet(mode, content, title) {
   body.scrollTop = 0;
   $('sheet').classList.add('open');
   $('sheet').setAttribute('aria-hidden', 'false');
+  playEntrance(body);
   syncTabs();
+}
+
+/**
+ * The staggered arrival of the rows. It belongs to opening a panel, not to
+ * having one open: the object list refreshes itself every few seconds, and a
+ * list that re-animates while you are reading it is a fidget, not a flourish.
+ * Hence the class comes off again once the animation has run.
+ */
+let entranceTimer = null;
+function playEntrance(body) {
+  body.classList.remove('entering');
+  void body.offsetWidth;          // forces a restart; re-adding alone does not
+  body.classList.add('entering');
+  clearTimeout(entranceTimer);
+  entranceTimer = setTimeout(() => body.classList.remove('entering'), 700);
 }
 
 function closeSheet() {
@@ -484,18 +501,58 @@ app.compassStatusText = () => {
     : 'Das Gerät liefert keine Nordreferenz — bitte über ein sichtbares Objekt eichen.';
 };
 
+let swapTimer = null;
 function setMode(mode) {
+  if (app.mode !== mode) {
+    // Both views share the one canvas, so there is nothing to slide past
+    // anything. A short dip covers the cut instead.
+    const view = $('view');
+    view.classList.add('swapping');
+    clearTimeout(swapTimer);
+    swapTimer = setTimeout(() => view.classList.remove('swapping'), 150);
+  }
   app.mode = mode;
   syncTabs();
 }
 
+const TABS = {
+  'tab-live': () => app.mode === 'live',
+  'tab-map': () => app.mode === 'map',
+  'tab-list': () => app.sheetMode === 'list' || app.sheetMode === 'detail',
+  'tab-events': () => app.sheetMode === 'events',
+  'tab-time': () => app.sheetMode === 'time',
+  'tab-settings': () => app.sheetMode === 'settings',
+};
+
 function syncTabs() {
-  $('tab-live').setAttribute('aria-pressed', String(app.mode === 'live'));
-  $('tab-map').setAttribute('aria-pressed', String(app.mode === 'map'));
-  $('tab-list').setAttribute('aria-pressed', String(app.sheetMode === 'list' || app.sheetMode === 'detail'));
-  $('tab-events').setAttribute('aria-pressed', String(app.sheetMode === 'events'));
-  $('tab-time').setAttribute('aria-pressed', String(app.sheetMode === 'time'));
-  $('tab-settings').setAttribute('aria-pressed', String(app.sheetMode === 'settings'));
+  for (const id in TABS) $(id).setAttribute('aria-pressed', String(TABS[id]()));
+
+  // Two tabs read as pressed whenever a panel sits over the live view, and the
+  // brass mark can only be in one place: put it under the panel if one is
+  // open, otherwise under the view. That matches what the last tap changed.
+  const panelTab = ['tab-list', 'tab-events', 'tab-time', 'tab-settings'].find((id) => TABS[id]());
+  moveBarMark(panelTab || (app.mode === 'map' ? 'tab-map' : 'tab-live'));
+}
+
+let markPlaced = false;
+function moveBarMark(id) {
+  const mark = $('bar-mark');
+  const tab = $(id);
+  if (!tab || !tab.offsetWidth) { mark.style.opacity = '0'; return; }
+  const width = Math.round(tab.offsetWidth * 0.44);
+  const x = Math.round(tab.offsetLeft + (tab.offsetWidth - width) / 2);
+
+  // The mark slides between tabs, but it must not slide in from the corner on
+  // the first placement, nor skate sideways when the phone is merely rotated.
+  const glide = markPlaced && mark.dataset.tab !== undefined && mark.dataset.tab !== id;
+  mark.style.transition = glide ? '' : 'none';
+  mark.style.opacity = '1';
+  mark.style.width = `${width}px`;
+  mark.style.transform = `translateX(${x}px)`;
+  if (!glide) void mark.offsetWidth;   // land the jump before transitions return
+  mark.style.transition = '';
+  mark.dataset.tab = id;
+  markPlaced = true;
 }
 
 let toastTimer = null;
@@ -648,8 +705,112 @@ setInterval(() => {
 
 /* ----------------------------------------------------------------- startup */
 
+/**
+ * The drift behind the start screen. Decoration, not ephemeris: a scatter of
+ * stars that wander a few pixels a minute, breathe a little, and now and then
+ * drop a meteor. It runs only while the overlay is up — the real sky needs the
+ * frames afterwards.
+ */
+const startSky = (() => {
+  const canvasEl = $('start-sky');
+  const g = canvasEl.getContext('2d');
+  const stars = [];
+  for (let i = 0; i < 110; i++) {
+    stars.push({
+      x: Math.random(),
+      y: Math.random(),
+      r: 0.4 + Math.random() * Math.random() * 2.0,
+      base: 0.2 + Math.random() * 0.65,
+      phase: Math.random() * Math.PI * 2,
+      rate: 0.4 + Math.random() * 1.1,
+      drift: 0.0016 + Math.random() * 0.0028,
+      warm: Math.random() < 0.22,
+    });
+  }
+
+  let raf = 0, w = 0, h = 0, t0 = 0;
+  let meteor = null, nextMeteor = 3.5;
+
+  const fit = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = canvasEl.clientWidth || 1;
+    h = canvasEl.clientHeight || 1;
+    canvasEl.width = Math.round(w * dpr);
+    canvasEl.height = Math.round(h * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  const draw = (t) => {
+    g.clearRect(0, 0, w, h);
+    for (const s of stars) {
+      // Slow rise, wrapping at the top — the sky turning, more or less.
+      const y = ((s.y - t * s.drift) % 1 + 1) % 1;
+      const a = s.base * (0.68 + 0.32 * Math.sin(t * s.rate + s.phase));
+      g.globalAlpha = Math.max(0, Math.min(1, a));
+      g.fillStyle = s.warm ? '#ffd9ac' : '#dbe6ff';
+      g.beginPath();
+      g.arc(s.x * w, y * h, s.r, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+
+    if (meteor) {
+      const age = (t - meteor.t0) / meteor.life;
+      if (age >= 1) { meteor = null; } else {
+        const fade = Math.sin(Math.PI * age);
+        const x = meteor.x * w + meteor.dx * age * w;
+        const y = meteor.y * h + meteor.dy * age * h;
+        const grad = g.createLinearGradient(x, y, x - meteor.dx * 0.09 * w, y - meteor.dy * 0.09 * h);
+        grad.addColorStop(0, `rgba(255, 244, 226, ${0.85 * fade})`);
+        grad.addColorStop(1, 'rgba(255, 244, 226, 0)');
+        g.strokeStyle = grad;
+        g.lineWidth = 1.4;
+        g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(x, y);
+        g.lineTo(x - meteor.dx * 0.09 * w, y - meteor.dy * 0.09 * h);
+        g.stroke();
+      }
+    } else if (t > nextMeteor) {
+      const dx = -(0.18 + Math.random() * 0.22);
+      meteor = {
+        t0: t, life: 0.75 + Math.random() * 0.35,
+        x: 0.45 + Math.random() * 0.6, y: Math.random() * 0.45,
+        dx, dy: -dx * (0.5 + Math.random() * 0.5),
+      };
+      nextMeteor = t + 6 + Math.random() * 9;
+    }
+  };
+
+  const loop = (now) => {
+    raf = requestAnimationFrame(loop);
+    draw((now - t0) / 1000);
+  };
+
+  return {
+    start() {
+      if (raf || !canvasEl.isConnected) return;
+      fit();
+      window.addEventListener('resize', fit);
+      // A still sky for anyone who has asked the system for less movement.
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { draw(0); return; }
+      t0 = performance.now();
+      raf = requestAnimationFrame(loop);
+    },
+    stop() {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      window.removeEventListener('resize', fit);
+    },
+  };
+})();
+
 async function begin(withPermissions) {
-  $('start').classList.add('hidden');
+  // Let the overlay fade before it is taken out of the layout, so the sky
+  // underneath is revealed rather than switched on.
+  const start = $('start');
+  start.classList.add('leaving');
+  setTimeout(() => { start.classList.add('hidden'); startSky.stop(); }, 520);
 
   if (withPermissions) {
     const res = await app.orientation.requestPermission();
@@ -697,6 +858,7 @@ $('app').classList.toggle('night', !!app.settings.nightMode);
 resize();
 buildScene(true);
 syncTabs();
+startSky.start();
 requestAnimationFrame(frame);
 
 // Handy for poking at the ephemeris from the console.

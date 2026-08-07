@@ -91,14 +91,18 @@ function planeDirection(basis, vec) {
  */
 export function makeLabelPlacer(lineHeight = 13) {
   const placed = [];
-  return (x, y) => {
+  // halfWidth is how far the text reaches either side of its anchor: half the
+  // string for centred labels, the whole of it for left-aligned ones. The
+  // default keeps the old fixed 56px gap between two body labels.
+  return (x, y, halfWidth = 28) => {
     let out = y;
     for (let i = 0; i < 8; i++) {
-      const clash = placed.some((p) => Math.abs(p.x - x) < 56 && Math.abs(p.y - out) < lineHeight);
+      const clash = placed.some((p) =>
+        Math.abs(p.x - x) < p.halfWidth + halfWidth && Math.abs(p.y - out) < lineHeight);
       if (!clash) break;
       out += lineHeight;
     }
-    placed.push({ x, y: out });
+    placed.push({ x, y: out, halfWidth });
     return out;
   };
 }
@@ -369,6 +373,11 @@ function drawDeepSky(ctx, view, project, scale, day) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
+  // Deep sky crowds: the Milky Way through Sagittarius alone puts four
+  // catalogue names inside a couple of degrees. They get their own placer —
+  // the bright bodies are drawn afterwards on top and win by contrast anyway.
+  const placeLabel = makeLabelPlacer(12 * scale);
+
   for (const o of view.scene.deepSky) {
     if (o.alt < -2) continue;
     const p = project(unitVector(o.az, o.alt));
@@ -415,11 +424,16 @@ function drawDeepSky(ctx, view, project, scale, day) {
     if (view.settings.labels && (o.mag < 7 || r > 12 * scale)) {
       ctx.globalAlpha = alpha * 0.85;
       ctx.font = `500 ${10 * scale}px ui-sans-serif, system-ui, sans-serif`;
+      // Slide a name that would hang off the side back into view; the marker
+      // it belongs to is still right there.
+      const half = ctx.measureText(o.name).width / 2;
+      const lx = Math.max(half + 5, Math.min(view.w - half - 5, p.x));
+      const ty = placeLabel(lx, p.y + r + 3 * scale, half + 3);
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.lineWidth = 3 * scale;
-      ctx.strokeText(o.name, p.x, p.y + r + 3 * scale);
+      ctx.strokeText(o.name, lx, ty);
       ctx.fillStyle = kind.colour;
-      ctx.fillText(o.name, p.x, p.y + r + 3 * scale);
+      ctx.fillText(o.name, lx, ty);
     }
   }
   ctx.globalAlpha = 1;
@@ -469,7 +483,7 @@ function bodyRadius(body, scale) {
 }
 
 function drawBodies(ctx, view, project, scale, day) {
-  const { scene, settings } = view;
+  const { scene, settings, w } = view;
   const real = !!settings.realistic;
   const drawn = [];
   // Two lines per label — name and altitude — so the whole block is reserved.
@@ -549,11 +563,26 @@ function drawBodies(ctx, view, project, scale, day) {
       const sub = below
         ? `${Math.abs(body.altApparent).toFixed(0)}° unter dem Horizont`
         : `${body.altApparent.toFixed(0)}° hoch`;
-      ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.font = `600 ${12.5 * scale}px ui-sans-serif, system-ui, sans-serif`;
-      const tx = p.x + r + 7 * scale;
-      const ty = placeLabel(tx, p.y - 5 * scale);
+
+      // Labels normally hang off the right of the marker. Near the right edge
+      // that runs them off the screen, so they swap to the other side; and a
+      // marker that is off-screen entirely — drawn because it is only just
+      // outside the frame — gets its label pulled back into view rather than
+      // cut in half.
+      const gap = r + 7 * scale;
+      ctx.font = `400 ${10 * scale}px ui-sans-serif, system-ui, sans-serif`;
+      const subW = ctx.measureText(sub).width;
+      ctx.font = `600 ${12.5 * scale}px ui-sans-serif, system-ui, sans-serif`;
+      const wide = Math.max(ctx.measureText(label).width, subW);
+      const flip = p.x + gap + wide > w - 6 && p.x - gap - wide > 6;
+      ctx.textAlign = flip ? 'right' : 'left';
+      const room = Math.max(6, w - 6 - wide);
+      const tx = flip
+        ? Math.min(w - 6, Math.max(6 + wide, p.x - gap))
+        : Math.max(6, Math.min(room, p.x + gap));
+      const ty = placeLabel(tx + (flip ? -wide : wide) / 2, p.y - 5 * scale, wide / 2 + 4);
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.lineWidth = 3.5 * scale;
       ctx.strokeText(label, tx, ty);
