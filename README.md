@@ -1,3 +1,14 @@
+Zwei Stücke liegen in diesem Repo. Beide laufen auf demselben eingecheckten
+Three.js unter `vendor/`, beide erzeugen jede Textur, jeden Ton und jedes Modell
+zur Laufzeit im Code, und beide bauen zu einer einzigen HTML-Datei.
+
+| | | |
+|---|---|---|
+| **LEVEL 4444 — THE ABYSS** | `index.html`, `src/` | Horror, 15 Minuten, auf Schienen |
+| **BAHNHOF KEPLER-9** | `station.html`, `station/` | frei begehbar, kein Ende — [zur Beschreibung](#bahnhof-kepler-9) |
+
+---
+
 # LEVEL 4444 — THE ABYSS
 
 Ein atmosphärisches Horror-Erlebnis in Three.js. Kein Ziel, kein Punktestand,
@@ -189,3 +200,142 @@ Nicht im Spiel sichtbar, nur über URL oder Tastatur:
 Shift+1 … Shift+5   Akt wechseln
 Shift+Plus/Minus    Zeit schneller / langsamer
 ```
+
+---
+
+# BAHNHOF KEPLER-9
+
+Ein verlassener Weltraumbahnhof, den die Pflanzen übernommen haben. Eine
+Abflughalle, 84 Meter lang, frei begehbar. Kein Ziel, keine Gegner, keine
+Uhr — nur ein Stern, der langsam draußen vorbeizieht, und Licht, das durch
+kaputte Fenster hereinfällt.
+
+## Starten
+
+**Am schnellsten:** `dist/kepler-9.html` im Browser öffnen. Eine einzige Datei,
+keine Netzwerkanfrage, läuft per Doppelklick vom Dateisystem.
+
+**Für die Entwicklung:**
+
+```
+node tools/serve.mjs        # → http://localhost:4444/station.html
+```
+
+**Neu bauen:**
+
+```
+npm install --no-save esbuild
+npm run build:station       # → dist/kepler-9.html
+```
+
+## Steuerung
+
+| | |
+|---|---|
+| Maus | umsehen (Pointer-Lock; im iframe fällt es auf Klicken-und-Ziehen zurück) |
+| `W` `A` `S` `D` / Pfeile | gehen |
+| `Shift` | schneller |
+| Leertaste | springen — im Schwebemodus: steigen |
+| `Strg` | im Schwebemodus: sinken |
+| `F` | Schwerelosigkeit an/aus |
+| `M` | Ton stumm |
+| `H` | Hinweiszeile ein/aus |
+| `R` | zurück zum Anfang |
+
+`?quality=low|medium|high` erzwingt eine Qualitätsstufe, `?speed=8` lässt den
+Stern im Zeitraffer wandern — praktisch, um den ganzen Lichtzyklus in einer
+halben Minute zu sehen.
+
+## Was hier interessant ist
+
+**Die kaputten Fenster sind eine einzige Wahrheit.** Für jede Öffnung wird ein
+Raster gewürfelt: welche Scheiben noch drin sind. Dieses Raster liegt als kleine
+Maskentextur vor und wird von vier Systemen gelesen — von den Glas-Instanzen
+(und damit vom Schattenwurf), vom Volumen-Shader der Lichtschächte, von den
+Staubpartikeln, und von der Vegetation, die entscheidet, wo überhaupt genug
+Licht ankommt. Der Fleck auf dem Boden, der Schacht in der Luft und die
+Pflanzen darunter zeigen deshalb dasselbe Muster, statt sich nur zu ähneln.
+
+**Die Lichtschächte sind echte Volumen.** Pro Öffnung wird das Fensterrechteck
+entlang der Lichtrichtung extrudiert — ein schiefes Prisma, dessen Matrix von
+Hand aus drei Basisvektoren gebaut wird. Der Fragment-Shader marschiert durch
+dieses Prisma in seinem eigenen Koordinatensystem. Der Durchgang läuft *nach*
+der Szene, in halber Auflösung, in einen eigenen Puffer, und liest die
+Szenentiefe: deshalb legt sich ein Schacht um eine Säule herum, statt durch sie
+hindurchzuscheinen.
+
+**Die Hülle wird nicht simuliert, sie steht im Weg.** Es gibt genau ein
+schattenwerfendes Licht. Wenn der Stern auf die blinde Seite der Station
+wandert, wird die Halle dunkel, weil das Gebäude davor ist — nicht weil
+irgendwo eine Zahl heruntergedreht wird. Die Wände sind dafür keine einzelnen
+Quads, sondern werden um ihre Öffnungen herum zerlegt, damit die Löcher echte
+Löcher sind.
+
+**Die Pflanzen folgen dem Licht.** `growth(x, z)` bewertet jeden Punkt danach,
+wie nah er an dem Stück Boden liegt, auf das eine Öffnung scheint. Die Form,
+die das Grün in der Halle macht, ist die Form, die die kaputten Fenster
+vorgezeichnet haben.
+
+## Materialien
+
+Vier Familien, alle prozedural gebacken (`station/textures.js`):
+
+- **Metall** — lackierte Hüllenpaneele, Nähte, Nieten, abplatzende Farbe
+- **Rost** — dasselbe Blech, wo der Lack verloren hat
+- **Glas** — verdreckte Scheiben; auf der hohen Stufe mit echter Transmission,
+  darunter als getönte transparente Fläche mit derselben Schmutzkarte
+- **Pflanzen** — Blattkarten mit Alpha-Test, Moos, Rinde, Ranken
+
+dazu Beton für den Boden und zwei Emissivmaterialien: die Notbeleuchtung, die
+noch Strom hat, und das, was die Vegetation macht, sobald der Stern weg ist.
+
+Die Blätter hängen an einem angepassten `MeshStandardMaterial`: Windbewegung im
+Vertex-Shader (Phase pro Instanz aus der Instanzmatrix) und ein Gegenlichtterm
+im Fragment-Shader, damit ein Blatt im Lichtschacht durchleuchtet statt zur
+Silhouette zu werden.
+
+## Ton
+
+Vollständig synthetisiert, kein Audiofile: ein tiefer Hüllendrone, der Luftzug
+durch die Fenster (sein Pegel folgt dem Lichtzyklus), gelegentliches Ächzen der
+Struktur, tropfendes Wasser. Der **Ambient-Sound-Trigger** ist `Ambience.start()`
+in `station/audio.js` und wird genau einmal aufgerufen: aus dem Klick, der die
+Szene startet — Browser lassen Audio ohne Geste nicht zu. Wer lieber eine echte
+Datei nimmt, findet dort einen kommentierten Dreizeiler dafür.
+
+## Aufbau
+
+```
+station.html        Seitengerüst, Ladeschirm, die Texteinblendungen, CSS
+station/
+  config.js         Palette, Maße, Fensterraster, jede Stellschraube
+  util.js           Mathe, Seed-RNG, Value-Noise
+  textures.js       jede Oberfläche, beim Laden aus Rauschen gebacken
+  materials.js      die vier Materialfamilien, Wind- und Gegenlicht-Shader
+  openings.js       die Löcher in der Hülle und die Scheibenmaske
+  station.js        Halle, Gates, Mezzanin, Fenster, Inventar, Trümmer
+  flora.js          Ranken, Bäume, Bodendecker, Wurzeln, Moos, Leuchtkapseln
+  light.js          der Stern, sein Zyklus, das Fülllicht
+  beams.js          die Lichtschächte (Volumen-Raymarch mit Tiefenokklusion)
+  dust.js           Staub, GPU-seitig bewegt und pro Partikel beleuchtet
+  post.js           HDR-Puffer, Bloom, Tonemapping, Vignette, Korn
+  player.js         Gehen, Umsehen, Kollision, Schwebemodus
+  audio.js          das ganze Sounddesign, in Echtzeit synthetisiert
+  overlay.js        die fünf Sätze, die die Halle sagen darf
+  main.js           Bootstrap, Frame-Loop, adaptive Auflösung
+tools/build-station.mjs   Single-File-Build
+```
+
+## Performance
+
+Die Qualitätsstufe wird beim Start aus Kernen, Speicher und Displaygröße
+gewählt und steuert Schattenauflösung, Schrittzahl im Volumen-Shader,
+Partikeldichte, Bloom, MSAA und ob das Glas echte Transmission bekommt. Fällt
+die Bildrate darunter, wird ausschließlich die Renderauflösung gesenkt —
+Detailgrad vor Auflösung.
+
+Der Bildstapel ist von Hand geschrieben (`EffectComposer` liegt in den
+Three.js-Examples, und hier ist nur der Kern eingecheckt): Szene in einen
+Halbfloat-Puffer mit Tiefentextur, Schächte in halber Auflösung in einen
+zweiten, dann ein Kompositdurchgang mit ACES-Tonemapping, Vignette, leichter
+Aberration und Korn.

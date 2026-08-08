@@ -2,12 +2,14 @@
   "name": "level-4444",
   "version": "1.0.0",
   "private": true,
-  "description": "LEVEL 4444 — THE ABYSS. Ein atmosphärisches Three.js-Horror-Erlebnis, Mobile-First.",
+  "description": "Zwei atmosphärische Three.js-Stücke: LEVEL 4444 — THE ABYSS, und BAHNHOF KEPLER-9, ein überwucherter Weltraumbahnhof.",
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",
     "serve": "node tools/serve.mjs",
-    "build": "node tools/build.mjs"
+    "build": "node tools/build.mjs",
+    "build:station": "node tools/build-station.mjs",
+    "build:all": "node tools/build.mjs && node tools/build-station.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
