@@ -28,13 +28,17 @@ const TYPES = {
 
 http.createServer((req, res) => {
   const url = decodeURIComponent((req.url || '/').split('?')[0]);
-  let rel = url === '/' ? '/index.html' : url;
-  const abs = path.join(ROOT, path.normalize(rel));
+  let abs = path.join(ROOT, path.normalize(url));
 
   if (!abs.startsWith(ROOT)) {
     res.writeHead(403).end('forbidden');
     return;
   }
+
+  // A directory means its index.html — the tycoon lives in a subfolder.
+  try {
+    if (fs.statSync(abs).isDirectory()) abs = path.join(abs, 'index.html');
+  } catch { /* fall through to the 404 below */ }
 
   fs.readFile(abs, (err, data) => {
     if (err) {
@@ -49,5 +53,6 @@ http.createServer((req, res) => {
     }).end(data);
   });
 }).listen(PORT, () => {
-  console.log(`LEVEL 4444 → http://localhost:${PORT}/`);
+  console.log(`LEVEL 4444      → http://localhost:${PORT}/`);
+  console.log(`KIOSK IMPERIUM  → http://localhost:${PORT}/tycoon/`);
 });

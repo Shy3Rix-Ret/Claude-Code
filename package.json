@@ -2,12 +2,15 @@
   "name": "level-4444",
   "version": "1.0.0",
   "private": true,
-  "description": "LEVEL 4444 — THE ABYSS. Ein atmosphärisches Three.js-Horror-Erlebnis, Mobile-First.",
+  "description": "LEVEL 4444 — THE ABYSS (Three.js-Horror) und KIOSK IMPERIUM (Wirtschaftssimulator). Beides Vanilla JS, ohne Laufzeit-Abhängigkeiten.",
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",
     "serve": "node tools/serve.mjs",
-    "build": "node tools/build.mjs"
+    "build": "node tools/build.mjs",
+    "tycoon": "node tools/serve.mjs",
+    "build:tycoon": "node tools/build-tycoon.mjs",
+    "balance": "node tools/balance-tycoon.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"

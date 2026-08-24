@@ -1,5 +1,10 @@
 # LEVEL 4444 — THE ABYSS
 
+> Dieses Repo enthält inzwischen zwei Sachen: das Level unten — und
+> **[KIOSK IMPERIUM](tycoon/README.md)**, einen Wirtschaftssimulator
+> (`node tools/serve.mjs` → http://localhost:4444/tycoon/, oder
+> `dist/kiosk-imperium.html` direkt öffnen).
+
 Ein atmosphärisches Horror-Erlebnis in Three.js. Kein Ziel, kein Punktestand,
 kein Scheitern. Etwa 15 Minuten offenes Wasser, eine Tür, und ein Ortswechsel.
 

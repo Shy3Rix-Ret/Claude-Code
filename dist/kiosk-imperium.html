@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>KIOSK IMPERIUM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12100d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2312100d'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='%23e8a13a' font-family='monospace'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Ein Wirtschaftssimulator: aus einem Kiosk am Bahnhof eine Kette machen. Preise, Personal, Qualität, Standorte — alles gegeneinander abwägen.">
+<style>
+:root {
+  color-scheme: dark;
+  --bg:      #12100d;
+  --panel:   #1b1815;
+  --panel2:  #221e1a;
+  --line:    #2f2a24;
+  --ink:     #ece5d8;
+  --dim:     #948c7c;
+  --accent:  #e8a13a;
+  --good:    #6fcf8d;
+  --bad:     #e2725f;
+  --warn:    #e6c34a;
+  --radius:  10px;
+  --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* The start screen and the app both set an explicit `display`, which would
+   otherwise beat the user agent's rule for [hidden]. */
+[hidden] { display: none !important; }
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+body { min-height: 100dvh; }
+button, input { font: inherit; color: inherit; }
+b, .stat-value, .card-value, td, th { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------ startbild */
+
+#start {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #241f19 0%, var(--bg) 65%);
+}
+.start-box { max-width: 640px; }
+.start-box h1 {
+  font-family: var(--mono);
+  font-size: clamp(28px, 7vw, 46px);
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.start-box .sub { color: var(--dim); font-family: var(--mono); letter-spacing: .18em; font-size: 12px; margin-bottom: 22px; }
+.start-box p { margin-bottom: 14px; color: #cfc7b6; }
+.start-box ul { margin: 0 0 22px 18px; color: var(--dim); }
+.start-box li { margin-bottom: 4px; }
+.start-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------- gerüst */
+
+#app {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 12px 14px 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas: "hud hud" "tabs tabs" "view feed";
+  gap: 12px;
+  align-items: start;
+}
+
+#hud { grid-area: hud; }
+#tabs { grid-area: tabs; }
+#view { grid-area: view; display: grid; gap: 12px; align-content: start; }
+#feed { grid-area: feed; position: sticky; top: 12px; }
+
+@media (max-width: 940px) {
+  #app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hud" "tabs" "view" "feed"; }
+  #feed { position: static; }
+}
+
+/* ------------------------------------------------------------------ hud */
+
+#hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: center;
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+.hud-left { min-width: 190px; flex: 1 1 190px; }
+.firm {
+  background: none; border: 1px solid transparent; border-radius: 6px;
+  font-family: var(--mono); font-size: 17px; letter-spacing: .06em;
+  color: var(--accent); padding: 2px 6px; width: 100%; max-width: 260px;
+}
+.firm:hover, .firm:focus { border-color: var(--line); outline: none; background: #00000030; }
+.date { color: var(--dim); font-size: 12.5px; font-family: var(--mono); padding-left: 7px; }
+
+.hud-stats { display: flex; gap: 18px; flex-wrap: wrap; flex: 2 1 420px; }
+.stat { display: flex; flex-direction: column; min-width: 92px; }
+.stat-label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .09em; }
+.stat-value { font-family: var(--mono); font-size: 18px; }
+.stat.good .stat-value { color: var(--good); }
+.stat.bad  .stat-value { color: var(--bad); }
+.stat.warn .stat-value { color: var(--warn); }
+
+.speeds { display: flex; gap: 4px; }
+.speeds button {
+  font-family: var(--mono); min-width: 42px; padding: 7px 8px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+}
+.speeds button.on { background: var(--accent); color: #17130d; border-color: var(--accent); }
+
+/* ----------------------------------------------------------------- tabs */
+
+#tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+#tabs button {
+  background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+  padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 14px;
+}
+#tabs button:hover { color: var(--ink); }
+#tabs button.on { background: var(--panel2); color: var(--accent); border-color: #5a4a2c; }
+
+/* --------------------------------------------------------------- panels */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.panel h2 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--dim); font-weight: 600; margin-bottom: 10px;
+}
+.grid { display: grid; gap: 12px; }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+.card { display: flex; flex-direction: column; gap: 2px; }
+.card-label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .09em; }
+.card-value { font-family: var(--mono); font-size: 22px; }
+.card-note { font-size: 12px; color: var(--dim); }
+
+.chart-wrap { height: 210px; }
+#chart { width: 100%; height: 100%; display: block; }
+
+/* --------------------------------------------------------------- tabelle */
+
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--dim); font-weight: 600; padding: 4px 8px 6px 0; border-bottom: 1px solid var(--line);
+}
+.table td { padding: 7px 8px 7px 0; border-bottom: 1px solid #26221d; vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table td b { display: block; }
+.table td .dim { font-size: 12px; }
+.table .right { text-align: right; }
+.wide td:first-child { min-width: 160px; }
+
+/* ----------------------------------------------------------- kleinkram */
+
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 14px; }
+.kv span { color: var(--dim); }
+.kv b { font-family: var(--mono); }
+
+.dim { color: var(--dim); }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.warn { color: var(--warn); }
+.hint { color: var(--dim); font-size: 12.5px; margin-top: 10px; }
+.warn-line {
+  margin-top: 10px; font-size: 13px; color: var(--warn);
+  border-left: 2px solid var(--warn); padding-left: 9px;
+}
+
+button {
+  background: var(--panel2); border: 1px solid var(--line); color: var(--ink);
+  padding: 7px 11px; border-radius: 7px; cursor: pointer; font-size: 13.5px;
+}
+button:hover:not(:disabled) { border-color: #4b4238; background: #2a2521; }
+button:disabled { opacity: .38; cursor: not-allowed; }
+button.primary { background: var(--accent); color: #17130d; border-color: var(--accent); font-weight: 600; }
+button.primary:hover:not(:disabled) { background: #f2b355; }
+button.danger { color: var(--bad); border-color: #4a2f2a; }
+button.link { background: none; border: none; padding: 0; color: var(--ink); text-decoration: underline dotted; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+.chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.chip {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--dim);
+}
+.chip b { color: var(--ink); font-family: var(--mono); margin-left: 5px; }
+.chip.on { color: var(--ink); border-color: #5a4a2c; background: #2a2318; }
+
+.list { list-style: none; display: grid; gap: 8px; }
+.list li {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+}
+.list li.done { opacity: .62; }
+.list li p { font-size: 12.5px; margin-top: 2px; }
+.list li button { white-space: nowrap; }
+.tag { font-size: 11px; color: var(--good); border: 1px solid #2f4b39; padding: 3px 8px; border-radius: 999px; }
+
+.checks { list-style: none; display: grid; gap: 5px; font-size: 14px; }
+.checks li { display: flex; gap: 9px; align-items: center; color: var(--dim); }
+.checks li.done { color: var(--ink); }
+.checks .box {
+  width: 17px; height: 17px; border: 1px solid var(--line); border-radius: 4px;
+  display: grid; place-items: center; font-size: 11px; color: var(--good); flex: none;
+}
+.bar { height: 6px; background: var(--panel2); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--good)); }
+
+.offer { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 8px; }
+.offer-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.offer p { font-size: 12.5px; }
+
+.field { display: grid; gap: 6px; margin-bottom: 14px; font-size: 13.5px; }
+.field > span { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; color: var(--dim); }
+.field b { color: var(--ink); }
+.price-cell { display: flex; align-items: center; gap: 10px; }
+.price-cell b { font-family: var(--mono); min-width: 68px; }
+.locked { opacity: .45; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%; min-width: 110px;
+  background: transparent; cursor: pointer; height: 22px;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #3a332b; border-radius: 999px; }
+input[type=range]::-moz-range-track { height: 4px; background: #3a332b; border-radius: 999px; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px;
+  border-radius: 50%; background: var(--accent); border: none;
+}
+input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--accent); }
+
+/* ------------------------------------------------------------------ log */
+
+#feed { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+#feed h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
+.log { list-style: none; display: grid; gap: 7px; max-height: 62vh; overflow-y: auto; font-size: 13px; }
+.log li { color: #c6bfb1; border-left: 2px solid var(--line); padding-left: 9px; }
+.log-good { border-left-color: var(--good) !important; }
+.log-bad  { border-left-color: var(--bad) !important; }
+.log-day { color: var(--dim); font-family: var(--mono); font-size: 11px; margin-right: 5px; }
+
+/* ------------------------------------------------------- toast & modal */
+
+#toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 24px);
+  background: var(--panel2); border: 1px solid var(--line); color: var(--ink);
+  padding: 9px 16px; border-radius: 999px; font-size: 13.5px;
+  opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; z-index: 50;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.bad { border-color: #5a3229; color: var(--bad); }
+
+#modal {
+  position: fixed; inset: 0; background: #0a0908d9; display: grid; place-items: center;
+  padding: 20px; z-index: 60;
+}
+#modal[hidden] { display: none; }
+.modal-box {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px; max-width: 460px; text-align: center;
+}
+.modal-box h2 { font-family: var(--mono); color: var(--accent); font-size: 24px; letter-spacing: .1em; margin-bottom: 10px; }
+.modal-box p { color: #cfc7b6; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <div class="start-box">
+    <h1>KIOSK IMPERIUM</h1>
+    <p class="sub">EIN WIRTSCHAFTSSIMULATOR</p>
+    <p>Ein Kiosk im Bahnhofsviertel, zwei Aushilfen, 25.000 € auf dem Konto.
+      Am Ende steht der Börsengang bei 2,5 Mio. € Firmenwert — oder die Bank
+      holt sich, was übrig ist.</p>
+    <ul>
+      <li>Jeder Tag wird durchgerechnet: Laufkundschaft, Nachfrage, Küche, Kasse.</li>
+      <li>Preis, Qualität und Wartezeit bestimmen deinen Ruf — und der die Gäste.</li>
+      <li>Jedes Viertel hat eine eigene Kaufkraft. Ein Preis für alle ist selten richtig.</li>
+      <li>Leertaste pausiert, 1–3 stellen das Tempo.</li>
+    </ul>
+    <div class="start-actions">
+      <button class="primary" id="fresh">Neues Spiel</button>
+      <button id="continue" hidden>Weiterspielen</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header id="hud"></header>
+  <nav id="tabs"></nav>
+  <main id="view"></main>
+  <aside id="feed"></aside>
+</div>
+
+<div id="toast"></div>
+<div id="modal" hidden></div>
+
+<script>
+(()=>{var se={main:{name:"Hauptgericht",take:.2},side:{name:"Beilage",take:.14},drink:{name:"Getr\xE4nk",take:.24},sweet:{name:"S\xFC\xDFes",take:.1}},A=[{id:"currywurst",name:"Currywurst",cat:"main",cost:1.15,ref:4.8,prep:1,appeal:1,start:!0},{id:"pommes",name:"Pommes",cat:"side",cost:.55,ref:3.2,prep:.8,appeal:1.15,start:!0},{id:"softdrink",name:"Softdrink",cat:"drink",cost:.42,ref:2.8,prep:.2,appeal:1,start:!0},{id:"kaffee",name:"Filterkaffee",cat:"drink",cost:.28,ref:2.4,prep:.4,appeal:.85,start:!0},{id:"doener",name:"D\xF6ner",cat:"main",cost:2.2,ref:7,prep:1.5,appeal:1.35},{id:"croissant",name:"Croissant",cat:"sweet",cost:.65,ref:3,prep:.4,appeal:1.05},{id:"bowl",name:"Vegane Bowl",cat:"main",cost:2.45,ref:9.5,prep:1.5,appeal:1.1},{id:"burger",name:"Craft-Burger",cat:"main",cost:3.3,ref:12.5,prep:1.9,appeal:1.45},{id:"bubbletea",name:"Bubble Tea",cat:"drink",cost:.95,ref:5.4,prep:.9,appeal:1.3,trendy:!0},{id:"eis",name:"Softeis",cat:"sweet",cost:.35,ref:2.9,prep:.3,appeal:1.25,summer:!0},{id:"flatwhite",name:"Flat White",cat:"drink",cost:.55,ref:4.2,prep:.7,appeal:1.4},{id:"kuchen",name:"Hausgemachter Kuchen",cat:"sweet",cost:1.2,ref:4.6,prep:.5,appeal:1.35}],re=Object.fromEntries(A.map(e=>[e.id,e])),me=[{id:"bahnhof",name:"Bahnhofsviertel",kind:"Kiosk",footfall:425,rent:95,wealth:.92,cost:0,staffSlots:3,profile:"commuter",summer:1,blurb:"Der erste Laden. Nie leer, nie geduldig."},{id:"campus",name:"Uni-Campus",kind:"Imbiss",footfall:540,rent:125,wealth:.74,cost:16e3,staffSlots:4,profile:"campus",summer:.85,blurb:"Riesiger Andrang, d\xFCnne Geldbeutel. Semesterferien tun weh."},{id:"gewerbe",name:"Gewerbepark Nord",kind:"Imbiss",footfall:340,rent:70,wealth:1,cost:13e3,staffSlots:3,profile:"office",summer:.95,blurb:"Mittagsgesch\xE4ft wie ein Uhrwerk. Am Wochenende Geisterstadt."},{id:"altstadt",name:"Altstadt",kind:"Caf\xE9",footfall:390,rent:175,wealth:1.18,cost:27e3,staffSlots:4,profile:"leisure",summer:1.15,blurb:"Zahlungskr\xE4ftig und w\xE4hlerisch. Hier verzeiht niemand billige Ware."},{id:"mall",name:"Innenstadt-Mall",kind:"Food-Court",footfall:800,rent:340,wealth:1.04,cost:68e3,staffSlots:6,profile:"retail",summer:.9,blurb:"Konstanter Strom, brutale Miete, drei Konkurrenten in Sichtweite."},{id:"promenade",name:"Strandpromenade",kind:"Kiosk",footfall:650,rent:205,wealth:1.1,cost:44e3,staffSlots:4,profile:"leisure",summer:1.65,blurb:"Im Sommer Gold, im Januar eine Bruchbude am Wasser."},{id:"flughafen",name:"Flughafen Terminal B",kind:"Franchise",footfall:950,rent:430,wealth:1.34,cost:95e3,staffSlots:7,profile:"airport",summer:1.2,blurb:"Gefangene Kundschaft, Preise wie im M\xE4rchen, Miete wie im Albtraum."},{id:"festival",name:"Messe & Arena",kind:"Franchise",footfall:875,rent:380,wealth:1.12,cost:82e3,staffSlots:6,profile:"events",summer:1.1,blurb:"Alles oder nichts: Veranstaltungstage tragen den ganzen Monat."}],ae=Object.fromEntries(me.map(e=>[e.id,e])),ze={commuter:[1.1,1.1,1.08,1.1,1.15,.8,.55],campus:[1.25,1.25,1.2,1.2,.95,.45,.3],office:[1.2,1.2,1.2,1.18,1.05,.3,.2],leisure:[.75,.75,.8,.9,1.2,1.6,1.45],retail:[.9,.9,.95,1,1.25,1.55,.55],airport:[1.05,1,1,1.05,1.2,1.1,1.05],events:[.6,.6,.7,.85,1.35,1.8,1.35]},Ae=[.8,.82,.92,1,1.08,1.18,1.22,1.2,1.05,.95,.88,1.02],W=[{level:1,name:"Billigware",costMul:.72,quality:.68,hygiene:.7},{level:2,name:"Sparsam",costMul:.86,quality:.85,hygiene:.85},{level:3,name:"Solide",costMul:1,quality:1,hygiene:1},{level:4,name:"Gut",costMul:1.22,quality:1.14,hygiene:1.08},{level:5,name:"Manufaktur",costMul:1.55,quality:1.28,hygiene:1.15}],G={aushilfe:{id:"aushilfe",name:"Aushilfe",wage:88,throughput:62,hire:300,desc:"G\xFCnstig, schnell eingestellt, h\xE4lt die Schlange gerade so kurz."},fachkraft:{id:"fachkraft",name:"Fachkraft",wage:152,throughput:104,hire:900,desc:"Deutlich mehr Durchsatz und sp\xFCrbar bessere Qualit\xE4t."},leitung:{id:"leitung",name:"Filialleitung",wage:235,throughput:70,hire:2200,desc:"F\xFChrt die Filiale: +18 % Durchsatz f\xFCr alle, stabilisiert die Moral."}},F={cost:1400,gain:.14,cap:1.6},he=[{id:"fritteuse",name:"Doppelfritteuse",cost:4200,upkeep:3,effect:{throughput:.14},desc:"+14 % Durchsatz. Der erste Engpass ist immer die K\xFCche."},{id:"terminal",name:"Bestellterminal",cost:7800,upkeep:6,effect:{throughput:.18,wageEff:.05},desc:"+18 % Durchsatz, Personal wird 5 % effizienter."},{id:"kuehlhaus",name:"K\xFChlhaus",cost:5600,upkeep:4,effect:{waste:-.035},desc:"Senkt den Verderb deutlich \u2014 wirkt bei jedem verkauften Teil."},{id:"siebtraeger",name:"Siebtr\xE4germaschine",cost:6900,upkeep:3,effect:{quality:.05,drinkAppeal:.28},desc:"Getr\xE4nke werden deutlich attraktiver, Qualit\xE4t steigt leicht."},{id:"terrasse",name:"Au\xDFenterrasse",cost:12500,upkeep:9,effect:{footfall:.16,summerFootfall:.12},desc:"+16 % Laufkundschaft, im Sommer noch mehr."},{id:"leuchtwerbung",name:"Leuchtreklame",cost:3400,upkeep:2,effect:{footfall:.08,reputationFloor:4},desc:"+8 % Laufkundschaft und ein St\xFCck Markenbekanntheit."}],I=Object.fromEntries(he.map(e=>[e.id,e])),be=[{id:"r_doener",name:"D\xF6nerspie\xDF & Grill",cost:5200,day:0,unlock:"doener",desc:"Schaltet den D\xF6ner frei: der Umsatztr\xE4ger der fr\xFChen Jahre."},{id:"r_croissant",name:"Fr\xFChst\xFCckstheke",cost:3600,day:0,unlock:"croissant",desc:"Schaltet Croissants frei und weckt das Morgengesch\xE4ft."},{id:"r_eis",name:"Softeismaschine",cost:4800,day:20,unlock:"eis",desc:"Schaltet Softeis frei \u2014 im Sommer ein Selbstl\xE4ufer."},{id:"r_flatwhite",name:"Barista-Schulung",cost:9500,day:30,unlock:"flatwhite",desc:"Schaltet Flat White frei: hohe Marge, kleiner Aufwand."},{id:"r_bowl",name:"Frische-Konzept",cost:11e3,day:45,unlock:"bowl",desc:"Schaltet die vegane Bowl frei und hebt den Ruf um 4 Punkte.",effect:{reputation:4}},{id:"r_kuchen",name:"Eigene Backstube",cost:14e3,day:60,unlock:"kuchen",desc:"Schaltet hausgemachten Kuchen frei und senkt den Wareneinsatz um 4 %.",effect:{cogs:-.04}},{id:"r_bubbletea",name:"Trendlabor",cost:12500,day:70,unlock:"bubbletea",desc:"Schaltet Bubble Tea frei. Der Trend schwankt \u2014 beobachte ihn."},{id:"r_burger",name:"Grillstation",cost:21e3,day:90,unlock:"burger",desc:"Schaltet den Craft-Burger frei: der h\xF6chste Deckungsbeitrag im Men\xFC."},{id:"r_einkauf",name:"Zentraleinkauf",cost:18e3,day:40,desc:"Senkt den Wareneinsatz aller Filialen um 8 %.",effect:{cogs:-.08}},{id:"r_app",name:"Liefer-App",cost:26e3,day:75,desc:"+12 % Nachfrage in allen Filialen, unabh\xE4ngig vom Wetter.",effect:{demand:.12}},{id:"r_schulung",name:"Qualit\xE4tsmanagement",cost:16e3,day:55,desc:"Hebt die Qualit\xE4t \xFCberall um 6 % und entsch\xE4rft Kontrollen.",effect:{quality:.06,hygiene:.15}},{id:"r_franchise",name:"Franchise-Handbuch",cost:32e3,day:110,desc:"Filialen ab der f\xFCnften kosten 20 % weniger in der Er\xF6ffnung.",effect:{openingDiscount:.2}}],ge=Object.fromEntries(be.map(e=>[e.id,e])),ke=[{id:"flyer",name:"Flyer im Viertel",perDay:45,days:10,reach:.1,rep:0,desc:"Billig und kurzatmig. F\xFCr den Start v\xF6llig in Ordnung."},{id:"social",name:"Social Media",perDay:130,days:20,reach:.22,rep:2,desc:"Solide Reichweite und ein kleiner Ruf-Schub."},{id:"radio",name:"Lokalradio",perDay:310,days:25,reach:.34,rep:3,desc:"Erreicht die halbe Stadt. Lohnt erst ab mehreren Filialen."},{id:"influ",name:"Influencer-Kooperation",perDay:620,days:14,reach:.55,rep:6,desc:"Kurz, teuer, laut. Kann eine Er\xF6ffnung tragen."},{id:"sponsor",name:"Vereinssponsoring",perDay:210,days:60,reach:.18,rep:8,desc:"Langsame Reichweite, daf\xFCr der beste Ruf-Aufbau im Spiel."}],O=Object.fromEntries(ke.map(e=>[e.id,e])),Y=[{id:"m_first",name:"Zweite Filiale",test:e=>e.locations.length>=2,reward:0},{id:"m_rep70",name:"Ruf 70",test:e=>e.reputation>=70,reward:2500},{id:"m_day1k",name:"1.000 \u20AC Tagesgewinn",test:e=>e.today.profit>=1e3,reward:5e3},{id:"m_five",name:"F\xFCnf Filialen",test:e=>e.locations.length>=5,reward:1e4},{id:"m_100k",name:"100.000 \u20AC Firmenwert",test:e=>e.companyValue>=1e5,reward:0},{id:"m_500k",name:"Eine halbe Million",test:e=>e.companyValue>=5e5,reward:0},{id:"m_all",name:"Alle Standorte",test:e=>e.locations.length>=8,reward:25e3},{id:"m_ipo",name:"B\xF6rsenreif",test:e=>e.companyValue>=25e5,reward:0}],J=25e5,Pe=[{id:"hitzewelle",weight:10,name:"Hitzewelle",apply:e=>(e.modifiers.push({id:"hitze",days:e.rng.int(3,6),label:"Hitzewelle",demand:{drink:.55,sweet:.4,main:-.12}}),{tone:"good",text:"Hitzewelle angek\xFCndigt: Getr\xE4nke und Eis gehen weg wie nichts."})},{id:"dauerregen",weight:10,name:"Dauerregen",apply:e=>(e.modifiers.push({id:"regen",days:e.rng.int(2,5),label:"Dauerregen",footfall:-.22}),{tone:"bad",text:"Dauerregen: weniger Laufkundschaft, vor allem drau\xDFen."})},{id:"baustelle",weight:7,name:"Baustelle",when:e=>e.locations.length>0,apply:e=>{let t=e.rng.pick(e.locations);return e.modifiers.push({id:"baustelle",days:e.rng.int(8,20),label:`Baustelle: ${t.name}`,locationId:t.id,footfall:-.35}),{tone:"bad",text:`Baustelle vor \u201E${t.name}\u201C: die H\xE4lfte der Laufkundschaft nimmt den Umweg.`}}},{id:"kontrolle",weight:9,name:"Kontrolle",when:e=>e.locations.length>0,apply:e=>{let t=e.rng.pick(e.locations);if(W[t.quality-1].hygiene*(1+e.effects.hygiene)*(.9+t.morale*.2)<.95&&e.rng.chance(.72)){let o=Math.round(1200+e.rng.range(0,2600));return e.cash-=o,e.reputation-=6,e.ledger.fines+=o,{tone:"bad",text:`Lebensmittelkontrolle in \u201E${t.name}\u201C: M\xE4ngel, ${Math.round(o)} \u20AC Bu\xDFgeld, Ruf besch\xE4digt.`}}return e.reputation+=2,{tone:"good",text:`Lebensmittelkontrolle in \u201E${t.name}\u201C: keine Beanstandung. Der Aushang wirkt.`}}},{id:"viral",weight:6,name:"Viraler Post",when:e=>e.reputation>55,apply:e=>(e.modifiers.push({id:"viral",days:e.rng.int(4,9),label:"Viraler Post",footfall:.3}),e.reputation+=3,{tone:"good",text:"Ein Video eurer Theke geht viral. F\xFCr ein paar Tage steht die Schlange um die Ecke."})},{id:"shitstorm",weight:5,name:"Verriss",when:e=>e.reputation<55||e.lostShare>.2,apply:e=>(e.reputation-=7,{tone:"bad",text:"Ein Verriss macht die Runde: lange Wartezeit, laue Ware. Der Ruf leidet."})},{id:"lieferengpass",weight:8,name:"Lieferengpass",apply:e=>(e.modifiers.push({id:"engpass",days:e.rng.int(4,10),label:"Lieferengpass",cogs:.18}),{tone:"bad",text:"Lieferengpass beim Gro\xDFh\xE4ndler: der Wareneinsatz steigt vor\xFCbergehend um 18 %."})},{id:"konkurrenz",weight:7,name:"Konkurrenz",when:e=>e.locations.length>0&&e.day>25,apply:e=>{let t=e.rng.pick(e.locations);return t.competition=Math.min(.45,t.competition+.12),{tone:"bad",text:`Neue Konkurrenz neben \u201E${t.name}\u201C. Ein Teil der Kundschaft probiert erst mal dort.`}}},{id:"konkurrenz_zu",weight:5,name:"Konkurrenz schlie\xDFt",when:e=>e.locations.some(t=>t.competition>.05),apply:e=>{let t=e.rng.pick(e.locations.filter(n=>n.competition>.05));return t.competition=Math.max(0,t.competition-.15),{tone:"good",text:`Der Laden gegen\xFCber von \u201E${t.name}\u201C macht dicht. Die Kundschaft kommt zur\xFCck.`}}},{id:"trend",weight:6,name:"Trendwelle",when:e=>e.unlocked.has("bubbletea"),apply:e=>{let t=e.rng.chance(.55);return e.trend=t?1.5:.6,{tone:t?"good":"bad",text:t?"Bubble Tea ist pl\xF6tzlich \xFCberall. Der Trend zieht kr\xE4ftig an.":"Der Bubble-Tea-Hype flaut ab. Die Nachfrage sackt weg."}}},{id:"grossauftrag",weight:6,name:"Gro\xDFauftrag",when:e=>e.locations.length>=2&&e.reputation>50,apply:e=>{let t=Math.round(400+e.reputation*22+e.locations.length*260);return e.cash+=t,e.ledger.other+=t,{tone:"good",text:`Catering-Auftrag angenommen: ${t} \u20AC zus\xE4tzlich in der Kasse.`}}},{id:"defekt",weight:8,name:"Defekt",when:e=>e.locations.length>0,apply:e=>{let t=e.rng.pick(e.locations),n=Math.round(500+e.rng.range(0,1800));return e.cash-=n,e.ledger.repairs+=n,e.modifiers.push({id:"defekt",days:e.rng.int(1,3),label:`Defekt: ${t.name}`,locationId:t.id,throughput:-.3}),{tone:"bad",text:`K\xFChlung in \u201E${t.name}\u201C ausgefallen: ${n} \u20AC Reparatur, ein paar Tage halbe Kraft.`}}},{id:"krankheit",weight:7,name:"Krankheitswelle",when:e=>e.staffCount>=3,apply:e=>(e.modifiers.push({id:"krank",days:e.rng.int(3,7),label:"Krankheitswelle",throughput:-.18}),{tone:"bad",text:"Krankheitswelle im Team: der Durchsatz sinkt, bis alle zur\xFCck sind."})},{id:"stadtfest",weight:6,name:"Stadtfest",apply:e=>(e.modifiers.push({id:"fest",days:e.rng.int(2,4),label:"Stadtfest",footfall:.45}),{tone:"good",text:"Stadtfest am Wochenende: die Innenstadt ist voll."})},{id:"mieterhoehung",weight:5,name:"Mieterh\xF6hung",when:e=>e.locations.length>0&&e.day>60,apply:e=>{let t=e.rng.pick(e.locations),n=t.rent;return t.rent=Math.round(t.rent*1.08),{tone:"bad",text:`Mieterh\xF6hung f\xFCr \u201E${t.name}\u201C: ${n} \u20AC \u2192 ${t.rent} \u20AC pro Tag.`}}}];var x=(e,t,n)=>e<t?t:e>n?n:e;var b=(e,t)=>e.reduce((n,a)=>n+t(a),0);function oe(e=1){let t=e>>>0||1,n=()=>{t=t+1831565813>>>0;let a=t;return a=Math.imul(a^a>>>15,a|1),a^=a+Math.imul(a^a>>>7,a|61),((a^a>>>14)>>>0)/4294967296};return n.range=(a,o)=>a+n()*(o-a),n.int=(a,o)=>Math.floor(n.range(a,o+1)),n.pick=a=>a[Math.floor(n()*a.length)],n.chance=a=>n()<a,n.noise=(a=.1)=>1+((n()+n()+n())/3-.5)*2*a,n.state=()=>t,n.setState=a=>{t=a>>>0||1},n}var nt=new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",maximumFractionDigits:0}),st=new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}),Re=new Intl.NumberFormat("de-DE",{maximumFractionDigits:0}),Fe=new Intl.NumberFormat("de-DE",{maximumFractionDigits:1});function p(e){let t=Math.abs(e);return t>=1e6?`${Fe.format(e/1e6)} Mio. \u20AC`:t>=1e5?`${Re.format(Math.round(e/1e3))} Tsd. \u20AC`:nt.format(e)}var ne=e=>st.format(e),L=e=>Re.format(e),ye=e=>Fe.format(e),S=(e,t=0)=>`${(e*100).toFixed(t).replace(".",",")} %`,X=e=>e>=0?`+${p(e)}`:`\u2212${p(-e)}`,rt=["Januar","Februar","M\xE4rz","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],it=["Mo","Di","Mi","Do","Fr","Sa","So"],ie=30;function ee(e){let t=Math.max(0,Math.floor(e)),n=Math.floor(t/ie);return{dayOfMonth:t%ie+1,month:n%12,year:1+Math.floor(n/12),weekday:t%7,weekdayName:it[t%7],monthName:rt[n%12]}}function Ie(e){let t=ee(e);return`${t.weekdayName}, ${t.dayOfMonth}. ${t.monthName} \u2014 Jahr ${t.year}`}function $e(e){let t=ee(e);return`${t.dayOfMonth}.${String(t.month+1).padStart(2,"0")}.`}var P={wasteBase:.05,interestDaily:28e-5,taxRate:.25,creditBase:25e3,historyDays:400,logMax:160};function ve(e=Math.floor(Math.random()*1e9)){let t={version:1,seed:e,rng:oe(e),firm:"Meine Kette",day:0,cash:25e3,debt:0,reputation:50,trend:1,locations:[],prices:Object.fromEntries(A.map(n=>[n.id,n.ref])),unlocked:new Set(A.filter(n=>n.start).map(n=>n.id)),research:new Set,campaigns:[],modifiers:[],milestones:new Set,ledger:{fines:0,repairs:0,other:0,tax:0},history:[],log:[],month:{revenue:0,profit:0,cogs:0,wages:0,rent:0,marketing:0},lastMonth:null,today:Ne(),effects:{},companyValue:0,staffCount:0,lostShare:0,over:null,nextStaffUid:1};return ce(t),Ee(t,"bahnhof",{free:!0}),le(t,"bahnhof","aushilfe",{free:!0}),le(t,"bahnhof","aushilfe",{free:!0}),t.log=[],z(t,"info","Der Kiosk im Bahnhofsviertel geh\xF6rt dir. Zwei Aushilfen, 25.000 \u20AC auf dem Konto."),t}function Ne(){return{revenue:0,cogs:0,wages:0,rent:0,marketing:0,upkeep:0,interest:0,tax:0,profit:0,customers:0,sold:0,lost:0,byProduct:{}}}function z(e,t,n){e.log.unshift({day:e.day,tone:t,text:n}),e.log.length>P.logMax&&(e.log.length=P.logMax)}function ce(e){let t={cogs:0,quality:0,demand:0,hygiene:0,openingDiscount:0,reputationBonus:0};for(let n of e.research){let a=ge[n];if(!(!a||!a.effect))for(let[o,d]of Object.entries(a.effect))o!=="reputation"&&(t[o]=(t[o]||0)+d)}e.effects=t}function we(e,t){let n={footfall:0,throughput:0,cogs:0,demand:{},labels:[]};for(let a of e.modifiers)if(!(a.locationId&&a.locationId!==t)){if(n.footfall+=a.footfall||0,n.throughput+=a.throughput||0,n.cogs+=a.cogs||0,a.demand)for(let[o,d]of Object.entries(a.demand))n.demand[o]=(n.demand[o]||0)+d;n.labels.push(a.label)}return n}function ot(e){let t=b(e.campaigns,n=>O[n.id].reach);return t<=0?0:1-Math.exp(-t)+t*.12}function lt(e,t){let n=e/t;return 2/(1+Math.exp(3.2*(n-1)))}function Se(e,t){let n=we(e,t.id),a=0,o=!1;for(let f of t.staff){let u=G[f.role];a+=u.throughput*Math.pow(f.skill,1.15),f.role==="leitung"&&(o=!0)}let d=1;for(let f of t.upgrades){let u=I[f];u?.effect.throughput&&(d+=u.effect.throughput),u?.effect.wageEff&&(d+=u.effect.wageEff)}return o&&(d+=.18),d*=x(.8+t.morale*.3,.6,1.2),d*=x(1+n.throughput,.25,2),Math.max(0,a*d)}function ct(e,t){let n=W[t.quality-1],a=t.staff.length?b(t.staff,d=>d.skill)/t.staff.length:.8,o=n.quality*(.9+a*.1)*(1+e.effects.quality);for(let d of t.upgrades){let f=I[d];f?.effect.quality&&(o+=f.effect.quality)}return o*=x(.9+t.morale*.12,.85,1.06),x(o,.4,1.7)}function dt(e,t){let n=ee(e.day),a=we(e,t.id),o=1+(Ae[n.month]-1)*t.summer,d=ze[t.profile][n.weekday],f=0,u=n.month>=4&&n.month<=8;for(let E of t.upgrades){let $=I[E];$?.effect.footfall&&(f+=$.effect.footfall),u&&$?.effect.summerFootfall&&(f+=$.effect.summerFootfall)}let y=.62+e.reputation*.0076;return t.footfall*o*d*(1+f)*(1+ot(e))*(1+e.effects.demand)*(1+a.footfall)*(1-t.competition)*y}function ut(e,t){let n=we(e,t.id),a=W[t.quality-1],o=ct(e,t),d=.45+.55*o,f=dt(e,t)*e.rng.noise(.12),u=ee(e.day),y=0;for(let i of t.upgrades){let c=I[i];c?.effect.drinkAppeal&&(y+=c.effect.drinkAppeal)}let E={};for(let[i,c]of Object.entries(se)){let l=A.filter(T=>T.cat===i&&e.unlocked.has(T.id)&&t.products[T.id]);if(!l.length)continue;let h=l.map(T=>{let Q=T.appeal*d*lt(e.prices[T.id]*t.priceLevel,T.ref*t.wealth);return T.trendy&&(Q*=e.trend),T.summer&&(Q*=u.month>=4&&u.month<=8?1.5:.55),T.cat==="drink"&&(Q*=1+y),Math.max(.01,Q)}),w=b(h,T=>T),m=c.take*(1-Math.exp(-w))*(1+(n.demand[i]||0)),j=Math.max(0,f*m);l.forEach((T,Q)=>{E[T.id]=j*(h[Q]/w)})}let $=b(Object.keys(E),i=>E[i]*re[i].prep),R=Se(e,t),q=$>0?Math.min(1,R/$):1,v=0,k=0,H=0,B=b([...t.upgrades],i=>I[i]?.effect.waste||0),U=Math.max(.008,P.wasteBase+B),K=a.costMul*(1+U)*(1+e.effects.cogs)*(1+n.cogs),V={};for(let[i,c]of Object.entries(E)){let l=re[i],h=c*q,w=h*e.prices[i]*t.priceLevel,m=h*l.cost*K;v+=w,k+=m,H+=h,V[i]={sold:h,revenue:w,margin:w-m}}let _=b(t.staff,i=>G[i.role].wage*i.skill),Z=b([...t.upgrades],i=>I[i]?.upkeep||0),D=1-q,r=t.staff.some(i=>i.role==="leitung"),s=x(.86+(r?.14:0)-D*.75+(e.reputation-50)/500,.25,1.15);return t.morale+=(s-t.morale)*.12,t.stats={footfall:f,capacity:R,prepNeeded:$,serveRatio:q,quality:o,revenue:v,cogs:k,wages:_,rent:t.rent,upkeep:Z,units:H,profit:v-k-_-t.rent-Z,lost:$*D,labels:n.labels,byProduct:V},t.stats}function Be(e){if(e.over)return e.today;let t=Ne();for(let u of e.locations){let y=ut(e,u);t.revenue+=y.revenue,t.cogs+=y.cogs,t.wages+=y.wages,t.rent+=y.rent,t.upkeep+=y.upkeep,t.sold+=y.units,t.customers+=y.units*.62,t.lost+=y.lost;for(let[E,$]of Object.entries(y.byProduct)){let R=t.byProduct[E]||(t.byProduct[E]={sold:0,revenue:0,margin:0});R.sold+=$.sold,R.revenue+=$.revenue,R.margin+=$.margin}}t.marketing=b(e.campaigns,u=>O[u.id].perDay),t.interest=e.debt*P.interestDaily,t.profit=t.revenue-t.cogs-t.wages-t.rent-t.upkeep-t.marketing-t.interest,e.cash+=t.profit,e.lostShare=t.sold+t.lost>0?t.lost/(t.sold+t.lost):0;let n=e.locations.length?b(e.locations,u=>u.stats.quality)/e.locations.length:1,a=xe(e),o=b(e.campaigns,u=>O[u.id].rep),d=x(50+(n-1)*70+(1-a)*30-e.lostShare*50+o*1.2,0,100);e.reputation+=(d-e.reputation)*.05,e.repTarget=d;let f=b(e.locations,u=>b([...u.upgrades],y=>I[y]?.effect.reputationFloor||0));f>0&&(e.reputation=Math.max(e.reputation,Math.min(60,35+f)));for(let u of e.locations)u.competition=Math.max(0,u.competition-.0025);return e.campaigns=e.campaigns.filter(u=>--u.daysLeft>0),e.modifiers=e.modifiers.filter(u=>--u.days>0),e.trend!==1&&(e.trend+=(1-e.trend)*.06),pt(e),e.cash<0&&(e.debt+=-e.cash,e.cash=0),e.month.revenue+=t.revenue,e.month.profit+=t.profit,e.month.cogs+=t.cogs,e.month.wages+=t.wages,e.month.rent+=t.rent+t.upkeep,e.month.marketing+=t.marketing,e.day+=1,e.staffCount=b(e.locations,u=>u.staff.length),e.today=t,e.companyValue=ht(e),e.day%ie===0&&ft(e,t),mt(e),e.history.push({day:e.day,cash:e.cash,debt:e.debt,revenue:t.revenue,profit:t.profit,value:e.companyValue,reputation:e.reputation}),e.history.length>P.historyDays&&e.history.shift(),e.debt>de(e)*1.35?(e.over="bankrott",z(e,"bad",`Die Bank zieht die Linie: ${Math.round(e.debt)} \u20AC Schulden ohne Deckung. Insolvenz.`)):e.companyValue>=J&&!e.over&&(e.over="boerse",z(e,"good","Firmenwert \xFCber 2,5 Mio. \u20AC. Der B\xF6rsengang steht \u2014 du hast gewonnen.")),t}function ft(e,t){let a=Math.max(0,e.month.profit)*P.taxRate;e.cash-=a,e.ledger.tax+=a,t.tax=a,e.lastMonth={...e.month,tax:a,day:e.day};let o=ee(e.day-1);z(e,e.month.profit>=0?"info":"bad",`Monatsabschluss ${o.monthName}: Umsatz ${Math.round(e.month.revenue)} \u20AC, Gewinn ${Math.round(e.month.profit)} \u20AC, Steuer ${Math.round(a)} \u20AC.`),e.month={revenue:0,profit:0,cogs:0,wages:0,rent:0,marketing:0}}function pt(e){let t=.16+Math.min(.12,e.locations.length*.02);if(!e.rng.chance(t))return;let n=Pe.filter(d=>!d.when||d.when(e));if(!n.length)return;let a=b(n,d=>d.weight),o=e.rng()*a;for(let d of n)if(o-=d.weight,o<=0){let f=d.apply(e);f&&z(e,f.tone,f.text);return}}function mt(e){for(let t of Y)e.milestones.has(t.id)||t.test(e)&&(e.milestones.add(t.id),t.reward?(e.cash+=t.reward,e.ledger.other+=t.reward,z(e,"good",`Meilenstein: ${t.name}. Pr\xE4mie ${t.reward} \u20AC.`)):z(e,"good",`Meilenstein erreicht: ${t.name}.`))}function xe(e){let t=A.filter(o=>e.unlocked.has(o.id));if(!t.length)return 1;let n=b(t,o=>e.prices[o.id]/o.ref)/t.length,a=e.locations.length?b(e.locations,o=>o.priceLevel/o.wealth)/e.locations.length:1;return n*a}function Ke(e,t,n){let a=e.locations.find(o=>o.id===t);return a?(a.priceLevel=x(Math.round(n*100)/100,.7,1.6),{ok:!0,msg:""}):{ok:!1,msg:"Standort unbekannt."}}function de(e){return P.creditBase+b(e.locations,t=>t.invest*.5)}function ht(e){let t=b(e.locations,o=>o.invest*.75),n=e.history.slice(-30),a=n.length?b(n,o=>o.profit)/n.length:0;return e.cash-e.debt+t+Math.max(0,a)*220}function Ge(e){return b(e.locations,t=>t.rent+b([...t.upgrades],n=>I[n]?.upkeep||0))+b(e.locations,t=>b(t.staff,n=>G[n.role].wage*n.skill))+b(e.campaigns,t=>O[t.id].perDay)+e.debt*P.interestDaily}function Me(e,t){let n=ae[t];if(!n)return 1/0;let a=e.locations.length>=4?e.effects.openingDiscount:0;return Math.round(n.cost*(1-a))}function Ee(e,t,n={}){let a=ae[t];if(!a)return{ok:!1,msg:"Unbekannter Standort."};if(e.locations.some(d=>d.id===t))return{ok:!1,msg:"Geh\xF6rt dir bereits."};let o=n.free?0:Me(e,t);return e.cash<o?{ok:!1,msg:`Zu wenig Geld: ${Math.round(o)} \u20AC n\xF6tig.`}:(e.cash-=o,e.locations.push({id:a.id,name:a.name,kind:a.kind,footfall:a.footfall,rent:a.rent,wealth:a.wealth,profile:a.profile,summer:a.summer,staffSlots:a.staffSlots,quality:3,priceLevel:1,competition:0,morale:.9,invest:Math.max(o,a.cost,6e3),staff:[],upgrades:new Set,products:Object.fromEntries(A.filter(d=>d.start).map(d=>[d.id,!0])),stats:null}),n.free||z(e,"good",`\u201E${a.name}\u201C er\xF6ffnet \u2014 ${Math.round(o)} \u20AC investiert. Ohne Personal steht die Theke still und die Miete l\xE4uft trotzdem.`),{ok:!0,msg:`\u201E${a.name}\u201C er\xF6ffnet \u2014 jetzt Personal einstellen.`})}function Oe(e,t){let n=e.locations.findIndex(d=>d.id===t);if(n<0)return{ok:!1,msg:"Standort unbekannt."};if(e.locations.length===1)return{ok:!1,msg:"Die letzte Filiale kannst du nicht schlie\xDFen."};let a=e.locations[n],o=Math.round(a.invest*.45);return e.cash+=o,e.locations.splice(n,1),z(e,"info",`\u201E${a.name}\u201C geschlossen. Abl\xF6se ${o} \u20AC, Team entlassen.`),{ok:!0,msg:`Geschlossen, ${o} \u20AC zur\xFCck.`}}function le(e,t,n,a={}){let o=e.locations.find(u=>u.id===t),d=G[n];if(!o||!d)return{ok:!1,msg:"Geht nicht."};if(o.staff.length>=o.staffSlots)return{ok:!1,msg:"Kein Platz mehr hinter der Theke."};if(n==="leitung"&&o.staff.some(u=>u.role==="leitung"))return{ok:!1,msg:"Eine Leitung pro Filiale reicht."};let f=a.free?0:d.hire;return e.cash<f?{ok:!1,msg:`Einstellung kostet ${f} \u20AC.`}:(e.cash-=f,o.staff.push({uid:e.nextStaffUid++,role:n,skill:1}),{ok:!0,msg:`${d.name} eingestellt.`})}function Ce(e,t,n){let a=e.locations.find(u=>u.id===t);if(!a)return{ok:!1,msg:"Standort unbekannt."};let o=a.staff.findIndex(u=>u.uid===n);if(o<0)return{ok:!1,msg:"Person nicht gefunden."};let d=a.staff[o],f=Math.round(G[d.role].wage*4*d.skill);return e.cash-=f,a.staff.splice(o,1),a.morale=Math.max(.3,a.morale-.08),{ok:!0,msg:`Entlassen. Abfindung ${f} \u20AC.`}}function Ue(e,t,n){let o=e.locations.find(d=>d.id===t)?.staff.find(d=>d.uid===n);return o?o.skill>=F.cap-1e-6?{ok:!1,msg:"Da geht nichts mehr rauf."}:e.cash<F.cost?{ok:!1,msg:`Schulung kostet ${F.cost} \u20AC.`}:(e.cash-=F.cost,o.skill=Math.min(F.cap,o.skill+F.gain),{ok:!0,msg:"Geschult: mehr Durchsatz, etwas h\xF6herer Lohn."}):{ok:!1,msg:"Person nicht gefunden."}}function qe(e,t,n){let a=e.locations.find(d=>d.id===t),o=I[n];return!a||!o?{ok:!1,msg:"Geht nicht."}:a.upgrades.has(n)?{ok:!1,msg:"Schon eingebaut."}:e.cash<o.cost?{ok:!1,msg:`Kostet ${o.cost} \u20AC.`}:(e.cash-=o.cost,a.upgrades.add(n),a.invest+=o.cost,z(e,"info",`\u201E${a.name}\u201C: ${o.name} eingebaut.`),{ok:!0,msg:`${o.name} eingebaut.`})}function Ve(e,t){let n=ge[t];if(!n)return{ok:!1,msg:"Unbekannt."};if(e.research.has(t))return{ok:!1,msg:"Bereits entwickelt."};if(e.day<n.day)return{ok:!1,msg:`Erst ab Tag ${n.day} verf\xFCgbar.`};if(e.cash<n.cost)return{ok:!1,msg:`Kostet ${n.cost} \u20AC.`};if(e.cash-=n.cost,e.research.add(t),n.unlock){e.unlocked.add(n.unlock);for(let a of e.locations)a.products[n.unlock]=!0}return n.effect?.reputation&&(e.reputation=x(e.reputation+n.effect.reputation,0,100)),ce(e),z(e,"good",`Entwicklung abgeschlossen: ${n.name}.`),{ok:!0,msg:`${n.name} abgeschlossen.`}}function _e(e,t){let n=O[t];return n?e.campaigns.some(a=>a.id===t)?{ok:!1,msg:"L\xE4uft bereits."}:e.cash<n.perDay*3?{ok:!1,msg:"Zu wenig Puffer f\xFCr die Kampagne."}:(e.campaigns.push({id:t,daysLeft:n.days}),z(e,"info",`Kampagne gestartet: ${n.name} (${n.days} Tage, ${n.perDay} \u20AC/Tag).`),{ok:!0,msg:`${n.name} l\xE4uft.`}):{ok:!1,msg:"Unbekannt."}}function je(e,t){return e.campaigns=e.campaigns.filter(n=>n.id!==t),{ok:!0,msg:"Kampagne beendet."}}function Te(e,t,n){let a=re[t];return a?(e.prices[t]=x(Math.round(n*20)/20,.2,a.ref*3),{ok:!0,msg:""}):{ok:!1,msg:"Unbekannt."}}function We(e,t,n){let a=e.locations.find(o=>o.id===t);return a?(a.quality=x(Math.round(n),1,5),{ok:!0,msg:""}):{ok:!1,msg:"Standort unbekannt."}}function He(e,t,n){let a=e.locations.find(o=>o.id===t);return!a||!e.unlocked.has(n)?{ok:!1,msg:"Noch nicht freigeschaltet."}:(a.products[n]=!a.products[n],{ok:!0,msg:""})}function Ze(e,t){let n=de(e)-e.debt,a=Math.min(Math.max(0,Math.round(t)),Math.round(n));return a<=0?{ok:!1,msg:"Die Bank gibt nichts mehr her."}:(e.debt+=a,e.cash+=a,z(e,"info",`Kredit aufgenommen: ${a} \u20AC.`),{ok:!0,msg:`${a} \u20AC aufgenommen.`})}function Qe(e,t){let n=Math.min(Math.max(0,Math.round(t)),Math.round(e.debt),Math.round(e.cash));return n<=0?{ok:!1,msg:"Daf\xFCr fehlt das Geld."}:(e.debt-=n,e.cash-=n,{ok:!0,msg:`${n} \u20AC getilgt.`})}function Ye(e,t,n={}){let a=e.getContext("2d"),o=Math.min(window.devicePixelRatio||1,2),d=e.clientWidth,f=e.clientHeight;if(!d||!f)return;(e.width!==Math.round(d*o)||e.height!==Math.round(f*o))&&(e.width=Math.round(d*o),e.height=Math.round(f*o)),a.setTransform(o,0,0,o,0,0),a.clearRect(0,0,d,f);let u=getComputedStyle(document.documentElement),y=u.getPropertyValue("--ink").trim()||"#e8e2d6",E=u.getPropertyValue("--dim").trim()||"#8b8577",$=u.getPropertyValue("--good").trim()||"#6fcf8d",R=u.getPropertyValue("--accent").trim()||"#e8a13a",q="rgba(255,255,255,0.06)",v=t.slice(-(n.days||120)),k={l:8,r:8,t:14,b:18},H=d-k.l-k.r,B=f-k.t-k.b;if(v.length<2){a.fillStyle=E,a.font="12px ui-monospace, monospace",a.textAlign="center",a.fillText("Noch keine Daten \u2014 lass ein paar Tage laufen.",d/2,f/2);return}let U=v.map(c=>c.value),K=v.map(c=>c.profit),V=Math.min(0,...U),_=Math.max(1,...U),Z=Math.max(1,...K.map(Math.abs)),D=c=>k.l+c/(v.length-1)*H,r=c=>k.t+B*(1-(c-V)/(_-V||1)),s=c=>k.t+B*(.5-c/Z*.42);a.strokeStyle=q,a.lineWidth=1,a.beginPath(),a.moveTo(k.l,Math.round(s(0))+.5),a.lineTo(d-k.r,Math.round(s(0))+.5),a.stroke(),a.strokeStyle="rgba(232,161,58,0.55)",a.lineWidth=1,a.beginPath(),v.forEach((c,l)=>l?a.lineTo(D(l),s(c.profit)):a.moveTo(D(l),s(c.profit))),a.stroke();let i=a.createLinearGradient(0,k.t,0,k.t+B);i.addColorStop(0,"rgba(111,207,141,0.30)"),i.addColorStop(1,"rgba(111,207,141,0.02)"),a.beginPath(),v.forEach((c,l)=>l?a.lineTo(D(l),r(c.value)):a.moveTo(D(l),r(c.value))),a.lineTo(D(v.length-1),k.t+B),a.lineTo(D(0),k.t+B),a.closePath(),a.fillStyle=i,a.fill(),a.beginPath(),v.forEach((c,l)=>l?a.lineTo(D(l),r(c.value)):a.moveTo(D(l),r(c.value))),a.strokeStyle=$,a.lineWidth=1.75,a.stroke(),a.font="10px ui-monospace, monospace",a.fillStyle=E,a.textAlign="left",a.fillText($e(v[0].day),k.l,f-5),a.textAlign="right",a.fillText($e(v[v.length-1].day),d-k.r,f-5),a.textAlign="left",a.fillStyle=y,a.fillText(`Firmenwert ${p(U[U.length-1])}`,k.l,10),a.textAlign="right",a.fillStyle=R,a.fillText(`Gewinn/Tag ${p(K[K.length-1])}`,d-k.r,10)}var M=e=>String(e).replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[t]);function Je(e,t){let n={tab:"uebersicht",loc:"bahnhof",dragging:!1,toastTimer:0},a={hud:e.querySelector("#hud"),tabs:e.querySelector("#tabs"),view:e.querySelector("#view"),feed:e.querySelector("#feed"),toast:document.querySelector("#toast"),modal:document.querySelector("#modal")},o=[["uebersicht","\xDCbersicht"],["filialen","Filialen"],["menue","Men\xFC"],["marketing","Marketing"],["forschung","Entwicklung"],["finanzen","Finanzen"]];function d(r){let s=r.today.profit,i=[["0","\u2016"],["1","\u25B8"],["2","\u25B8\u25B8"],["3","\u25B8\u25B8\u25B8"]];a.hud.innerHTML=`
+      <div class="hud-left">
+        <input id="firm" class="firm" value="${M(r.firm)}" maxlength="28"
+               data-act="rename" aria-label="Name der Kette">
+        <div class="date">${Ie(r.day)}${r.over?" \xB7 beendet":""}</div>
+      </div>
+      <div class="hud-stats">
+        ${f("Kasse",p(r.cash),r.cash<2e3?"warn":"")}
+        ${f("Gewinn / Tag",X(s),s>=0?"good":"bad")}
+        ${f("Ruf",L(r.reputation),r.reputation>=60?"good":r.reputation<40?"bad":"")}
+        ${f("Firmenwert",p(r.companyValue),"")}
+      </div>
+      <div class="speeds" role="group" aria-label="Geschwindigkeit">
+        ${i.map(([c,l])=>`
+          <button data-act="speed" data-v="${c}"
+                  class="${t.getSpeed()===Number(c)?"on":""}"
+                  title="${c==="0"?"Pause (Leertaste)":`Tempo ${c}`}">${l}</button>`).join("")}
+      </div>`}let f=(r,s,i)=>`
+    <div class="stat ${i}">
+      <span class="stat-label">${r}</span>
+      <span class="stat-value">${s}</span>
+    </div>`;function u(){a.tabs.innerHTML=o.map(([r,s])=>`
+      <button data-act="tab" data-v="${r}" class="${n.tab===r?"on":""}">${s}</button>`).join("")}function y(r){a.feed.innerHTML=`
+      <h2>Geschehen</h2>
+      <ol class="log">
+        ${r.log.slice(0,40).map(s=>`
+          <li class="log-${s.tone}"><span class="log-day">T${s.day}</span> ${M(s.text)}</li>`).join("")}
+      </ol>`}function E(r){let s=Ge(r),i=r.today.revenue>0?(r.today.revenue-r.today.cogs)/r.today.revenue:0,c=Y.filter(l=>r.milestones.has(l.id)).length;return`
+      <section class="panel">
+        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+      </section>
+
+      <section class="grid grid-4">
+        ${$("Umsatz gestern",p(r.today.revenue),`${L(r.today.sold)} Artikel verkauft`)}
+        ${$("Fixkosten / Tag",p(s),"Miete, L\xF6hne, Werbung, Zinsen")}
+        ${$("Rohertragsmarge",S(i,0),`Wareneinsatz ${p(r.today.cogs)}`)}
+        ${$("Verlorene G\xE4ste",S(r.lostShare,0),r.lostShare>.08?"Die Schlange ist zu lang \u2014 mehr Personal.":"Die Theke kommt mit.")}
+      </section>
+
+      <section class="grid grid-2">
+        <div class="panel">
+          <h2>Filialen</h2>
+          <table class="table">
+            <thead><tr><th>Standort</th><th>Auslastung</th><th>Umsatz</th><th>Gewinn</th></tr></thead>
+            <tbody>
+              ${r.locations.map(l=>{let h=l.stats,w=h?h.prepNeeded/Math.max(1,h.capacity):0;return`<tr>
+                  <td><button class="link" data-act="goloc" data-loc="${l.id}">${M(l.name)}</button></td>
+                  <td class="${w>1?"bad":w<.5?"dim":""}">${h?S(Math.min(w,2),0):"\u2014"}</td>
+                  <td>${h?p(h.revenue):"\u2014"}</td>
+                  <td class="${h&&h.profit<0?"bad":"good"}">${h?X(h.profit):"\u2014"}</td>
+                </tr>`}).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h2>Ziele <span class="dim">${c}/${Y.length}</span></h2>
+          <ul class="checks">
+            ${Y.map(l=>`
+              <li class="${r.milestones.has(l.id)?"done":""}">
+                <span class="box">${r.milestones.has(l.id)?"\u2713":""}</span>
+                ${M(l.name)}${l.reward?` <span class="dim">\xB7 ${p(l.reward)}</span>`:""}
+              </li>`).join("")}
+          </ul>
+          <p class="hint">B\xF6rsengang bei einem Firmenwert von ${p(J)}.
+            Aktuell ${S(x(r.companyValue/J,0,1),0)}.</p>
+          <div class="bar"><i style="width:${x(r.companyValue/J,0,1)*100}%"></i></div>
+        </div>
+      </section>
+
+      ${r.modifiers.length?`
+        <section class="panel">
+          <h2>L\xE4uft gerade</h2>
+          <div class="chips">
+            ${r.modifiers.map(l=>`<span class="chip">${M(l.label)} <b>${l.days} T</b></span>`).join("")}
+            ${r.campaigns.map(l=>`<span class="chip on">${M(O[l.id].name)} <b>${l.daysLeft} T</b></span>`).join("")}
+          </div>
+        </section>`:""}
+    `}let $=(r,s,i)=>`
+    <div class="panel card">
+      <span class="card-label">${r}</span>
+      <span class="card-value">${s}</span>
+      <span class="card-note">${i}</span>
+    </div>`;function R(r){let s=r.locations.find(l=>l.id===n.loc)||r.locations[0];s&&(n.loc=s.id);let i=new Set(r.locations.map(l=>l.id)),c=me.filter(l=>!i.has(l.id));return`
+      <section class="panel">
+        <div class="chips">
+          ${r.locations.map(l=>`
+            <button class="chip ${l.id===n.loc?"on":""}" data-act="goloc" data-loc="${l.id}">
+              ${M(l.name)} ${l.stats?`<b class="${l.stats.profit<0?"bad":"good"}">${X(l.stats.profit)}</b>`:""}
+            </button>`).join("")}
+        </div>
+      </section>
+      ${s?q(r,s):""}
+      <section class="panel">
+        <h2>Neue Standorte</h2>
+        ${c.length?`<div class="grid grid-2">
+          ${c.map(l=>{let h=Me(r,l.id),w=r.cash>=h;return`<div class="offer">
+              <div class="offer-head">
+                <b>${M(l.name)}</b><span class="dim">${l.kind}</span>
+              </div>
+              <p class="dim">${M(l.blurb)}</p>
+              <div class="kv">
+                <span>Laufkundschaft</span><b>${L(l.footfall)} / Tag</b>
+                <span>Miete</span><b>${p(l.rent)} / Tag</b>
+                <span>Kaufkraft</span><b>${ye(l.wealth*100)} %</b>
+                <span>Theken-Pl\xE4tze</span><b>${l.staffSlots}</b>
+              </div>
+              <button class="primary" data-act="open" data-loc="${l.id}" ${w?"":"disabled"}>
+                Er\xF6ffnen \xB7 ${p(h)}
+              </button>
+            </div>`}).join("")}
+        </div>`:'<p class="hint">Alle Standorte geh\xF6ren dir. Es gibt nichts mehr zu erobern.</p>'}
+      </section>`}function q(r,s){let i=s.stats,c=Se(r,s),l=i?i.prepNeeded/Math.max(1,c):0,h=W[s.quality-1],w=ae[s.id];return`
+      <section class="grid grid-2">
+        <div class="panel">
+          <h2>${M(s.name)} <span class="dim">${s.kind}</span></h2>
+          <div class="kv">
+            <span>Laufkundschaft</span><b>${i?L(i.footfall):"\u2014"} / Tag</b>
+            <span>Verkauft</span><b>${i?L(i.units):"\u2014"} Artikel</b>
+            <span>Umsatz</span><b>${i?p(i.revenue):"\u2014"}</b>
+            <span>Wareneinsatz</span><b>${i?p(i.cogs):"\u2014"}</b>
+            <span>L\xF6hne</span><b>${i?p(i.wages):"\u2014"}</b>
+            <span>Miete + Betrieb</span><b>${p(s.rent+(i?i.upkeep:0))}</b>
+            <span>Ergebnis</span><b class="${i&&i.profit<0?"bad":"good"}">${i?X(i.profit):"\u2014"}</b>
+            <span>Auslastung</span><b class="${l>1?"bad":""}">${S(Math.min(l,2),0)}</b>
+            <span>Stimmung</span><b>${S(x(s.morale,0,1.2),0)}</b>
+            <span>Konkurrenzdruck</span><b class="${s.competition>.2?"bad":""}">${S(s.competition,0)}</b>
+          </div>
+          ${l>1?'<p class="warn-line">Die Theke ist \xFCberlaufen: G\xE4ste gehen wieder. Personal einstellen oder Ausbau kaufen.</p>':""}
+          ${l<.45&&s.staff.length>1?'<p class="hint">Viel Leerlauf hinter der Theke. Ein Mensch weniger spart Lohn.</p>':""}
+        </div>
+
+        <div class="panel">
+          <h2>Stellschrauben</h2>
+          <label class="field">
+            <span>Zutatenqualit\xE4t \u2014 <b>${h.name}</b>
+              <span class="dim">Wareneinsatz ${S(h.costMul-1,0)}</span></span>
+            <input type="range" min="1" max="5" step="1" value="${s.quality}"
+                   data-act="quality" data-loc="${s.id}">
+          </label>
+          <label class="field">
+            <span>Preisniveau \u2014 <b>${S(s.priceLevel-1,0)}</b>
+              <span class="dim">Kaufkraft im Viertel ${ye(s.wealth*100)} %</span></span>
+            <input type="range" min="0.7" max="1.6" step="0.01" value="${s.priceLevel}"
+                   data-act="pricelevel" data-loc="${s.id}">
+          </label>
+          <p class="hint">\xDCber der Kaufkraft des Viertels zu liegen kostet G\xE4ste \u2014 darunter
+            verschenkst du Marge.</p>
+          <div class="row">
+            <button data-act="closeloc" data-loc="${s.id}" class="danger"
+              ${r.locations.length<2?"disabled":""}>Filiale schlie\xDFen</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-2">
+        <div class="panel">
+          <h2>Team <span class="dim">${s.staff.length}/${s.staffSlots} Pl\xE4tze</span></h2>
+          <table class="table">
+            <tbody>
+              ${s.staff.map(m=>{let j=G[m.role];return`<tr>
+                  <td>${j.name}</td>
+                  <td class="dim">K\xF6nnen ${L(m.skill*100)} %</td>
+                  <td class="dim">${p(j.wage*m.skill)}/Tag</td>
+                  <td class="right">
+                    <button data-act="train" data-loc="${s.id}" data-uid="${m.uid}"
+                      ${m.skill>=F.cap-1e-6?"disabled":""}>Schulen ${p(F.cost)}</button>
+                    <button class="danger" data-act="fire" data-loc="${s.id}" data-uid="${m.uid}">Gehen lassen</button>
+                  </td>
+                </tr>`}).join("")||'<tr><td class="dim">Niemand da. So verkauft sich nichts.</td></tr>'}
+            </tbody>
+          </table>
+          <div class="row">
+            ${Object.values(G).map(m=>`
+              <button data-act="hire" data-loc="${s.id}" data-role="${m.id}"
+                title="${M(m.desc)}"
+                ${s.staff.length>=s.staffSlots?"disabled":""}>
+                + ${m.name} <span class="dim">${p(m.hire)}</span>
+              </button>`).join("")}
+          </div>
+          <p class="hint">Kapazit\xE4t ${L(c)} Einheiten/Tag \xB7
+            gebraucht ${i?L(i.prepNeeded):"\u2014"}.</p>
+        </div>
+
+        <div class="panel">
+          <h2>Ausbau</h2>
+          <ul class="list">
+            ${he.map(m=>{let j=s.upgrades.has(m.id);return`<li class="${j?"done":""}">
+                <div>
+                  <b>${m.name}</b>
+                  <p class="dim">${M(m.desc)}</p>
+                </div>
+                ${j?'<span class="tag">eingebaut</span>':`
+                  <button data-act="upgrade" data-loc="${s.id}" data-up="${m.id}"
+                    ${r.cash<m.cost?"disabled":""}>${p(m.cost)}</button>`}
+              </li>`}).join("")}
+          </ul>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Sortiment in ${M(s.name)}</h2>
+        <div class="chips">
+          ${A.filter(m=>r.unlocked.has(m.id)).map(m=>`
+            <button class="chip ${s.products[m.id]?"on":""}"
+                    data-act="toggleprod" data-loc="${s.id}" data-p="${m.id}">
+              ${m.name}
+              ${i?.byProduct[m.id]?`<b>${L(i.byProduct[m.id].sold)}\xD7</b>`:""}
+            </button>`).join("")}
+        </div>
+        <p class="hint">Produkte derselben Kategorie nehmen sich gegenseitig G\xE4ste weg \u2014
+          ein zweites Getr\xE4nk bringt weniger als das erste. Was hier nicht leuchtet,
+          wird in dieser Filiale nicht verkauft.</p>
+      </section>`}function v(r){return`
+      <section class="panel">
+        <h2>Karte & Preise</h2>
+        <p class="hint">Die Preise gelten f\xFCr die ganze Kette; jede Filiale rechnet
+          ihr Preisniveau darauf. Prozentwerte zeigen den Abstand zum Referenzpreis \u2014
+          ab etwa +35 % bricht die Nachfrage sp\xFCrbar ein, und der Ruf sinkt mit.</p>
+        <table class="table wide">
+          <thead><tr>
+            <th>Produkt</th><th>Einsatz</th><th>Preis</th><th>\u0394 Referenz</th>
+            <th>Marge</th><th>Verkauft</th><th>Deckung</th>
+          </tr></thead>
+          <tbody>${A.map(i=>{let c=r.unlocked.has(i.id),l=r.prices[i.id],h=r.today.byProduct[i.id]?.sold||0,w=l-i.cost,m=l/i.ref;return`
+        <tr class="${c?"":"locked"}">
+          <td>
+            <b>${i.name}</b>
+            <span class="dim">${se[i.cat].name}${i.trendy?" \xB7 Trend":""}${i.summer?" \xB7 Sommer":""}</span>
+          </td>
+          <td class="dim">${ne(i.cost)}</td>
+          <td>
+            ${c?`
+              <div class="price-cell">
+                <input type="range" min="${(i.ref*.5).toFixed(2)}" max="${(i.ref*2).toFixed(2)}"
+                       step="0.05" value="${l}" data-act="price" data-p="${i.id}">
+                <b>${ne(l)}</b>
+              </div>`:'<span class="dim">nicht freigeschaltet</span>'}
+          </td>
+          <td class="${m>1.35?"bad":m<.85?"warn":"good"}">${S(m-1,0)}</td>
+          <td>${ne(w)}</td>
+          <td>${c?L(h):"\u2014"}</td>
+          <td>${c?p(r.today.byProduct[i.id]?.margin||0):"\u2014"}</td>
+        </tr>`}).join("")}</tbody>
+        </table>
+        <div class="row">
+          <button data-act="priceall" data-v="0.9">Alles \u221210 %</button>
+          <button data-act="priceall" data-v="1">Referenzpreise</button>
+          <button data-act="priceall" data-v="1.1">Alles +10 %</button>
+        </div>
+      </section>`}function k(r){return`
+      <section class="panel">
+        <h2>Kampagnen</h2>
+        <p class="hint">Reichweite stapelt sich, aber mit klar abnehmendem Ertrag.
+          Ruf-Werte wirken langsam und halten daf\xFCr.</p>
+        <ul class="list">
+          ${ke.map(s=>{let i=r.campaigns.find(c=>c.id===s.id);return`<li class="${i?"done":""}">
+              <div>
+                <b>${s.name}</b>
+                <p class="dim">${M(s.desc)}</p>
+                <p class="dim">${p(s.perDay)}/Tag \xB7 ${s.days} Tage \xB7
+                  Reichweite +${S(s.reach,0)} \xB7 Ruf +${s.rep}</p>
+              </div>
+              ${i?`<button class="danger" data-act="stopcamp" data-c="${s.id}">Stoppen (${i.daysLeft} T)</button>`:`<button data-act="camp" data-c="${s.id}">Starten \xB7 ${p(s.perDay*s.days)}</button>`}
+            </li>`}).join("")}
+        </ul>
+      </section>
+      <section class="panel">
+        <h2>Wirkung</h2>
+        <div class="kv">
+          <span>Ruf</span><b>${L(r.reputation)} / 100</b>
+          <span>Ruf strebt gegen</span><b>${L(r.repTarget??r.reputation)}</b>
+          <span>Werbebudget</span><b>${p(b(r.campaigns,s=>O[s.id].perDay))} / Tag</b>
+          <span>Preisniveau der Kette</span><b>${S(xe(r)-1,0)}</b>
+          <span>Wartende G\xE4ste verloren</span><b class="${r.lostShare>.1?"bad":""}">${S(r.lostShare,0)}</b>
+        </div>
+        <p class="hint">Der Ruf zieht Laufkundschaft an: bei 100 kommen rund 40 % mehr
+          G\xE4ste als bei 50, bei 0 nur zwei Drittel.</p>
+      </section>`}function H(r){return`
+      <section class="panel">
+        <h2>Entwicklung</h2>
+        <p class="hint">Einmalige K\xE4ufe f\xFCr die ganze Kette. Neue Produkte gehen
+          \xFCberall sofort in den Verkauf \u2014 abschalten kannst du sie je Filiale.</p>
+        <ul class="list">
+          ${be.map(s=>{let i=r.research.has(s.id),c=r.day<s.day;return`<li class="${i?"done":""}">
+              <div>
+                <b>${s.name}</b>
+                <p class="dim">${M(s.desc)}</p>
+                ${c?`<p class="warn">Verf\xFCgbar ab Tag ${s.day} \u2014 noch ${s.day-r.day} Tage.</p>`:""}
+              </div>
+              ${i?'<span class="tag">fertig</span>':`
+                <button data-act="research" data-r="${s.id}"
+                  ${c||r.cash<s.cost?"disabled":""}>${p(s.cost)}</button>`}
+            </li>`}).join("")}
+        </ul>
+      </section>`}function B(r){let s=r.today,i=r.lastMonth,c=de(r),l=(h,w,m="")=>`<tr class="${m}"><td>${h}</td><td class="right">${X(w)}</td></tr>`;return`
+      <section class="grid grid-2">
+        <div class="panel">
+          <h2>Gestern</h2>
+          <table class="table">
+            <tbody>
+              ${l("Umsatz",s.revenue)}
+              ${l("Wareneinsatz",-s.cogs)}
+              ${l("L\xF6hne",-s.wages)}
+              ${l("Miete",-s.rent)}
+              ${l("Betrieb & Ausbau",-s.upkeep)}
+              ${l("Werbung",-s.marketing)}
+              ${l("Zinsen",-s.interest)}
+              ${l("<b>Ergebnis</b>",s.profit,s.profit>=0?"good":"bad")}
+            </tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h2>Letzter Monatsabschluss</h2>
+          ${i?`<table class="table"><tbody>
+            ${l("Umsatz",i.revenue)}
+            ${l("Wareneinsatz",-i.cogs)}
+            ${l("L\xF6hne",-i.wages)}
+            ${l("Miete & Betrieb",-i.rent)}
+            ${l("Werbung",-i.marketing)}
+            ${l("Steuer",-i.tax)}
+            ${l("<b>Gewinn</b>",i.profit-i.tax,i.profit-i.tax>=0?"good":"bad")}
+          </tbody></table>`:'<p class="hint">Der erste Monat l\xE4uft noch.</p>'}
+          <p class="hint">Auf den Monatsgewinn fallen ${S(P.taxRate,0)} Steuer an.</p>
+        </div>
+      </section>
+
+      <section class="grid grid-2">
+        <div class="panel">
+          <h2>Bank</h2>
+          <div class="kv">
+            <span>Kasse</span><b>${p(r.cash)}</b>
+            <span>Schulden</span><b class="${r.debt>c*.7?"bad":""}">${p(r.debt)}</b>
+            <span>Kreditrahmen</span><b>${p(c)}</b>
+            <span>Zins</span><b>${S(P.interestDaily*365,1)} p. a.</b>
+            <span>Firmenwert</span><b>${p(r.companyValue)}</b>
+          </div>
+          <div class="row">
+            <button data-act="loan" data-v="10000">+10.000 \u20AC aufnehmen</button>
+            <button data-act="loan" data-v="25000">+25.000 \u20AC</button>
+            <button data-act="repay" data-v="10000" ${r.debt<=0?"disabled":""}>10.000 \u20AC tilgen</button>
+            <button data-act="repay" data-v="1e9" ${r.debt<=0?"disabled":""}>Alles tilgen</button>
+          </div>
+          <p class="hint">\xDCberzieht die Kasse den Rahmen um mehr als ein Drittel,
+            ist das Spiel vorbei. Zinsen laufen t\xE4glich.</p>
+        </div>
+        <div class="panel">
+          <h2>Sonderposten</h2>
+          <div class="kv">
+            <span>Bu\xDFgelder</span><b class="bad">${p(r.ledger.fines)}</b>
+            <span>Reparaturen</span><b class="bad">${p(r.ledger.repairs)}</b>
+            <span>Steuern gezahlt</span><b class="bad">${p(r.ledger.tax)}</b>
+            <span>Sonderertr\xE4ge</span><b class="good">${p(r.ledger.other)}</b>
+          </div>
+          <div class="row">
+            <button data-act="save">Speichern</button>
+            <button class="danger" data-act="newgame">Neu anfangen</button>
+          </div>
+        </div>
+      </section>`}let U={uebersicht:E,filialen:R,menue:v,marketing:k,forschung:H,finanzen:B};function K(r){if(n.dragging){d(r);return}d(r),u(),a.view.innerHTML=U[n.tab](r),y(r);let s=a.view.querySelector("#chart");s&&Ye(s,r.history),V(r)}function V(r){if(!r.over){a.modal.hidden=!0,a.modal.innerHTML="";return}let s=r.over==="boerse";a.modal.hidden=!1,a.modal.innerHTML=`
+      <div class="modal-box">
+        <h2>${s?"B\xF6rsengang":"Insolvenz"}</h2>
+        <p>${s?`Nach ${r.day} Tagen ist die Kette ${p(r.companyValue)} wert. ${r.locations.length} Filialen, Ruf ${L(r.reputation)}. Verkauf die H\xE4lfte und leg dich an den Strand.`:`Nach ${r.day} Tagen sind ${p(r.debt)} Schulden nicht mehr zu decken. Die Bank \xFCbernimmt, was noch da ist.`}</p>
+        <button class="primary" data-act="newgame">Noch mal</button>
+      </div>`}function _(r,s=""){r&&(a.toast.textContent=r,a.toast.className=`show ${s}`,clearTimeout(n.toastTimer),n.toastTimer=setTimeout(()=>{a.toast.className=""},2600))}function Z(r,s,i){let c=s.dataset.loc;switch(r){case"speed":return t.setSpeed(Number(s.dataset.v)),null;case"tab":return n.tab=s.dataset.v,null;case"goloc":return n.loc=c,n.tab="filialen",null;case"hire":return le(i,c,s.dataset.role);case"fire":return Ce(i,c,Number(s.dataset.uid));case"train":return Ue(i,c,Number(s.dataset.uid));case"upgrade":return qe(i,c,s.dataset.up);case"open":{let l=Ee(i,c);return l.ok&&(n.loc=c),l}case"closeloc":return Oe(i,c);case"research":return Ve(i,s.dataset.r);case"camp":return _e(i,s.dataset.c);case"stopcamp":return je(i,s.dataset.c);case"toggleprod":return He(i,c,s.dataset.p);case"loan":return Ze(i,Number(s.dataset.v));case"repay":return Qe(i,Number(s.dataset.v));case"save":{let l=t.save();return{ok:l,msg:l?"Gespeichert.":"Speichern ging nicht."}}case"newgame":return t.newGame(),null;case"priceall":{let l=Number(s.dataset.v);for(let h of A)Te(i,h.id,h.ref*l);return{ok:!0,msg:"Preise gesetzt."}}default:return null}}document.addEventListener("click",r=>{let s=r.target.closest("[data-act]");if(!s||s.tagName==="INPUT")return;let i=t.game(),c=Z(s.dataset.act,s,i);c&&c.msg&&_(c.msg,c.ok?"":"bad"),K(i)}),document.addEventListener("input",r=>{let s=r.target;if(!s.dataset.act)return;let i=t.game();n.dragging=s.type==="range",s.dataset.act==="price"?Te(i,s.dataset.p,Number(s.value)):s.dataset.act==="pricelevel"?Ke(i,s.dataset.loc,Number(s.value)):s.dataset.act==="quality"?We(i,s.dataset.loc,Number(s.value)):s.dataset.act==="rename"&&(i.firm=s.value.slice(0,28)),D(s,i)}),document.addEventListener("change",r=>{r.target.dataset.act&&(n.dragging=!1,K(t.game()))});function D(r,s){if(r.dataset.act==="price"){let i=r.parentElement.querySelector("b");i&&(i.textContent=ne(s.prices[r.dataset.p]))}else if(r.dataset.act==="pricelevel"||r.dataset.act==="quality"){let i=s.locations.find(l=>l.id===r.dataset.loc),c=r.parentElement.querySelector("b");if(!c||!i)return;c.textContent=r.dataset.act==="quality"?W[i.quality-1].name:S(i.priceLevel-1,0)}}return{render:K,toast:_,ui:n}}var Le="kiosk-imperium.save.v1";function bt(e){return{version:e.version,seed:e.seed,rngState:e.rng.state(),firm:e.firm,day:e.day,cash:e.cash,debt:e.debt,reputation:e.reputation,trend:e.trend,prices:e.prices,unlocked:[...e.unlocked],research:[...e.research],milestones:[...e.milestones],campaigns:e.campaigns,modifiers:e.modifiers,ledger:e.ledger,history:e.history,log:e.log,month:e.month,lastMonth:e.lastMonth,over:e.over,nextStaffUid:e.nextStaffUid,locations:e.locations.map(t=>({...t,upgrades:[...t.upgrades],stats:null}))}}function gt(e){let t={...e,rng:oe(e.seed),unlocked:new Set(e.unlocked),research:new Set(e.research),milestones:new Set(e.milestones),locations:e.locations.map(n=>({...n,upgrades:new Set(n.upgrades),priceLevel:n.priceLevel??1,stats:null})),today:{revenue:0,cogs:0,wages:0,rent:0,marketing:0,upkeep:0,interest:0,tax:0,profit:0,customers:0,sold:0,lost:0,byProduct:{}},companyValue:e.history?.length?e.history[e.history.length-1].value:0,staffCount:e.locations.reduce((n,a)=>n+a.staff.length,0),lostShare:0};return t.rng.setState(e.rngState),ce(t),t}function te(e){try{return localStorage.setItem(Le,JSON.stringify(bt(e))),!0}catch{return!1}}function Xe(){try{let e=localStorage.getItem(Le);if(!e)return null;let t=JSON.parse(e);return t?.version!==1?null:gt(t)}catch{return null}}function De(){try{localStorage.removeItem(Le)}catch{}}var kt=[1/0,2.4,1.1,.45],et=document.getElementById("app"),yt=document.getElementById("start"),g=null,C=1,ue=0,fe=0,N=null,$t={game:()=>g,getSpeed:()=>C,setSpeed:e=>{C=Math.max(0,Math.min(3,e|0))},save:()=>g?te(g):!1,newGame:()=>{De(),g=ve(),C=1,ue=0,N.render(g),N.toast("Neue Kette, 25.000 \u20AC Startkapital.")}};function tt(e){g=e||ve(),N=N||Je(et,$t),yt.hidden=!0,et.hidden=!1,N.render(g),fe=performance.now(),requestAnimationFrame(at)}function at(e){requestAnimationFrame(at);let t=Math.min((e-fe)/1e3,.5);if(fe=e,!g||g.over||C===0)return;ue+=t;let n=kt[C],a=!1;for(let o=0;o<4&&ue>=n;o++)ue-=n,Be(g),a=!0;a&&(N.render(g),g.day%10===0&&te(g),g.over&&(C=0,te(g)))}var pe=Xe();document.getElementById("continue").hidden=!pe;pe&&(document.getElementById("continue").textContent=`Weiterspielen \u2014 Tag ${pe.day}`);document.getElementById("continue").addEventListener("click",()=>tt(pe));document.getElementById("fresh").addEventListener("click",()=>{De(),tt(null)});document.addEventListener("keydown",e=>{!g||e.target.matches("input, textarea")||(e.code==="Space"?(e.preventDefault(),C=C===0?1:0,N.render(g)):e.key>="1"&&e.key<="3"&&(C=Number(e.key),N.render(g)))});document.addEventListener("visibilitychange",()=>{document.hidden&&g&&te(g),fe=performance.now()});window.addEventListener("beforeunload",()=>{g&&te(g)});window.addEventListener("resize",()=>{g&&N&&N.render(g)});})();
+
+</script>
+</body>
+</html>
