@@ -233,6 +233,7 @@ function runLocation(g, loc) {
   let revenue = 0;
   let cogs = 0;
   let units = 0;
+  const unitsWanted = sum(Object.keys(demand), (id) => demand[id]);
   const wasteUp = sum([...loc.upgrades], (u) => upgradeById[u]?.effect.waste || 0);
   const waste = Math.max(0.008, RULES.wasteBase + wasteUp);
   const costMul = tier.costMul * (1 + waste) * (1 + g.effects.cogs) * (1 + mods.cogs);
@@ -262,7 +263,7 @@ function runLocation(g, loc) {
   loc.morale += (target - loc.morale) * 0.12;
 
   loc.stats = {
-    footfall, capacity, prepNeeded, serveRatio, quality,
+    footfall, capacity, prepNeeded, serveRatio, quality, unitsWanted,
     revenue, cogs, wages, rent: loc.rent, upkeep, units,
     profit: revenue - cogs - wages - loc.rent - upkeep,
     lost: prepNeeded * lostShare,

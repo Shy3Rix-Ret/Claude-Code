@@ -39,6 +39,34 @@ Erzeugt `dist/kiosk-imperium.html` (vollständiges Dokument) und
 Der Spielstand liegt in `localStorage` und wird alle zehn Tage, beim
 Tab-Wechsel und beim Schließen gesichert.
 
+## Die Straße
+
+Über den Tabs läuft die Filiale, die gerade ausgewählt ist, als 2D-Szene:
+Passanten auf dem Gehweg, die Schlange an der Theke, das Personal im Fenster,
+Tag und Nacht, Regen, Schnee, Hitzeflimmern, Verkehr. Nichts davon ist
+Dekoration — alles kommt aus dem Tag, den die Simulation gerade gerechnet hat:
+
+| Was du siehst | Woher es kommt |
+|---|---|
+| Dichte der Passanten | Laufkundschaft des Viertels (Saison, Wochentag, Ruf, Werbung, Ereignisse) |
+| Wie viele stehen bleiben | nachgefragte Artikel geteilt durch Laufkundschaft |
+| Tempo an der Theke | Bedienquote — also Personal und Ausbau gegen Nachfrage |
+| Schlange und `✕`-Abgänge | genau die Gäste, die als „verlorene Gäste“ gezählt werden |
+| `+4,80 €` über der Theke | der durchschnittliche Bon dieser Filiale |
+| Tafel, Schild, Terrasse, Terminal, Leuchtreklame | Sortiment und gekaufte Ausbauten |
+| Kisten mit Kräutern / Müllsäcke | die eingestellte Zutatenqualität |
+| Laden gegenüber | Konkurrenzdruck an diesem Standort |
+
+Die Szene ist ein ehrlicher **Ausschnitt**, keine Volkszählung: bei dreifachem
+Tempo dauert ein Geschäftstag keine halbe Sekunde, 500 Passanten wären ein
+Flimmern. Die Raten sind skaliert und gedeckelt — die Verhältnisse stimmen.
+Auch die Uhr an der Wand läuft in eigenem Takt (ein Bildtag dauert 14
+Sekunden), damit die Sonne bei Tempo 3 nicht stroboskopiert.
+
+Zum Nachmessen: `?debug` an die URL hängen, dann liegen unter
+`window.__kiosk` die Szene (`world.stats()`), der aktuelle Frame-Input und das
+Spielobjekt.
+
 ## Wie das Spiel rechnet
 
 Ein Tick ist ein Geschäftstag. Für jede Filiale läuft dieselbe Kette:
@@ -96,6 +124,7 @@ nach einer Änderung stark, stimmt die Balance nicht mehr.
 ## Aufbau
 
 ```
+src/world.js      Die 2D-Straße: Kulisse, Passanten, Schlange, Wetter, Licht.
 src/data.js       Alle Zahlen: Menü, Standorte, Personal, Ausbau, Forschung,
                   Kampagnen, Ereignisse, Ziele. Sonst nichts.
 src/economy.js    Die Simulation. tickDay() plus alle Spielzüge als Aktionen,

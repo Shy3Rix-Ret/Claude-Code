@@ -37,6 +37,7 @@ export function createUI(host, api) {
   // so they are looked up on the document, and so are the listeners below.
   const el = {
     hud: host.querySelector('#hud'),
+    stageBar: host.querySelector('#stage-bar'),
     tabs: host.querySelector('#tabs'),
     view: host.querySelector('#view'),
     feed: host.querySelector('#feed'),
@@ -88,6 +89,24 @@ export function createUI(host, api) {
     el.tabs.innerHTML = TABS.map(([id, label]) => `
       <button data-act="tab" data-v="${id}" class="${ui.tab === id ? 'on' : ''}">${label}</button>`)
       .join('');
+  }
+
+  /** The strip under the scene: which branch you are watching, and what the
+   *  weather and the campaigns are doing to it right now. */
+  function renderStageBar(g) {
+    if (!el.stageBar) return;
+    const loc = g.locations.find((l) => l.id === ui.loc) || g.locations[0];
+    const labels = [...new Set([
+      ...g.modifiers.filter((m) => !m.locationId || m.locationId === loc?.id).map((m) => m.label),
+      ...g.campaigns.map((c) => campaignById[c.id].name),
+    ])];
+    el.stageBar.innerHTML = `
+      ${g.locations.map((l) => `
+        <button class="chip ${l.id === ui.loc ? 'on' : ''}" data-act="goloc" data-loc="${l.id}"
+                title="Diese Filiale ansehen">${esc(l.name)}</button>`).join('')}
+      ${labels.length ? `<span class="weather">${labels.map(esc).join(' · ')}</span>` : ''}
+      <span class="note">Die Szene zeigt einen Ausschnitt des Tages — Andrang,
+        Schlange und Tempo entsprechen den echten Zahlen.</span>`;
   }
 
   function renderFeed(g) {
@@ -546,6 +565,7 @@ export function createUI(host, api) {
     // Never rebuild the DOM under a finger that is dragging a slider.
     if (ui.dragging) { renderHud(g); return; }
     renderHud(g);
+    renderStageBar(g);
     renderTabs();
     el.view.innerHTML = VIEWS[ui.tab](g);
     renderFeed(g);
@@ -585,7 +605,12 @@ export function createUI(host, api) {
     switch (act) {
       case 'speed': api.setSpeed(Number(t.dataset.v)); return null;
       case 'tab': ui.tab = t.dataset.v; return null;
-      case 'goloc': ui.loc = locId; ui.tab = 'filialen'; return null;
+      case 'goloc':
+        ui.loc = locId;
+        // From the stage strip the point is to watch the branch, not to leave
+        // the tab the player is working in.
+        if (!t.closest('#stage-bar')) ui.tab = 'filialen';
+        return null;
       case 'hire': return hire(g, locId, t.dataset.role);
       case 'fire': return fire(g, locId, Number(t.dataset.uid));
       case 'train': return train(g, locId, Number(t.dataset.uid));
