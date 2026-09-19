@@ -2,3 +2,4 @@ node_modules/
 .DS_Store
 *.log
 play-music-theory/.shots/
+play-music-theory/.artifact-preview.html

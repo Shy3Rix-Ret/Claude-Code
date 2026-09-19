@@ -104,7 +104,7 @@ export const DEFAULTS = {
   tool: 'pen',           // pen | line | eraser
   brush: 'med',
   metronome: false,
-  theme: 'dark',
+  theme: 'system',   // das Gerät entscheidet, bis jemand etwas anderes wählt
   contrast: 'normal',
   showLabels: true,
   volume: 0.8,

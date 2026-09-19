@@ -25,6 +25,26 @@ Keine Abhängigkeiten, kein Build-Schritt, kein `npm install`. Jeder Ton, jede
 Textur und jedes Icon entsteht im Code — die App lädt zur Laufzeit nichts nach
 und stellt keine einzige Netzwerkanfrage.
 
+**Fassung für ein claude.ai-Artifact:**
+
+```
+node tools/artifact.mjs   # → dist/artifact.html
+```
+
+Dort bringt der Rahmen `<html>`, `<head>` und `<body>` selbst mit, also liefert
+der Build nur den Body-Inhalt mit eingebettetem Stylesheet. Zwei Dinge sind in
+dieser Umgebung anders, und beides steckt in `src/save.js` bzw. wird zur
+Laufzeit erkannt:
+
+- **Downloads.** Der Viewer unterbindet jeden Download, den die Seite selbst
+  startet — ein `<a download>` bleibt dort wirkungslos. Stattdessen fragt die
+  `downloads`-Fähigkeit den Betrachter. Deren Erweiterungsliste kennt weder
+  `.wav` noch `.mid`, also wandern die beiden in ein ZIP (Methode „store",
+  selbst geschrieben, ~60 Zeilen); PNG und Projektdatei gehen direkt. Die
+  Beschriftung der Knöpfe sagt das, bevor man klickt.
+- **Offline.** Dort gibt es keinen eigenen Origin für einen Service Worker.
+  Die App erkennt das und schreibt es hin, statt eine Fehlermeldung zu zeigen.
+
 ## Was die Vorlage vermisst — und was hier drin ist
 
 Das Dokument ist an den Stellen am nützlichsten, an denen es kritisch wird:

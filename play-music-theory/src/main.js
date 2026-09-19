@@ -16,6 +16,7 @@ import { createUI } from './ui.js';
 import { GALLERY, loadGalleryItem } from './gallery.js';
 import { saveSession, loadSession, clearSession, toFile, fromFile } from './storage.js';
 import { createMidiInput } from './midiin.js';
+import { saveFile, downloadsCapability, embedded } from './save.js';
 
 const store = createStore();
 let ui, paper, engine = null, sequencer = null, pointerCtl = null;
@@ -366,15 +367,15 @@ function sync() {
 }
 
 // ── Export ──────────────────────────────────────────────────────────────────
-function download(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
+/** Gibt die Datei heraus und meldet, wie. Im eingebetteten Viewer läuft das
+ *  über eine Rückfrage beim Betrachter statt über einen Link. */
+async function download(blob, filename) {
+  const res = await saveFile(blob, filename);
+  if (!res.ok) {
+    ui.els.exportStatus.textContent = res.reason;
+    ui.toast(res.reason, 'error');
+  }
+  return res;
 }
 
 function baseName() {
@@ -383,9 +384,12 @@ function baseName() {
   return `pmt-${safe.toLowerCase()}-${s.bpm}bpm`;
 }
 
-function downloadProject() {
-  download(toFile(store), `${baseName()}.pmt.json`);
-  ui.toast('Projekt gesichert');
+async function downloadProject() {
+  const res = await download(toFile(store), `${baseName()}.pmt.json`);
+  if (res.ok) {
+    ui.toast('Projekt gesichert');
+    ui.els.exportStatus.textContent = `Projekt gesichert als ${res.name}.`;
+  }
 }
 
 async function exportWav() {
@@ -404,16 +408,19 @@ async function exportWav() {
       repeats,
       volume: store.state.volume * AUDIO.masterGain,
     });
-    download(encodeWav(buffer), `${baseName()}.wav`);
+    const res = await download(encodeWav(buffer), `${baseName()}.wav`);
+    if (!res.ok) return;
     const secs = Math.round(buffer.duration);
-    ui.els.exportStatus.textContent = `WAV gespeichert — ${secs} Sekunden, ${buffer.sampleRate / 1000} kHz, Stereo.`;
+    ui.els.exportStatus.textContent = res.how === 'zip'
+      ? `${res.name} gespeichert — enthält die WAV, ${secs} Sekunden, ${buffer.sampleRate / 1000} kHz, Stereo.`
+      : `WAV gespeichert — ${secs} Sekunden, ${buffer.sampleRate / 1000} kHz, Stereo.`;
   } catch (err) {
     ui.els.exportStatus.textContent = `Hat nicht geklappt: ${err.message}`;
     ui.toast('WAV-Export fehlgeschlagen', 'error');
   }
 }
 
-function exportMidi() {
+async function exportMidi() {
   const list = getNotes();
   if (!list.length) { ui.toast('Das Blatt ist leer.', 'error'); return; }
   const repeats = Number(ui.els.repeats.value);
@@ -428,16 +435,19 @@ function exportMidi() {
     warp: (b) => swingBeat(b, scene.stepsPerBeat, scene.swing, scene.triplet),
     title: store.state.title,
   });
-  download(blob, `${baseName()}.mid`);
+  const res = await download(blob, `${baseName()}.mid`);
+  if (!res.ok) return;
   const tracks = new Set(list.map((n) => n.pen)).size;
-  ui.els.exportStatus.textContent = `MIDI gespeichert — ${list.length} Noten in ${tracks} Track${tracks === 1 ? '' : 's'}.`;
+  const was = res.how === 'zip' ? `${res.name} gespeichert — enthält die MIDI` : 'MIDI gespeichert';
+  ui.els.exportStatus.textContent = `${was} — ${list.length} Noten in ${tracks} Track${tracks === 1 ? '' : 's'}.`;
 }
 
 function exportPng() {
   const canvas = paper.composite();
-  canvas.toBlob((blob) => {
+  canvas.toBlob(async (blob) => {
     if (!blob) { ui.toast('PNG-Export fehlgeschlagen', 'error'); return; }
-    download(blob, `${baseName()}.png`);
+    const res = await download(blob, `${baseName()}.png`);
+    if (!res.ok) return;
     ui.els.exportStatus.textContent = `Bild gespeichert — ${canvas.width} × ${canvas.height} Pixel.`;
   }, 'image/png');
 }
@@ -587,6 +597,7 @@ function boot() {
   window.addEventListener('pagehide', () => saveSession(store));
 
   registerServiceWorker();
+  adaptExportLabels();
   sync();
   requestRender();
   ui.bootDone();
@@ -594,6 +605,23 @@ function boot() {
   if (!restored || !store.state.strokes.length) {
     ui.announce('Leeres Blatt. Zeichne mit der Maus, dem Finger oder mit den Pfeiltasten.');
   }
+}
+
+/** Der eingebettete Viewer nimmt keine .wav und keine .mid an; dann wandern
+ *  sie in ein ZIP. Das gehört auf den Knopf, nicht in eine Fehlermeldung
+ *  hinterher. */
+async function adaptExportLabels() {
+  if (!embedded()) return;
+  const cap = await downloadsCapability();
+  if (!cap) {
+    for (const el of [ui.els.expWav, ui.els.expMidi, ui.els.expPng, ui.els.expJson]) el.disabled = true;
+    ui.els.exportStatus.textContent = 'Dieser Viewer erlaubt kein Speichern von Dateien.';
+    return;
+  }
+  ui.els.expWav.querySelector('.card-text').textContent =
+    'Die Schleife als Audiodatei — offline gerendert. Hier im Viewer als ZIP, der keine WAV direkt annimmt.';
+  ui.els.expMidi.querySelector('.card-text').textContent =
+    'Ein Track pro Instrument, für jede DAW. Hier im Viewer als ZIP, der keine MIDI direkt annimmt.';
 }
 
 let saveTimer = null;
@@ -604,6 +632,12 @@ function queueSave() {
 
 async function registerServiceWorker() {
   const status = document.getElementById('offlineStatus');
+  if (embedded()) {
+    // Im Artifact-Rahmen gibt es keinen eigenen Origin für einen Service
+    // Worker. Das ehrlich sagen, statt eine Fehlermeldung anzuzeigen.
+    if (status) status.textContent = 'Im eingebetteten Viewer gibt es keinen Offline-Speicher. Die Fassung im Repository läuft nach dem ersten Besuch vollständig offline.';
+    return;
+  }
   if (!('serviceWorker' in navigator) || location.protocol === 'file:') {
     if (status) status.textContent = location.protocol === 'file:'
       ? 'Direkt aus einer Datei geöffnet — dann gibt es keinen Offline-Speicher, die App läuft trotzdem vollständig.'

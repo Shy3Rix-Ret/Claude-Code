@@ -1,3 +1,5 @@
+<title>play_music_theory</title>
+<style>
 /* play_music_theory — Oberfläche
    ---------------------------------------------------------------------------
    Ein Instrument, keine Software-Suite: das Blatt bekommt allen Platz, die
@@ -623,3 +625,376 @@ kbd {
     transition-duration: .001ms !important;
   }
 }
+
+/* ── Nur im Artifact-Rahmen ──────────────────────────────────────────────
+   Der Rahmen polstert :root um die Safe-Area-Ränder und erwartet, dass eine
+   Ein-Bildschirm-App sich über 100 % einpasst statt über 100dvh — sonst ragt
+   sie unter den Systemleisten heraus. */
+html, body { height: 100%; }
+.app { height: 100%; }
+</style>
+<a class="skip" href="#paper">Zum Zeichenblatt springen</a>
+
+<div id="app" class="app" hidden>
+
+  <header class="topbar">
+    <h1 class="brand" title="play_music_theory">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-text">play<span class="brand-us">_</span>music<span class="brand-us">_</span>theory</span>
+    </h1>
+
+    <div class="transport" role="group" aria-label="Wiedergabe">
+      <button id="btnPlay" class="btn btn-play" aria-label="Abspielen" aria-pressed="false">
+        <svg viewBox="0 0 24 24" class="ico ico-play" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+        <svg viewBox="0 0 24 24" class="ico ico-pause" aria-hidden="true"><path d="M7 5h3.4v14H7zm6.6 0H17v14h-3.4z"/></svg>
+      </button>
+      <button id="btnRewind" class="btn btn-icon" aria-label="An den Anfang (R)" title="An den Anfang · R">
+        <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M7 5h2.2v14H7zm11 0v14l-8.2-7z"/></svg>
+      </button>
+      <button id="btnMetro" class="btn btn-icon" aria-pressed="false" aria-label="Metronom (M)" title="Metronom · M">
+        <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M9.6 3h4.8l3.9 18H5.7zm2.4 3.2L9.3 19h5.4z" opacity=".55"/><path d="M12 4.6 18.4 15l-1 1.6L11 6.2z"/></svg>
+      </button>
+    </div>
+
+    <div class="tempo" role="group" aria-label="Tempo">
+      <label class="tempo-field">
+        <span class="sr-only">Tempo in Schlägen pro Minute</span>
+        <input id="bpm" type="range" min="40" max="240" step="1" value="96" aria-describedby="bpmOut">
+      </label>
+      <output id="bpmOut" class="tempo-out" for="bpm">96<small>BPM</small></output>
+      <button id="btnTap" class="btn btn-ghost btn-tap" title="Tempo klopfen · T">Tap</button>
+    </div>
+
+    <div class="topbar-actions">
+      <button id="btnUndo" class="btn btn-icon" aria-label="Rückgängig (Strg+Z)" title="Rückgängig · Strg+Z" disabled>
+        <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M8 7V4L3 8.5 8 13v-3h5.5a4 4 0 1 1 0 8H9v2h4.5a6 6 0 1 0 0-12z"/></svg>
+      </button>
+      <button id="btnRedo" class="btn btn-icon" aria-label="Wiederholen (Strg+Umschalt+Z)" title="Wiederholen · Strg+Umschalt+Z" disabled>
+        <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M16 7V4l5 4.5-5 4.5v-3h-5.5a4 4 0 1 0 0 8H15v2h-4.5a6 6 0 1 1 0-12z"/></svg>
+      </button>
+      <button id="btnGallery" class="btn btn-ghost" title="Galerie · G">Galerie</button>
+      <button id="btnExport" class="btn btn-ghost" title="Exportieren · X">Export</button>
+      <button id="btnSettings" class="btn btn-icon" aria-label="Einstellungen" title="Einstellungen">
+        <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8m0 1.8a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2"/><path d="m10.6 2.6h2.8l.4 2.3q.8.3 1.5.7l2.1-1 1.4 2.4-1.7 1.5q.1.8 0 1.6l1.7 1.5-1.4 2.4-2.1-1q-.7.4-1.5.7l-.4 2.3h-2.8l-.4-2.3q-.8-.3-1.5-.7l-2.1 1-1.4-2.4 1.7-1.5a6 6 0 0 1 0-1.6L4.2 7l1.4-2.4 2.1 1q.7-.4 1.5-.7z" opacity=".45"/></svg>
+      </button>
+      <button id="btnHelp" class="btn btn-icon" aria-label="Hilfe und Tastenkürzel" title="Hilfe · ?">
+        <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18m0 1.9a7.1 7.1 0 1 1 0 14.2 7.1 7.1 0 0 1 0-14.2" opacity=".5"/><path d="M11.1 16.6h1.9v1.9h-1.9zm.1-1.1q0-1.3.3-1.8.3-.6 1.2-1.3.7-.5.9-.9.2-.4.2-.9 0-.6-.4-1-.4-.4-1.1-.4-.7 0-1.2.4-.4.5-.5 1.3L8.7 10.6q.2-1.4 1.1-2.2.9-.8 2.3-.8 1.5 0 2.4.9.9.8.9 2.1 0 .8-.4 1.4-.3.6-1.3 1.4-.6.5-.8.8-.1.3-.1 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="stage" aria-label="Zeichenblatt">
+      <canvas id="paper" tabindex="0"
+              role="application"
+              aria-label="Zeichenblatt. Waagerechte Position ist Zeit, senkrechte ist Tonhöhe. Mit Pfeiltasten bewegen, Eingabetaste setzt einen Ton.">
+      </canvas>
+      <div class="stage-hint" id="stageHint" hidden>
+        <strong>Zeichne irgendetwas.</strong>
+        <span>Waagerecht ist Zeit, senkrecht die Tonhöhe. Ein Bogen wird eine Melodie, ein senkrechter Strich ein Akkord.</span>
+      </div>
+      <div class="stage-badges">
+        <span id="badgeLoop" class="badge">4 Takte</span>
+        <span id="badgeNotes" class="badge">0 Töne</span>
+        <span id="badgeZoom" class="badge badge-zoom" hidden>100 %</span>
+      </div>
+    </section>
+
+    <aside class="panel" id="panel" aria-label="Werkzeuge und Einstellungen">
+      <button class="panel-grip" id="panelGrip" aria-expanded="false" aria-controls="panelBody">
+        <span class="panel-grip-bar" aria-hidden="true"></span>
+        <span class="panel-grip-label">Einstellungen</span>
+      </button>
+
+      <div class="tools">
+        <div class="pens" role="radiogroup" aria-label="Stift und Klang" id="pens"></div>
+        <div class="toolrow">
+          <div class="seg" role="radiogroup" aria-label="Werkzeug" id="tools"></div>
+          <div class="seg seg-brush" role="radiogroup" aria-label="Strichstärke" id="brushes"></div>
+        </div>
+      </div>
+
+      <div class="panel-body" id="panelBody">
+
+        <section class="grp">
+          <h2 class="grp-title">Tonart</h2>
+          <div class="row">
+            <label class="field">
+              <span class="field-label">Grundton</span>
+              <select id="root" class="input"></select>
+            </label>
+            <label class="field field-grow">
+              <span class="field-label">Skala</span>
+              <select id="scale" class="input"></select>
+            </label>
+          </div>
+          <p class="hint" id="scaleHint">Alles, was du zeichnest, bleibt in dieser Tonart.</p>
+        </section>
+
+        <section class="grp">
+          <h2 class="grp-title">Tonumfang</h2>
+          <div class="row">
+            <label class="field field-grow">
+              <span class="field-label">Tiefster Ton <output id="lowOut" class="val">C3</output></span>
+              <input id="lowOctave" class="range" type="range" min="1" max="6" step="1" value="3">
+            </label>
+            <label class="field field-grow">
+              <span class="field-label">Oktaven <output id="octOut" class="val">3</output></span>
+              <input id="octaves" class="range" type="range" min="1" max="5" step="1" value="3">
+            </label>
+          </div>
+        </section>
+
+        <section class="grp">
+          <h2 class="grp-title">Raster</h2>
+          <div class="row">
+            <label class="field">
+              <span class="field-label">Takte</span>
+              <select id="bars" class="input"></select>
+            </label>
+            <label class="field">
+              <span class="field-label">Takt&shy;art</span>
+              <select id="beatsPerBar" class="input">
+                <option value="2">2/4</option>
+                <option value="3">3/4</option>
+                <option value="4" selected>4/4</option>
+                <option value="5">5/4</option>
+                <option value="6">6/8</option>
+                <option value="7">7/8</option>
+              </select>
+            </label>
+            <label class="field field-grow">
+              <span class="field-label">Raster</span>
+              <select id="quantize" class="input"></select>
+            </label>
+          </div>
+        </section>
+
+        <section class="grp">
+          <h2 class="grp-title">Gefühl</h2>
+          <label class="field">
+            <span class="field-label">Swing <output id="swingOut" class="val">aus</output></span>
+            <input id="swing" class="range" type="range" min="0" max="72" step="1" value="0">
+          </label>
+          <label class="field">
+            <span class="field-label">Lautstärke <output id="volOut" class="val">80 %</output></span>
+            <input id="volume" class="range" type="range" min="0" max="100" step="1" value="80">
+          </label>
+        </section>
+
+        <section class="grp">
+          <h2 class="grp-title">Blatt</h2>
+          <div class="btnrow">
+            <button id="btnClear" class="btn btn-ghost btn-wide">Leeren</button>
+            <button id="btnFit" class="btn btn-ghost btn-wide" title="Zoom zurücksetzen · 0">Ansicht füllen</button>
+          </div>
+        </section>
+
+        <!-- In der schmalen Kopfleiste ist kein Platz für diese drei. Statt sie
+             per Tastenkürzel zu verstecken — was auf einem Telefon keines gibt —
+             stehen sie hier. -->
+        <section class="grp grp-compact">
+          <h2 class="grp-title">Mehr</h2>
+          <div class="btnrow">
+            <button id="btnGallery2" class="btn btn-ghost btn-wide">Galerie</button>
+            <button id="btnExport2" class="btn btn-ghost btn-wide">Export</button>
+          </div>
+          <div class="btnrow" style="margin-top:7px">
+            <button id="btnTap2" class="btn btn-ghost btn-wide">Tempo klopfen</button>
+            <button id="btnHelp2" class="btn btn-ghost btn-wide">Hilfe</button>
+          </div>
+        </section>
+
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- ── Ladebildschirm ──────────────────────────────────────────────────── -->
+<div id="boot" class="boot">
+  <div class="boot-inner">
+    <div class="boot-mark" aria-hidden="true"></div>
+    <p class="boot-title">play_music_theory</p>
+    <p class="boot-status" id="bootStatus">wird geladen …</p>
+  </div>
+</div>
+
+<!-- ── Galerie ─────────────────────────────────────────────────────────── -->
+<dialog id="dlgGallery" class="dlg">
+  <form method="dialog" class="dlg-head">
+    <h2>Galerie</h2>
+    <button class="btn btn-icon dlg-x" value="close" aria-label="Schließen">✕</button>
+  </form>
+  <div class="dlg-body">
+    <p class="hint">Jedes Beispiel bringt eigene Tonart und eigenes Tempo mit. Öffne eins und zeichne darüber.</p>
+    <div class="cards" id="galleryList"></div>
+  </div>
+</dialog>
+
+<!-- ── Export ──────────────────────────────────────────────────────────── -->
+<dialog id="dlgExport" class="dlg">
+  <form method="dialog" class="dlg-head">
+    <h2>Exportieren</h2>
+    <button class="btn btn-icon dlg-x" value="close" aria-label="Schließen">✕</button>
+  </form>
+  <div class="dlg-body">
+    <label class="field">
+      <span class="field-label">Wie oft die Schleife wiederholen</span>
+      <select id="repeats" class="input">
+        <option value="1">1 ×</option>
+        <option value="2" selected>2 ×</option>
+        <option value="4">4 ×</option>
+        <option value="8">8 ×</option>
+      </select>
+    </label>
+    <div class="exports">
+      <button class="card card-action" id="expWav">
+        <span class="card-kicker">Audio</span>
+        <strong>WAV</strong>
+        <span class="card-text">Die Schleife als Audiodatei — offline gerendert, klingt exakt wie hier.</span>
+      </button>
+      <button class="card card-action" id="expMidi">
+        <span class="card-kicker">Noten</span>
+        <strong>MIDI</strong>
+        <span class="card-text">Ein Track pro Instrument. Öffnet sich in jeder DAW.</span>
+      </button>
+      <button class="card card-action" id="expPng">
+        <span class="card-kicker">Bild</span>
+        <strong>PNG</strong>
+        <span class="card-text">Die Zeichnung selbst, so wie sie auf dem Blatt steht.</span>
+      </button>
+      <button class="card card-action" id="expJson">
+        <span class="card-kicker">Projekt</span>
+        <strong>Datei sichern</strong>
+        <span class="card-text">Alles zum Weiterarbeiten — auch auf einem anderen Gerät.</span>
+      </button>
+    </div>
+    <div class="btnrow">
+      <button class="btn btn-ghost btn-wide" id="btnImport">Projekt öffnen …</button>
+      <input id="fileImport" type="file" accept="application/json,.json" hidden>
+    </div>
+    <p class="hint" id="exportStatus" role="status"></p>
+  </div>
+</dialog>
+
+<!-- ── Einstellungen ───────────────────────────────────────────────────── -->
+<dialog id="dlgSettings" class="dlg">
+  <form method="dialog" class="dlg-head">
+    <h2>Einstellungen</h2>
+    <button class="btn btn-icon dlg-x" value="close" aria-label="Schließen">✕</button>
+  </form>
+  <div class="dlg-body">
+    <section class="grp">
+      <h3 class="grp-title">Darstellung</h3>
+      <div class="row">
+        <label class="field field-grow">
+          <span class="field-label">Farbschema</span>
+          <select id="theme" class="input">
+            <option value="dark">Dunkel</option>
+            <option value="light">Hell</option>
+            <option value="system">Wie das System</option>
+          </select>
+        </label>
+        <label class="field field-grow">
+          <span class="field-label">Kontrast</span>
+          <select id="contrast" class="input">
+            <option value="normal">Normal</option>
+            <option value="high">Hoch</option>
+          </select>
+        </label>
+      </div>
+      <label class="check">
+        <input id="showLabels" type="checkbox" checked>
+        <span>Tonnamen am Rand anzeigen</span>
+      </label>
+    </section>
+
+    <section class="grp">
+      <h3 class="grp-title">MIDI-Eingabe</h3>
+      <p class="hint">Ein angeschlossenes Keyboard spielt mit. Läuft die Schleife, wird das Gespielte am Abspielkopf ins Blatt gezeichnet.</p>
+      <div class="btnrow">
+        <button class="btn btn-ghost btn-wide" id="btnMidi">MIDI verbinden</button>
+      </div>
+      <p class="hint" id="midiStatus" role="status">Nicht verbunden.</p>
+    </section>
+
+    <section class="grp">
+      <h3 class="grp-title">Daten</h3>
+      <p class="hint">
+        Diese App sendet nichts. Kein Konto, keine Analyse, keine Server —
+        deine Zeichnung liegt im Speicher dieses Browsers und sonst nirgends.
+      </p>
+      <div class="btnrow">
+        <button class="btn btn-ghost btn-wide" id="btnForget">Gespeicherten Stand löschen</button>
+      </div>
+      <p class="hint" id="storageStatus" role="status"></p>
+    </section>
+
+    <section class="grp">
+      <h3 class="grp-title">Offline</h3>
+      <p class="hint" id="offlineStatus">wird geprüft …</p>
+      <div class="btnrow" id="installRow" hidden>
+        <button class="btn btn-wide" id="btnInstall">Auf dem Gerät installieren</button>
+      </div>
+    </section>
+  </div>
+</dialog>
+
+<!-- ── Hilfe ───────────────────────────────────────────────────────────── -->
+<dialog id="dlgHelp" class="dlg">
+  <form method="dialog" class="dlg-head">
+    <h2>So funktioniert es</h2>
+    <button class="btn btn-icon dlg-x" value="close" aria-label="Schließen">✕</button>
+  </form>
+  <div class="dlg-body">
+    <section class="grp">
+      <h3 class="grp-title">Die Idee</h3>
+      <ul class="list">
+        <li><b>Waagerecht ist Zeit</b>, senkrecht die Tonhöhe. Weiter oben heißt höher.</li>
+        <li>Ein <b>Bogen</b> wird eine Melodie. Ein <b>waagerechter Strich</b> wird ein gehaltener Ton, keine Kette von Wiederholungen.</li>
+        <li>Ein <b>senkrechter Strich</b> trifft mehrere Zeilen gleichzeitig — das ist ein Akkord.</li>
+        <li>Das Raster kennt nur Töne der gewählten Skala. Deshalb klingt nichts falsch.</li>
+        <li>Wechselst du die Tonart, bleibt deine Zeichnung und die Melodie zieht mit um.</li>
+      </ul>
+    </section>
+    <section class="grp">
+      <h3 class="grp-title">Tastatur</h3>
+      <div class="keys" id="shortcutList"></div>
+    </section>
+    <section class="grp">
+      <h3 class="grp-title">Ohne Maus</h3>
+      <p class="hint">
+        Mit den Pfeiltasten bewegst du einen Cursor durch das Raster; jede Zelle sagt ihren Ton an.
+        Eingabetaste setzt oder entfernt einen Ton, Umschalt + ◀ ▶ ändert seine Länge,
+        Alt + Pfeil springt ganze Schläge bzw. Oktaven.
+      </p>
+    </section>
+  </div>
+</dialog>
+
+<div id="live" class="sr-only" role="status" aria-live="polite"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+  // Fehler sichtbar machen, bevor das Modul überhaupt geladen ist. Eine App,
+  // die man per Link weitergibt, landet auf Geräten, an die kein Debugger kommt.
+  window.__pmtFail = function (msg) {
+    var s = document.getElementById('bootStatus');
+    var b = document.getElementById('boot');
+    if (b) b.classList.add('boot-error');
+    if (s) s.textContent = msg;
+  };
+  window.addEventListener('error', function (e) {
+    window.__pmtFail('Start fehlgeschlagen: ' + (e.message || e.type));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    window.__pmtFail('Start fehlgeschlagen: ' + ((e.reason && e.reason.message) || e.reason));
+  });
+</script>
+<script type="module" src="src/main.js"></script>
+<noscript>
+  <div class="noscript">
+    <h2>play_music_theory braucht JavaScript</h2>
+    <p>Die gesamte Klangerzeugung läuft im Browser — ohne Skripte gibt es nichts zu hören.</p>
+  </div>
+</noscript>
