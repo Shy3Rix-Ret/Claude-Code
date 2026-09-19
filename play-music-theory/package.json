@@ -1,0 +1,11 @@
+{
+  "name": "play-music-theory",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ein visuelles Instrument: auf einem Raster zeichnen und hören, was entsteht.",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "serve": "node tools/serve.mjs"
+  }
+}
