@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d1a">
+<title>Klartraum</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #0b0d1a;
+    --bg2: #141733;
+    --card: #1a1e3f;
+    --line: #2b3066;
+    --text: #e6e7f5;
+    --muted: #9296c4;
+    --accent: #a78bfa;
+    --accent2: #5eead4;
+    --warn: #f472b6;
+    --radius: 14px;
+  }
+  /* Nachtmodus: nur Rottöne, stört die Dunkeladaption kaum */
+  body.night {
+    --bg: #000; --bg2: #0c0000; --card: #140202; --line: #3a0a0a;
+    --text: #d44; --muted: #922; --accent: #e33; --accent2: #c22; --warn: #f55;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at top, var(--bg2), var(--bg) 70%);
+    background-attachment: fixed;
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  body.night { background-image: none; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px; padding-top: calc(16px + env(safe-area-inset-top));
+    max-width: 720px; margin: 0 auto;
+  }
+  header h1 { font-size: 22px; margin: 0; letter-spacing: .5px; }
+  header h1 span { color: var(--accent); }
+  main { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+  section { display: none; }
+  section.active { display: block; animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+  h2 { font-size: 18px; margin: 20px 0 10px; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+  }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  button, .btn {
+    font: inherit; color: var(--text); background: var(--bg2);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #0b0d1a; font-weight: 600; }
+  body.night button.primary { color: #000; }
+  button.ghost { background: transparent; }
+  button:active { transform: scale(.97); }
+  input, textarea, select {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%;
+  }
+  textarea { min-height: 160px; resize: vertical; }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 10px 0 4px; }
+  .check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 16px; }
+  .check input { width: auto; }
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-around;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    z-index: 10;
+  }
+  nav button {
+    background: none; border: none; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center;
+    font-size: 11px; padding: 6px 8px; gap: 2px; min-width: 58px;
+  }
+  nav button .i { font-size: 20px; line-height: 1; }
+  nav button.active { color: var(--accent); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; text-align: center; }
+  .stat b { display: block; font-size: 26px; color: var(--accent); }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .big-rc {
+    width: 100%; padding: 26px 16px; font-size: 20px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; color: #0b0d1a; border-radius: var(--radius);
+  }
+  body.night .big-rc { background: var(--accent); color: #000; }
+  .dream { cursor: pointer; }
+  .dream .meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .tag {
+    display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 99px;
+    background: var(--bg2); border: 1px solid var(--line); color: var(--text);
+  }
+  .tag.lucid { background: var(--accent); color: #0b0d1a; border-color: var(--accent); font-weight: 600; }
+  .excerpt { color: var(--muted); font-size: 14px; margin-top: 6px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .bar { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 10px; }
+  details summary { padding: 14px 16px; cursor: pointer; font-weight: 600; list-style: none; }
+  details summary::after { content: "＋"; float: right; color: var(--muted); }
+  details[open] summary::after { content: "−"; }
+  details > div { padding: 0 16px 14px; }
+  details ol, details ul { padding-left: 20px; margin: 6px 0; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom));
+    transform: translateX(-50%); background: var(--accent); color: #0b0d1a;
+    padding: 10px 16px; border-radius: 99px; font-weight: 600; z-index: 30;
+    opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+  .modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 20;
+    display: none; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal.open { display: flex; }
+  .modal .card { max-width: 480px; width: 100%; max-height: 90vh; overflow: auto; }
+  .rc-step { font-size: 18px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .rc-step:last-child { border: none; }
+  .clock { font-size: 44px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .empty { text-align: center; padding: 30px 10px; color: var(--muted); }
+  .stars span { font-size: 24px; cursor: pointer; color: var(--line); }
+  .stars span.on { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>☾ <span>Klartraum</span></h1>
+  <button id="nightBtn" class="ghost" title="Rotlicht-Nachtmodus">🔴 Nacht</button>
+</header>
+
+<main>
+  <!-- HEUTE -->
+  <section id="today" class="active">
+    <div class="stats">
+      <div class="stat"><b id="sDreams">0</b><span>Träume</span></div>
+      <div class="stat"><b id="sLucid">0</b><span>Luzid</span></div>
+      <div class="stat"><b id="sStreak">0</b><span>Tage Serie</span></div>
+    </div>
+
+    <button class="big-rc" id="rcBtn">Realitätscheck jetzt</button>
+    <p class="muted" style="text-align:center;margin-top:8px">Heute: <b id="rcToday">0</b> / <span id="rcGoal">10</span> Checks</p>
+    <div class="bar"><i id="rcBar" style="width:0"></i></div>
+
+    <h2>Erinnerungen</h2>
+    <div class="card">
+      <p class="muted">Die App erinnert dich regelmässig an einen Realitätscheck. Funktioniert, solange die App offen ist (auch im Hintergrund-Tab, je nach Handy). Für 100% zuverlässig: zusätzlich einen stündlichen Wecker stellen.</p>
+      <div class="row">
+        <label class="grow" style="margin:0">Alle
+          <select id="remInterval">
+            <option value="0">Aus</option>
+            <option value="30">30 Min</option>
+            <option value="60">60 Min</option>
+            <option value="90">90 Min</option>
+            <option value="120">2 Std</option>
+          </select>
+        </label>
+        <label class="grow" style="margin:0">Tagesziel
+          <input id="goalInput" type="number" min="1" max="50" value="10">
+        </label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="grow" style="margin:0">Von <input id="remFrom" type="time" value="08:00"></label>
+        <label class="grow" style="margin:0">Bis <input id="remTo" type="time" value="22:00"></label>
+      </div>
+      <p class="muted" id="remNext" style="margin-top:10px"></p>
+    </div>
+
+    <h2>Absicht für heute Nacht</h2>
+    <div class="card">
+      <p class="muted">Schreib auf, was du im Klartraum machen willst. Lies es vor dem Einschlafen und sag es dir innerlich vor.</p>
+      <textarea id="intention" style="min-height:80px" placeholder="z. B. „Wenn ich träume, merke ich, dass ich träume – und dann fliege ich.“"></textarea>
+    </div>
+
+    <h2>Deine Traumzeichen</h2>
+    <div class="card" id="signs"></div>
+  </section>
+
+  <!-- TAGEBUCH -->
+  <section id="journal">
+    <div class="row" style="margin:16px 0 12px">
+      <input id="search" class="grow" placeholder="Suchen…" style="width:auto">
+      <button class="primary" id="newDream">＋ Traum</button>
+    </div>
+    <div id="dreamList"></div>
+  </section>
+
+  <!-- NACHT -->
+  <section id="night">
+    <h2>Wake Back To Bed (WBTB)</h2>
+    <div class="card">
+      <p class="muted">Nach ca. 4,5–6 Std. Schlaf kurz aufwachen, 15–30 Min wach bleiben (Traum aufschreiben, Techniken lesen), dann mit MILD wieder einschlafen. REM-Phasen sind am Morgen am längsten – deshalb klappt das so gut.</p>
+      <label>Ich schlafe ein um</label>
+      <input id="sleepAt" type="time">
+      <label>Schlafzyklen bis zum Wecker (à 90 Min)</label>
+      <select id="cycles">
+        <option value="3">3 Zyklen – 4,5 Std</option>
+        <option value="4" selected>4 Zyklen – 6 Std</option>
+        <option value="5">5 Zyklen – 7,5 Std</option>
+      </select>
+      <p style="margin-top:12px">Wecker stellen auf (+15 Min zum Einschlafen):</p>
+      <div class="clock" id="wbtbTime">--:--</div>
+      <div class="row" style="justify-content:center;margin-top:10px">
+        <button id="wbtbStart" class="primary">In der App starten</button>
+        <button id="wbtbStop" style="display:none">Stoppen</button>
+      </div>
+      <p class="muted" id="wbtbStatus" style="text-align:center;margin-top:8px">Tipp: Stell zur Sicherheit auch den Handywecker. Browser dürfen nachts gern mal pennen.</p>
+    </div>
+
+    <h2>MILD-Durchgang</h2>
+    <div class="card">
+      <p class="muted">Mnemonic Induction of Lucid Dreams – die Technik mit der besten Studienlage. Mach das nach dem WBTB-Wecker, im Bett.</p>
+      <div id="mildBox"></div>
+      <div class="row" style="justify-content:center;margin-top:10px">
+        <button id="mildPrev" class="ghost">‹ Zurück</button>
+        <button id="mildNext" class="primary">Weiter ›</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LERNEN -->
+  <section id="learn">
+    <h2>Techniken</h2>
+    <details>
+      <summary>Realitätschecks (RC)</summary>
+      <div>
+        <p>Die Idee: Wenn du tagsüber aus Gewohnheit checkst, ob du träumst, machst du's irgendwann auch im Traum – und merkst es.</p>
+        <ul>
+          <li><b>Nase zuhalten & atmen:</b> Klappt es trotzdem? → Traum. Der zuverlässigste Check.</li>
+          <li><b>Finger durch die Handfläche drücken:</b> Geht er durch? → Traum.</li>
+          <li><b>Text zweimal lesen:</b> Wegschauen, nochmal lesen. Ändert er sich? → Traum.</li>
+          <li><b>Hände anschauen:</b> Zu viele Finger, verschwommen? → Traum.</li>
+          <li><b>Lichtschalter:</b> Funktioniert im Traum oft nicht richtig.</li>
+        </ul>
+        <p><b>Wichtig:</b> Nicht mechanisch abhaken. Frag dich jedes Mal ernsthaft: <i>„Träume ich gerade?“</i> und schau dich bewusst um. Das Nachdenken ist der eigentliche Trick, nicht die Geste.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Traumtagebuch</summary>
+      <div>
+        <p>Ohne Traumerinnerung keine Klarträume – du hättest sie ja schon, nur vergessen. Direkt nach dem Aufwachen: nicht bewegen, Traum im Kopf nochmal abspulen, dann sofort aufschreiben. Auch Fetzen.</p>
+        <p>Markier wiederkehrende Dinge als <b>Traumzeichen</b> (Personen, Orte, komische Situationen). Die App zählt sie für dich – und wenn du so ein Zeichen tagsüber siehst, mach einen Realitätscheck.</p>
+      </div>
+    </details>
+    <details>
+      <summary>MILD</summary>
+      <div>
+        <ol>
+          <li>Nach dem Aufwachen (am besten WBTB) den letzten Traum erinnern.</li>
+          <li>Ein Traumzeichen darin finden.</li>
+          <li>Innerlich wiederholen: <i>„Nächstes Mal, wenn ich träume, merke ich, dass ich träume.“</i></li>
+          <li>Dir vorstellen, wie du zurück im Traum bist, das Zeichen siehst und luzid wirst.</li>
+          <li>Wiederholen, bis du einschläfst.</li>
+        </ol>
+      </div>
+    </details>
+    <details>
+      <summary>WBTB</summary>
+      <div>
+        <p>Wecker nach 4,5–6 Std, 15–30 Min wach bleiben, dann wieder schlafen – idealerweise mit MILD kombiniert. Nicht jede Nacht machen, das killt deinen Schlaf. 1–3× pro Woche reicht, z. B. am Wochenende.</p>
+      </div>
+    </details>
+    <details>
+      <summary>SSILD</summary>
+      <div>
+        <p>Senses Initiated Lucid Dream. Nach WBTB im Bett, Zyklen durchgehen:</p>
+        <ol>
+          <li><b>Sehen:</b> ~20 Sek. auf die Dunkelheit hinter den geschlossenen Augen achten.</li>
+          <li><b>Hören:</b> ~20 Sek. auf Geräusche achten.</li>
+          <li><b>Fühlen:</b> ~20 Sek. auf Körpergefühl achten.</li>
+        </ol>
+        <p>4–6× schnell, dann ein paar langsame Runden (~1 Min pro Sinn). Dann ganz normal einschlafen. Nichts erzwingen.</p>
+      </div>
+    </details>
+    <details>
+      <summary>WILD (fortgeschritten)</summary>
+      <div>
+        <p>Wake Initiated: Körper schläft ein, Geist bleibt wach, du „fällst“ direkt in den Traum. Dabei kann Schlafparalyse auftreten – das ist harmlos, fühlt sich aber heftig an (Druck, Geräusche, Gestalten). Ruhig bleiben, langsam atmen, Finger bewegen, um rauszukommen. Nichts für den Anfang.</p>
+      </div>
+    </details>
+
+    <h2>Im Klartraum</h2>
+    <details>
+      <summary>Traum stabilisieren</summary>
+      <div>
+        <p>Beim ersten Mal wachen die meisten sofort auf, weil sie zu aufgeregt sind. Dagegen hilft:</p>
+        <ul>
+          <li>Ruhig bleiben, nicht rumschreien vor Freude 😄</li>
+          <li>Hände aneinander reiben, Boden anfassen – alle Sinne einsetzen.</li>
+          <li>Laut sagen: <i>„Mehr Klarheit!“</i></li>
+          <li>Wenn's verschwimmt: Um die eigene Achse drehen.</li>
+        </ul>
+      </div>
+    </details>
+    <details>
+      <summary>Ehrlicher Realitätsabgleich</summary>
+      <div>
+        <p>Klarträumen lernt man nicht in einer Nacht. Viele brauchen Wochen. Die Faustregel: Traumerinnerung zuerst (mindestens ein Traum pro Nacht aufschreiben), dann RCs, dann MILD+WBTB. Wer das 2–4 Wochen konsequent macht, hat gute Chancen.</p>
+        <p>Und: Schlaf geht vor. Wenn dich das Ganze stresst oder du schlecht schläfst, Pause machen.</p>
+      </div>
+    </details>
+
+    <h2>Daten</h2>
+    <div class="card">
+      <p class="muted">Alles bleibt lokal auf deinem Gerät. Mach ab und zu ein Backup.</p>
+      <div class="row">
+        <button id="exportBtn">Export (JSON)</button>
+        <button id="importBtn">Import</button>
+        <input id="importFile" type="file" accept="application/json" hidden>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="today" class="active"><span class="i">☀︎</span>Heute</button>
+  <button data-tab="journal"><span class="i">✎</span>Tagebuch</button>
+  <button data-tab="night"><span class="i">☾</span>Nacht</button>
+  <button data-tab="learn"><span class="i">✦</span>Lernen</button>
+</nav>
+
+<!-- Realitätscheck-Modal -->
+<div class="modal" id="rcModal">
+  <div class="card">
+    <h3>Träume ich gerade?</h3>
+    <p class="muted">Nimm dir 20 Sekunden. Ernsthaft.</p>
+    <div class="rc-step">1. Halte dir die Nase zu und versuch zu atmen.</div>
+    <div class="rc-step">2. Schau auf deine Hände. Zähl die Finger.</div>
+    <div class="rc-step">3. Lies einen Text, schau weg, lies nochmal.</div>
+    <div class="rc-step">4. Wie bist du hierhergekommen? Was hast du vor 5 Min gemacht?</div>
+    <div class="row" style="margin-top:14px">
+      <button class="primary grow" id="rcDone">Check gemacht ✓</button>
+      <button class="ghost" id="rcClose">Später</button>
+    </div>
+  </div>
+</div>
+
+<!-- Traum-Editor -->
+<div class="modal" id="dreamModal">
+  <div class="card">
+    <h3 id="dmTitle">Neuer Traum</h3>
+    <label>Datum</label>
+    <input id="dDate" type="date">
+    <label>Titel</label>
+    <input id="dTitle" placeholder="Kurz & knackig">
+    <label>Was ist passiert?</label>
+    <textarea id="dText" placeholder="Alles aufschreiben, auch Fetzen. Gefühle, Orte, Personen…"></textarea>
+    <label>Traumzeichen (mit Komma getrennt)</label>
+    <input id="dSigns" placeholder="z. B. Schule, Ex, fliegen, kaputtes Handy">
+    <label>Klarheit / Erinnerung</label>
+    <div class="stars" id="dStars"></div>
+    <label class="check" style="margin-top:12px"><input id="dLucid" type="checkbox"> Das war ein Klartraum ✨</label>
+    <div class="row" style="margin-top:16px">
+      <button class="primary grow" id="dSave">Speichern</button>
+      <button class="ghost" id="dCancel">Abbrechen</button>
+      <button class="ghost" id="dDelete" style="color:var(--warn)">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const KEY = 'klartraum.v1';
+
+  // ---------- Speicher ----------
+  const defaults = {
+    dreams: [], rc: {}, goal: 10, interval: 0, from: '08:00', to: '22:00',
+    intention: '', sleepAt: '23:00', cycles: 4, night: false,
+  };
+  let db;
+  try { db = Object.assign({}, defaults, JSON.parse(localStorage.getItem(KEY) || '{}')); }
+  catch { db = { ...defaults }; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
+
+  const pad = n => String(n).padStart(2, '0');
+  const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ---------- Tabs ----------
+  $$('nav button').forEach(b => b.onclick = () => {
+    $$('nav button').forEach(x => x.classList.toggle('active', x === b));
+    $$('section').forEach(s => s.classList.toggle('active', s.id === b.dataset.tab));
+    window.scrollTo(0, 0);
+  });
+
+  // ---------- Nachtmodus ----------
+  const applyNight = () => {
+    document.body.classList.toggle('night', db.night);
+    document.querySelector('meta[name=theme-color]').content = db.night ? '#000000' : '#0b0d1a';
+  };
+  $('#nightBtn').onclick = () => { db.night = !db.night; save(); applyNight(); };
+  applyNight();
+
+  // ---------- Statistik ----------
+  function streak() {
+    const days = new Set(db.dreams.map(d => d.date));
+    let n = 0; const d = new Date();
+    if (!days.has(dayKey(d))) d.setDate(d.getDate() - 1); // heute noch nichts? Serie zählt ab gestern
+    while (days.has(dayKey(d))) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+
+  function renderStats() {
+    $('#sDreams').textContent = db.dreams.length;
+    $('#sLucid').textContent = db.dreams.filter(d => d.lucid).length;
+    $('#sStreak').textContent = streak();
+    const today = db.rc[dayKey()] || 0;
+    $('#rcToday').textContent = today;
+    $('#rcGoal').textContent = db.goal;
+    $('#rcBar').style.width = Math.min(100, today / db.goal * 100) + '%';
+
+    const counts = {};
+    db.dreams.forEach(d => (d.signs || []).forEach(s => {
+      const k = s.toLowerCase(); counts[k] = (counts[k] || 0) + 1;
+    }));
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    $('#signs').innerHTML = top.length
+      ? '<p class="muted">Siehst du eins davon im Alltag → sofort Realitätscheck.</p>' +
+        top.map(([k, v]) => `<div class="row" style="margin:6px 0"><span class="grow">${esc(k)}</span><span class="muted">${v}×</span></div>
+          <div class="bar"><i style="width:${v / top[0][1] * 100}%"></i></div>`).join('')
+      : '<p class="muted">Noch keine. Trag beim Tagebuch-Eintrag wiederkehrende Dinge als Traumzeichen ein, dann tauchen sie hier auf.</p>';
+  }
+
+  // ---------- Realitätscheck ----------
+  const rcModal = $('#rcModal');
+  $('#rcBtn').onclick = () => rcModal.classList.add('open');
+  $('#rcClose').onclick = () => rcModal.classList.remove('open');
+  $('#rcDone').onclick = () => {
+    const k = dayKey();
+    db.rc[k] = (db.rc[k] || 0) + 1; save(); renderStats();
+    rcModal.classList.remove('open');
+    toast(db.rc[k] === db.goal ? 'Tagesziel geschafft, stark 🔥' : 'Check gezählt ✓');
+  };
+
+  // ---------- Erinnerungen ----------
+  const remInterval = $('#remInterval'), goalInput = $('#goalInput');
+  remInterval.value = db.interval; goalInput.value = db.goal;
+  $('#remFrom').value = db.from; $('#remTo').value = db.to;
+  let remTimer = null, nextAt = null;
+
+  const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  function inWindow(d) {
+    const m = d.getHours() * 60 + d.getMinutes(), a = toMin(db.from), b = toMin(db.to);
+    return a <= b ? m >= a && m <= b : m >= a || m <= b;
+  }
+
+  function notify(title, body) {
+    try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {}
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const opts = { body, tag: 'klartraum', renotify: true };
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(r => r.showNotification(title, opts)).catch(() => new Notification(title, opts));
+      } else {
+        try { new Notification(title, opts); } catch {}
+      }
+    }
+  }
+
+  function scheduleReminder() {
+    clearTimeout(remTimer); nextAt = null;
+    if (!db.interval) { $('#remNext').textContent = 'Erinnerungen sind aus.'; return; }
+    // Zufällige Streuung ±30 %, damit es sich nicht wie ein Takt anfühlt, den das Gehirn ausblendet
+    const ms = db.interval * 60000 * (0.7 + Math.random() * 0.6);
+    nextAt = new Date(Date.now() + ms);
+    $('#remNext').textContent = `Nächste Erinnerung ca. ${pad(nextAt.getHours())}:${pad(nextAt.getMinutes())} (leicht zufällig, damit du dich nicht dran gewöhnst).`;
+    remTimer = setTimeout(() => {
+      if (inWindow(new Date())) {
+        notify('Träumst du gerade?', 'Nase zuhalten, atmen, umschauen. Ernsthaft fragen.');
+        rcModal.classList.add('open');
+      }
+      scheduleReminder();
+    }, ms);
+  }
+
+  remInterval.onchange = async () => {
+    db.interval = +remInterval.value; save();
+    if (db.interval && 'Notification' in window && Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch {}
+    }
+    scheduleReminder();
+  };
+  goalInput.onchange = () => { db.goal = Math.max(1, +goalInput.value || 10); save(); renderStats(); };
+  $('#remFrom').onchange = e => { db.from = e.target.value; save(); };
+  $('#remTo').onchange = e => { db.to = e.target.value; save(); };
+
+  // ---------- Absicht ----------
+  const intention = $('#intention');
+  intention.value = db.intention;
+  intention.oninput = () => { db.intention = intention.value; save(); };
+
+  // ---------- Tagebuch ----------
+  let editing = null, stars = 3;
+  const dreamModal = $('#dreamModal');
+
+  function renderStars() {
+    $('#dStars').innerHTML = [1, 2, 3, 4, 5].map(i => `<span data-v="${i}" class="${i <= stars ? 'on' : ''}">★</span>`).join('');
+  }
+  $('#dStars').onclick = e => { if (e.target.dataset.v) { stars = +e.target.dataset.v; renderStars(); } };
+
+  function openDream(d) {
+    editing = d ? d.id : null;
+    $('#dmTitle').textContent = d ? 'Traum bearbeiten' : 'Neuer Traum';
+    $('#dDate').value = d ? d.date : dayKey();
+    $('#dTitle').value = d ? d.title : '';
+    $('#dText').value = d ? d.text : '';
+    $('#dSigns').value = d ? (d.signs || []).join(', ') : '';
+    $('#dLucid').checked = d ? !!d.lucid : false;
+    $('#dDelete').style.display = d ? '' : 'none';
+    stars = d ? d.clarity || 3 : 3; renderStars();
+    dreamModal.classList.add('open');
+    if (!d) setTimeout(() => $('#dText').focus(), 50);
+  }
+  $('#newDream').onclick = () => openDream();
+  $('#dCancel').onclick = () => dreamModal.classList.remove('open');
+  $('#dDelete').onclick = () => {
+    if (!confirm('Traum wirklich löschen?')) return;
+    db.dreams = db.dreams.filter(d => d.id !== editing); save();
+    dreamModal.classList.remove('open'); renderAll();
+  };
+  $('#dSave').onclick = () => {
+    const text = $('#dText').value.trim(), title = $('#dTitle').value.trim();
+    if (!text && !title) { toast('Schreib wenigstens ein paar Worte'); return; }
+    const entry = {
+      id: editing || Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      date: $('#dDate').value || dayKey(),
+      title: title || text.split(/\s+/).slice(0, 5).join(' ') + '…',
+      text,
+      signs: $('#dSigns').value.split(',').map(s => s.trim()).filter(Boolean),
+      clarity: stars,
+      lucid: $('#dLucid').checked,
+    };
+    const i = db.dreams.findIndex(d => d.id === entry.id);
+    if (i >= 0) db.dreams[i] = entry; else db.dreams.push(entry);
+    save(); dreamModal.classList.remove('open'); renderAll();
+    toast(entry.lucid ? 'KLARTRAUM! Legende 🌙✨' : 'Traum gespeichert');
+  };
+
+  function renderDreams() {
+    const q = $('#search').value.trim().toLowerCase();
+    const list = db.dreams
+      .filter(d => !q || [d.title, d.text, ...(d.signs || [])].join(' ').toLowerCase().includes(q))
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    const box = $('#dreamList');
+    if (!list.length) {
+      box.innerHTML = `<div class="empty">${q ? 'Nichts gefunden.' : 'Noch keine Träume.<br>Gleich nach dem Aufwachen hier rein – auch wenn es nur Fetzen sind.'}</div>`;
+      return;
+    }
+    box.innerHTML = list.map(d => `
+      <div class="card dream" data-id="${d.id}">
+        <div class="row"><h3 class="grow">${esc(d.title)}</h3>${d.lucid ? '<span class="tag lucid">luzid</span>' : ''}</div>
+        <div class="meta"><span>${new Date(d.date + 'T12:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span><span>${'★'.repeat(d.clarity || 0)}</span></div>
+        ${d.text ? `<div class="excerpt">${esc(d.text)}</div>` : ''}
+        ${(d.signs || []).length ? `<div class="row" style="gap:6px;margin-top:8px">${d.signs.map(s => `<span class="tag">${esc(s)}</span>`).join('')}</div>` : ''}
+      </div>`).join('');
+  }
+  $('#dreamList').onclick = e => {
+    const c = e.target.closest('.dream');
+    if (c) openDream(db.dreams.find(d => d.id === c.dataset.id));
+  };
+  $('#search').oninput = renderDreams;
+
+  // ---------- WBTB ----------
+  const sleepAt = $('#sleepAt'), cycles = $('#cycles');
+  sleepAt.value = db.sleepAt; cycles.value = db.cycles;
+  let wbtbTimer = null, wbtbAudio = null;
+
+  function wbtbTarget() {
+    const [h, m] = sleepAt.value.split(':').map(Number);
+    const t = new Date(); t.setHours(h, m, 0, 0);
+    t.setMinutes(t.getMinutes() + 15 + cycles.value * 90);
+    if (t < new Date()) t.setDate(t.getDate() + 1);
+    return t;
+  }
+  function renderWbtb() {
+    if (!sleepAt.value) return;
+    const t = wbtbTarget();
+    $('#wbtbTime').textContent = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
+  }
+  sleepAt.onchange = () => { db.sleepAt = sleepAt.value; save(); renderWbtb(); };
+  cycles.onchange = () => { db.cycles = +cycles.value; save(); renderWbtb(); };
+
+  function beep() {
+    // Sanfter, anschwellender Ton statt Sirene – aufwachen, aber nicht komplett wach werden
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 528;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 20);
+      o.connect(g).connect(ctx.destination); o.start();
+      wbtbAudio = ctx;
+    } catch {}
+  }
+  function stopWbtb() {
+    clearTimeout(wbtbTimer); wbtbTimer = null;
+    if (wbtbAudio) { wbtbAudio.close(); wbtbAudio = null; }
+    $('#wbtbStart').style.display = ''; $('#wbtbStop').style.display = 'none';
+    $('#wbtbStatus').textContent = 'Tipp: Stell zur Sicherheit auch den Handywecker. Browser dürfen nachts gern mal pennen.';
+  }
+  $('#wbtbStart').onclick = () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+    const t = wbtbTarget();
+    clearTimeout(wbtbTimer);
+    wbtbTimer = setTimeout(() => {
+      beep();
+      notify('WBTB – aufwachen', 'Traum aufschreiben, 15–30 Min wach bleiben, dann MILD.');
+      $('#wbtbStatus').textContent = 'Guten Morgen… halb. Erst Traum aufschreiben, dann MILD.';
+    }, t - Date.now());
+    $('#wbtbStart').style.display = 'none'; $('#wbtbStop').style.display = '';
+    $('#wbtbStatus').textContent = `Läuft. Bildschirm-Sperre aus lassen oder Handy ans Ladekabel, sonst kann der Browser den Timer verschlafen.`;
+    db.night = true; save(); applyNight();
+    toast('Nachtmodus an. Gute Nacht 🌙');
+  };
+  $('#wbtbStop').onclick = stopWbtb;
+
+  // ---------- MILD-Guide ----------
+  const mild = [
+    ['Bleib liegen', 'Augen zu, nicht bewegen. Bist du gerade aus einem Traum aufgewacht? Spul ihn im Kopf nochmal ab.'],
+    ['Finde ein Traumzeichen', 'Was war komisch oder unrealistisch? Ein Ort, eine Person, etwas, das keinen Sinn ergibt. Nimm genau das.'],
+    ['Die Absicht', 'Sag innerlich, langsam und ernst gemeint:<br><br><i>„Nächstes Mal, wenn ich träume, merke ich, dass ich träume.“</i><br><br>Ein paar Mal wiederholen.'],
+    ['Visualisieren', 'Stell dir vor, du bist zurück in dem Traum. Du siehst das Traumzeichen, stutzt, machst einen Realitätscheck – und merkst: <b>Ich träume.</b> Stell dir vor, was du dann machst.'],
+    ['Einschlafen', 'Wiederhole Absicht + Bild, bis du wegdriftest. Wenn deine Gedanken abschweifen: sanft zurück. Nicht verkrampfen. Gute Nacht.'],
+  ];
+  let mildI = 0;
+  function renderMild() {
+    const [t, b] = mild[mildI];
+    $('#mildBox').innerHTML = `<p class="muted">Schritt ${mildI + 1} / ${mild.length}</p><h3>${t}</h3><p>${b}</p>`;
+    $('#mildPrev').disabled = mildI === 0;
+    $('#mildNext').textContent = mildI === mild.length - 1 ? 'Nochmal von vorn' : 'Weiter ›';
+  }
+  $('#mildPrev').onclick = () => { mildI = Math.max(0, mildI - 1); renderMild(); };
+  $('#mildNext').onclick = () => { mildI = (mildI + 1) % mild.length; renderMild(); };
+
+  // ---------- Export / Import ----------
+  $('#exportBtn').onclick = () => {
+    const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `klartraum-backup-${dayKey()}.json`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('#importBtn').onclick = () => $('#importFile').click();
+  $('#importFile').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data.dreams)) throw new Error();
+      if (!confirm(`${data.dreams.length} Träume importieren? Deine aktuellen Daten werden ersetzt.`)) return;
+      db = Object.assign({}, defaults, data); save(); location.reload();
+    } catch { toast('Datei konnte nicht gelesen werden'); }
+    e.target.value = '';
+  };
+
+  // Modals per Klick auf den Hintergrund schliessen
+  $$('.modal').forEach(m => m.onclick = e => { if (e.target === m) m.classList.remove('open'); });
+
+  function renderAll() { renderStats(); renderDreams(); }
+  renderAll(); renderWbtb(); renderMild(); scheduleReminder();
+
+  // Offline + installierbar (nur über http/https, nicht per file://)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
