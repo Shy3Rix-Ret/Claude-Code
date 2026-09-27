@@ -9,6 +9,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
   :root {
+    color-scheme: dark;
     --bg: #0b0d1a;
     --bg2: #141733;
     --card: #1a1e3f;
@@ -26,6 +27,7 @@
     --text: #d44; --muted: #922; --accent: #e33; --accent2: #c22; --warn: #f55;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; }
   body {
     background: var(--bg);
@@ -318,12 +320,15 @@
 
     <h2>Daten</h2>
     <div class="card">
-      <p class="muted">Alles bleibt lokal auf deinem Gerät. Mach ab und zu ein Backup.</p>
+      <p class="muted">Alles bleibt lokal in diesem Browser. Wenn du den Verlauf löschst, sind die Träume weg – also ab und zu ein Backup machen.</p>
       <div class="row">
         <button id="exportBtn">Export (JSON)</button>
         <button id="importBtn">Import</button>
-        <input id="importFile" type="file" accept="application/json" hidden>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
+        <button id="copyBtn" hidden>Kopieren</button>
       </div>
+      <textarea id="exportText" hidden readonly style="min-height:90px;margin-top:10px;font-size:12px"></textarea>
+      <p class="muted" style="margin-top:8px">Import fügt nur neue Träume hinzu, es wird nichts überschrieben. Du kannst ein kopiertes Backup auch nach „Export“ ins Textfeld einfügen.</p>
     </div>
   </section>
 </main>
@@ -412,7 +417,8 @@
   // ---------- Nachtmodus ----------
   const applyNight = () => {
     document.body.classList.toggle('night', db.night);
-    document.querySelector('meta[name=theme-color]').content = db.night ? '#000000' : '#0b0d1a';
+    const m = document.querySelector('meta[name=theme-color]');
+    if (m) m.content = db.night ? '#000000' : '#0b0d1a';
   };
   $('#nightBtn').onclick = () => { db.night = !db.night; save(); applyNight(); };
   applyNight();
@@ -539,7 +545,13 @@
   $('#newDream').onclick = () => openDream();
   $('#dCancel').onclick = () => dreamModal.classList.remove('open');
   $('#dDelete').onclick = () => {
-    if (!confirm('Traum wirklich löschen?')) return;
+    const b = $('#dDelete');
+    if (!b.dataset.armed) {
+      b.dataset.armed = '1'; b.textContent = 'Sicher? Nochmal tippen';
+      setTimeout(() => { delete b.dataset.armed; b.textContent = 'Löschen'; }, 3000);
+      return;
+    }
+    delete b.dataset.armed; b.textContent = 'Löschen';
     db.dreams = db.dreams.filter(d => d.id !== editing); save();
     dreamModal.classList.remove('open'); renderAll();
   };
@@ -666,18 +678,36 @@
     a.href = URL.createObjectURL(blob);
     a.download = `klartraum-backup-${dayKey()}.json`;
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    const box = $('#exportText');
+    box.value = JSON.stringify(db); box.hidden = false; $('#copyBtn').hidden = false;
+  };
+  $('#copyBtn').onclick = async () => {
+    const box = $('#exportText');
+    try { await navigator.clipboard.writeText(box.value); toast('Backup kopiert – z. B. in Notizen einfügen'); }
+    catch { box.select(); toast('Text markiert – jetzt kopieren'); }
   };
   $('#importBtn').onclick = () => $('#importFile').click();
   $('#importFile').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
-    try {
-      const data = JSON.parse(await f.text());
-      if (!Array.isArray(data.dreams)) throw new Error();
-      if (!confirm(`${data.dreams.length} Träume importieren? Deine aktuellen Daten werden ersetzt.`)) return;
-      db = Object.assign({}, defaults, data); save(); location.reload();
-    } catch { toast('Datei konnte nicht gelesen werden'); }
+    importJson(await f.text());
     e.target.value = '';
   };
+  $('#exportText').addEventListener('paste', e => {
+    const t = e.clipboardData && e.clipboardData.getData('text');
+    if (t && t.trim().startsWith('{')) { e.preventDefault(); importJson(t); }
+  });
+  function importJson(text) {
+    try {
+      const data = JSON.parse(text);
+      if (!Array.isArray(data.dreams)) throw new Error();
+      const have = new Set(db.dreams.map(d => d.id));
+      const fresh = data.dreams.filter(d => d && d.id && !have.has(d.id));
+      db.dreams.push(...fresh);
+      for (const [k, v] of Object.entries(data.rc || {})) db.rc[k] = Math.max(db.rc[k] || 0, v);
+      save(); renderAll();
+      toast(`${fresh.length} Träume importiert`);
+    } catch { toast('Das ist kein Klartraum-Backup'); }
+  }
 
   // Modals per Klick auf den Hintergrund schliessen
   $$('.modal').forEach(m => m.onclick = e => { if (e.target === m) m.classList.remove('open'); });
@@ -686,7 +716,7 @@
   renderAll(); renderWbtb(); renderMild(); scheduleReminder();
 
   // Offline + installierbar (nur über http/https, nicht per file://)
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !document.documentElement.dataset.artifact) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();
