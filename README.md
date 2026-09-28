@@ -189,3 +189,11 @@ Nicht im Spiel sichtbar, nur über URL oder Tastatur:
 Shift+1 … Shift+5   Akt wechseln
 Shift+Plus/Minus    Zeit schneller / langsamer
 ```
+
+## Nebenbei: Kira-Test
+
+`kira-test/kira-test.html` ist ein eigenständiges Mini-Projekt und hat mit dem
+Level nichts zu tun: ein Death-Note-Persönlichkeitstest mit 19 Fragen
+(Persönlichkeit, Logikrätsel auf Zeit, ein Detail-Test), der am Ende sagt, zu
+wie viel Prozent man Kira ist. Eine Datei, kein Build, einfach im Browser
+öffnen. Ohne Internet fehlen nur die Schriften, alles andere läuft offline.

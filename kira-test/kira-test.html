@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="19 Fragen über Logik, Strategie und Pokerface. Am Ende sagt dir L, zu wie viel Prozent du Kira bist.">
+<meta name="theme-color" content="#EEEFEB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kira-Test">
+<title>Bist du Kira?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=UnifrakturMaguntia&display=swap">
+<style>
+  /* Light: eine linierte Heftseite. Dark: der schwarze Einband. */
+  :root {
+    --bg: #EEEFEB;
+    --line: #D6DDE2;
+    --margin: #DB9AA4;
+    --ink: #16161A;
+    --ink-2: #4A4B53;
+    --ink-3: #7A7C85;
+    --surface: #F8F8F5;
+    --surface-2: #FFFFFF;
+    --border: #C3C7CC;
+    --track: #D9DDE1;
+    --accent: #A8132B;
+    --accent-text: #A8132B;
+    --on-accent: #FFFFFF;
+    --good: #1D6A44;
+    --good-bg: #E0EEE5;
+    --bad-bg: #F6E0E4;
+    --screen-bg: #F5F5F2;
+    --screen-ink: #0E0E10;
+
+    --f-display: "UnifrakturMaguntia", "Old English Text MT", "Goudy Text", Georgia, serif;
+    --f-body: "Spectral", Georgia, "Times New Roman", serif;
+    --f-mono: "Courier Prime", "Courier New", ui-monospace, monospace;
+
+    color-scheme: light;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E0E10;
+      --line: #17181C;
+      --margin: #43171F;
+      --ink: #ECEAE5;
+      --ink-2: #A9A9B0;
+      --ink-3: #74757D;
+      --surface: #15161A;
+      --surface-2: #1C1D22;
+      --border: #2F3138;
+      --track: #26272D;
+      --accent: #C8233C;
+      --accent-text: #F05A6E;
+      --on-accent: #FFFFFF;
+      --good: #6CC596;
+      --good-bg: #11241A;
+      --bad-bg: #2A1217;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0E0E10;
+    --line: #17181C;
+    --margin: #43171F;
+    --ink: #ECEAE5;
+    --ink-2: #A9A9B0;
+    --ink-3: #74757D;
+    --surface: #15161A;
+    --surface-2: #1C1D22;
+    --border: #2F3138;
+    --track: #26272D;
+    --accent: #C8233C;
+    --accent-text: #F05A6E;
+    --on-accent: #FFFFFF;
+    --good: #6CC596;
+    --good-bg: #11241A;
+    --bad-bg: #2A1217;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--bg);
+    background-image: repeating-linear-gradient(180deg,
+      transparent 0, transparent calc(2rem - 1px),
+      var(--line) calc(2rem - 1px), var(--line) 2rem);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .page {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: clamp(1.25rem, 5vw, 3rem) 3.5rem;
+  }
+
+  /* Der rote Heftrand */
+  .sheet {
+    border-left: 2px solid var(--margin);
+    padding-left: clamp(0.9rem, 4vw, 2rem);
+    min-height: 70vh;
+  }
+
+  :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
+
+  .screen { animation: rise 0.28s ease-out both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* ---------------------------------------------------------------- Text */
+
+  .eyebrow, .label, .block-h, .stats dt {
+    font-family: var(--f-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0;
+  }
+
+  .title {
+    font-family: var(--f-display);
+    font-weight: 400;
+    font-size: clamp(3.4rem, 15vw, 6.5rem);
+    line-height: 0.95;
+    margin: 0.6rem 0 0;
+    text-wrap: balance;
+  }
+
+  .lede {
+    font-size: clamp(1.1rem, 3.6vw, 1.3rem);
+    max-width: 34ch;
+    margin: 1rem 0 0;
+  }
+
+  /* --------------------------------------------------------------- Intro */
+
+  .intro { display: grid; gap: 2.25rem; }
+
+  .start { display: grid; gap: 0.5rem; max-width: 22rem; }
+
+  .start input {
+    font: inherit;
+    font-size: 1.1rem;
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+  .start input::placeholder { color: var(--ink-3); }
+  .start input:focus { outline: 2px solid var(--accent-text); outline-offset: 1px; border-color: var(--ink); }
+
+  .hint { font-size: 0.92rem; font-style: italic; color: var(--ink-3); margin: 0 0 0.75rem; }
+
+  .rules { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+
+  .rules-h {
+    font-family: var(--f-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    margin: 0 0 1rem;
+  }
+
+  .roman {
+    list-style: upper-roman;
+    margin: 0;
+    padding-left: 2.6rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .roman li { padding-left: 0.35rem; max-width: 52ch; }
+  .roman li::marker { font-family: var(--f-display); font-size: 1.2em; color: var(--ink); }
+
+  .last { font-family: var(--f-mono); font-size: 0.85rem; color: var(--ink-2); margin: 0; }
+
+  /* ------------------------------------------------------------- Buttons */
+
+  .btn {
+    appearance: none;
+    justify-self: start;
+    font-family: var(--f-mono);
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.95rem 1.5rem;
+    background: var(--ink);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .btn:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--ink); border-color: var(--ink); }
+
+  /* ------------------------------------------------------------ Question */
+
+  .qhead { display: grid; gap: 0.9rem; margin-bottom: 1.5rem; }
+
+  .progress { height: 2px; background: var(--track); }
+  .progress i { display: block; height: 100%; background: var(--accent); transition: width 0.4s ease-out; }
+
+  .qmeta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.9rem; }
+  .qnum { font-family: var(--f-display); font-size: 2.3rem; line-height: 1; }
+  .count { font-family: var(--f-mono); font-size: 0.85rem; color: var(--ink-2); }
+
+  .chip {
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--ink-2);
+  }
+  .chip-hot { border-color: var(--accent-text); color: var(--accent-text); }
+
+  .q-text {
+    font-family: var(--f-body);
+    font-weight: 400;
+    font-size: clamp(1.3rem, 4.8vw, 1.7rem);
+    line-height: 1.35;
+    margin: 0 0 1.25rem;
+    max-width: 34ch;
+    text-wrap: pretty;
+  }
+  .q-text:focus { outline: none; }
+
+  .sub { margin: -0.5rem 0 1rem; color: var(--ink-2); }
+
+  .statements { list-style: none; margin: 0 0 1.4rem; padding: 0; display: grid; gap: 0.45rem; }
+  .statements li { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 0.5rem; align-items: baseline; }
+  .statements b { font-family: var(--f-mono); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .statements span { font-style: italic; }
+
+  .seq {
+    font-family: var(--f-mono);
+    font-weight: 700;
+    font-size: clamp(1.15rem, 4.4vw, 1.4rem);
+    letter-spacing: 0.06em;
+    margin: -0.25rem 0 1.4rem;
+  }
+
+  .clock { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+  .timer { flex: 1; height: 4px; background: var(--track); overflow: hidden; }
+  .timer i { display: block; height: 100%; background: var(--ink); transform-origin: left center; }
+  .timer.low i { background: var(--accent); }
+  .secs { font-family: var(--f-mono); font-size: 0.9rem; min-width: 2.6rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .timer.low + .secs { color: var(--accent-text); }
+
+  .opts { display: grid; gap: 0.6rem; }
+
+  .opt {
+    display: grid;
+    grid-template-columns: 1.6rem minmax(0, 1fr);
+    gap: 0.6rem;
+    align-items: baseline;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.12s, background-color 0.12s, opacity 0.2s;
+  }
+  .opt .key { font-family: var(--f-mono); font-weight: 700; font-size: 0.85rem; color: var(--ink-3); }
+  .opt:hover:not(:disabled) { border-color: var(--ink); background: var(--surface-2); }
+  .opt:disabled { cursor: default; }
+  .opt.picked { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: var(--surface-2); }
+  .opt.picked .key { color: var(--ink); }
+  .opt.right { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); background: var(--good-bg); }
+  .opt.right .key { color: var(--good); }
+  .opt.wrong { border-color: var(--accent-text); box-shadow: inset 0 0 0 1px var(--accent-text); background: var(--bad-bg); }
+  .opt.wrong .key { color: var(--accent-text); }
+  .opt.dim { opacity: 0.5; }
+
+  .after { display: grid; gap: 0.9rem; justify-items: start; margin-top: 1.25rem; }
+  .after:empty { display: none; }
+
+  .react { margin: 0; font-style: italic; font-size: 1.08rem; max-width: 48ch; }
+  .who {
+    font-family: var(--f-mono);
+    font-style: normal;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin-right: 0.35rem;
+  }
+  .verdict { margin: 0; font-weight: 600; }
+  .verdict.ok { color: var(--good); }
+  .verdict.no { color: var(--accent-text); }
+  .why { margin: 0; color: var(--ink-2); max-width: 52ch; }
+
+  /* ----------------------------------------------------- Detail-Test desk */
+
+  .desk {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    max-width: 26rem;
+    margin-bottom: 1.25rem;
+  }
+  .slot {
+    min-height: 3.5rem;
+    display: grid;
+    place-items: center;
+    padding: 0.4rem;
+    text-align: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+  .slot.empty { background: transparent; border-style: dashed; }
+  .item {
+    font-family: var(--f-mono);
+    font-weight: 700;
+    font-size: clamp(0.76rem, 3.2vw, 0.95rem);
+    hyphens: auto;
+    overflow-wrap: break-word;
+    min-width: 0;
+  }
+
+  /* ------------------------------------------------------------- Analyse */
+
+  .lscreen {
+    width: 100%;
+    max-width: 26rem;
+    aspect-ratio: 4 / 3;
+    display: grid;
+    place-items: center;
+    background: var(--screen-bg);
+    color: var(--screen-ink);
+    border: 1px solid var(--border);
+  }
+  .bigL { font-family: var(--f-display); font-size: clamp(7rem, 30vw, 11rem); line-height: 1; }
+
+  .log {
+    list-style: none;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    min-height: 7rem;
+    display: grid;
+    align-content: start;
+    gap: 0.35rem;
+    font-family: var(--f-mono);
+    font-size: 0.9rem;
+    color: var(--ink-2);
+  }
+  .log li { animation: rise 0.3s ease-out both; }
+  .log li.done { color: var(--ink); font-weight: 700; }
+
+  /* ------------------------------------------------------------ Ergebnis */
+
+  .verdict-lead { font-size: clamp(1.2rem, 4vw, 1.5rem); margin: 1.25rem 0 0; }
+
+  .pct {
+    font-family: var(--f-body);
+    font-weight: 300;
+    font-size: clamp(6rem, 30vw, 11rem);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    margin: 0.3rem 0 0;
+    color: var(--accent-text);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .pct small { font-size: 0.4em; letter-spacing: 0; margin-left: 0.1em; }
+
+  .kira-word { font-family: var(--f-display); font-size: clamp(2.6rem, 11vw, 4.2rem); line-height: 1; margin: 0.25rem 0 0; }
+
+  .tier {
+    font-family: var(--f-display);
+    font-weight: 400;
+    font-size: clamp(1.9rem, 7vw, 2.5rem);
+    line-height: 1.1;
+    margin: 2.25rem 0 0.5rem;
+    text-wrap: balance;
+  }
+  .tier-text { margin: 0; max-width: 52ch; }
+
+  .block { border-top: 1px solid var(--border); margin-top: 2.25rem; padding-top: 1.25rem; }
+  .block-h { margin-bottom: 1rem; }
+
+  .bars { display: grid; gap: 0.8rem; }
+  .bar {
+    display: grid;
+    grid-template-columns: 6.8rem minmax(0, 1fr) 2.4rem;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .bar-label { font-family: var(--f-mono); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+  .track { position: relative; height: 0.55rem; background: var(--track); }
+  .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--ink);
+    transform-origin: left center;
+    animation: grow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s both;
+  }
+  @keyframes grow { from { transform: scaleX(0); } }
+  .tick { position: absolute; top: -0.3rem; bottom: -0.3rem; width: 2px; margin-left: -1px; background: var(--accent-text); }
+  .bar-val { font-family: var(--f-mono); font-size: 0.9rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; align-items: center; gap: 0.5rem; margin: 1rem 0 0; font-size: 0.9rem; color: var(--ink-2); }
+  .legend i { display: inline-block; width: 2px; height: 1rem; background: var(--accent-text); }
+
+  .twin-name { font-family: var(--f-display); font-size: clamp(2.1rem, 8vw, 2.9rem); line-height: 1.05; margin: 0; }
+  .twin-meta { font-family: var(--f-mono); font-size: 0.85rem; color: var(--ink-2); margin: 0.4rem 0 0.75rem; }
+  .twin-text { margin: 0; max-width: 52ch; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 1rem; margin: 0; }
+  .stats dd { margin: 0.2rem 0 0; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2.25rem; }
+
+  #share-text {
+    width: 100%;
+    min-height: 5.5rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    font-family: var(--f-mono);
+    font-size: 0.9rem;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    resize: vertical;
+  }
+
+  .foot { margin: 2.5rem 0 0; font-family: var(--f-mono); font-size: 0.8rem; color: var(--ink-3); }
+
+  @media (max-width: 380px) {
+    .bar { grid-template-columns: 5.6rem minmax(0, 1fr) 2.2rem; gap: 0.55rem; }
+    .bar-label { font-size: 0.72rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <main class="sheet" id="app">
+    <noscript><p>Der Kira-Test braucht JavaScript. Öffne die Datei bitte in einem normalen Browser.</p></noscript>
+  </main>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $app = document.getElementById('app');
+  const $ = sel => $app.querySelector(sel);
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const DIMS = [
+    ['iq', 'Intellekt'],
+    ['plan', 'Strategie'],
+    ['just', 'Gerechtigkeit'],
+    ['mask', 'Pokerface'],
+    ['ego', 'Ego'],
+  ];
+
+  // brain = wie viel Logik-Leistung man von der Figur erwartet (0..1)
+  const CHARS = {
+    light:    { name: 'Light Yagami',    brain: 1,    text: 'Musterschüler, Pokerface, zwanzig Züge voraus. Du würdest die Chipstüten-Nummer nicht nur verstehen, du hättest sie dir selbst ausgedacht. Wir behalten dich im Auge.' },
+    l:        { name: 'L',               brain: 1,    text: 'Genial, schräg und immer auf der Jagd nach dem nächsten Rätsel. Dich interessiert nicht, wer gewinnt, sondern wie. Sitzen tust du vermutlich auch komisch.' },
+    near:     { name: 'Near',            brain: 1,    text: 'Kühl, ruhig, analytisch. Du puzzelst nebenbei, lässt die anderen ihre Fehler machen und sammelst am Ende alles ein.' },
+    mello:    { name: 'Mello',           brain: 0.7,  text: 'Ehrgeiz ohne Ende und Gefühle auf voller Lautstärke. Du gehst All-in, auch wenn der Plan erst halb fertig ist. Schokolade griffbereit.' },
+    mikami:   { name: 'Teru Mikami',     brain: 0.75, text: 'Gerechtigkeit über alles, dazu ein Tagesplan auf die Minute genau. Du hast sehr klare Vorstellungen davon, was richtig ist.' },
+    soichiro: { name: 'Soichiro Yagami', brain: 0.6,  text: 'Ehrlich, gerecht, Rückgrat aus Stahl. Du glaubst an Regeln und daran, dass Menschen im Kern gut sind. Ziemlich genau das Gegenteil von Light.' },
+    misa:     { name: 'Misa Amane',      brain: 0.35, text: 'Loyal bis zum Anschlag und voller Energie. Geheimnisse sind nicht ganz deins, aber dein Herz ist riesig.' },
+    matsuda:  { name: 'Matsuda',         brain: 0.35, text: 'Der Netteste der ganzen Task Force. Du würdest dich wahrscheinlich verplappern, aber jeder mag dich. Und am Ende hattest du öfter recht, als alle dachten.' },
+    ryuk:     { name: 'Ryuk',            brain: 0.5,  text: 'Du bist eigentlich nur hier, weil dir langweilig war. Und wegen der Äpfel. Ehrlich gesagt die entspannteste Rolle im ganzen Anime.' },
+  };
+
+  const TIERS = [
+    { min: 100, title: 'Gott der neuen Welt', text: 'Perfekter Score. Jede Antwort Kira, jedes Rätsel gelöst, und das auch noch schnell. L hat gerade seinen Kuchen fallen lassen. Alles lief exakt nach Plan.' },
+    { min: 85,  title: 'Praktisch Kira',      text: 'Kalter Kopf, zwanzig Züge voraus, Pokerface aus Stahl. Wenn du lächelst, weiß niemand, ob du dich freust oder gerade einen Plan fertig hast. Unheimlich. Respekt.' },
+    { min: 70,  title: 'Hauptverdächtig',     text: 'L schätzt die Wahrscheinlichkeit, dass du Kira bist, offiziell auf 5 %. Inoffiziell hängen in deinem Zimmer schon Kameras. Hirn und Ehrgeiz hast du, nur dein Gewissen kommt dir ab und zu dazwischen.' },
+    { min: 50,  title: 'Unter Beobachtung',   text: 'Du hast klare Kira-Momente: logisch, ehrgeizig, und in die Karten schauen lässt du dir auch nicht gern. Aber du hast auch ein Herz, und das ist Kira bekanntlich eher fremd.' },
+    { min: 30,  title: 'Zu ehrlich für Kira', text: 'Du denkst mit, du bist fair, und Lügen ist nicht so deins. Die Task Force würde dich sofort nehmen. Als Kira wärst du spätestens in Folge 2 aufgeflogen.' },
+    { min: 0,   title: 'Null Kira-Energie',   text: 'Nada. Du hättest das Notizbuch ins Fundbüro gebracht und wärst danach Eis essen gegangen. Und ganz ehrlich: vielleicht bist du damit am Ende die schlauste Person von allen.' },
+  ];
+
+  // Persönlichkeits-Option: Text, Kira-Nähe (0..1), Punkte je Dimension,
+  // welche Figuren so antworten würden, Kommentar danach.
+  const o = (t, k, d, who, r) => ({ t, k, d, who: who.split(' '), r });
+
+  const Q = [
+    { type: 'p', text: 'Auf dem Schulhof liegt ein schwarzes Notizbuch. Niemand ist in der Nähe. Was machst du?', opts: [
+      o('Mitnehmen, zu Hause in Ruhe die Regeln lesen und erst mal testen, ob da was dran ist.', 1, { iq: 1, plan: 2 }, 'light l near mello', 'Light-Move. Genau so hat alles angefangen.'),
+      o('Ab damit ins Fundbüro. Gehört ja irgendwem.', 0, { just: 0.5 }, 'soichiro matsuda mikami', 'Soichiro Yagami wäre sehr stolz auf dich.'),
+      o('Foto machen, Story posten: „wer hat sein Notizbuch verloren lol“.', 0, {}, 'misa', 'Ryuk: Hyuk hyuk. Content ist Content.'),
+      o('Liegen lassen. Schwarze Notizbücher auf Schulhöfen bedeuten nie was Gutes.', 0.3, { iq: 1 }, 'ryuk', 'Gesunder Instinkt. Die meisten Horrorfilme wären damit nach fünf Minuten vorbei.'),
+    ] },
+
+    { type: 'l', text: 'Welche Zahl kommt als Nächstes?', seq: '2 · 6 · 12 · 20 · 30 · ?',
+      opts: ['36', '40', '42', '44'], a: 2, time: 30,
+      why: 'Die Abstände wachsen immer um 2: +4, +6, +8, +10, also als Nächstes +12. Anders gesagt: 1·2, 2·3, 3·4, 4·5, 5·6, 6·7.' },
+
+    { type: 'p', text: 'Gruppenprojekt in der Schule. Welche Rolle übernimmst du?', opts: [
+      o('Ich verteile die Aufgaben so geschickt, dass am Ende alle denken, es war ihre eigene Idee.', 1, { plan: 2, mask: 2, ego: 1.5 }, 'light near', 'Unsichtbar die Fäden ziehen. Sehr, sehr Kira.'),
+      o('Ich mach am Ende eh alles alleine, weil es sonst nix wird.', 0.6, { ego: 1.5, plan: 1 }, 'l mello mikami', 'Kontrollfreak-Energie. Light nickt anerkennend.'),
+      o('Ich mach meinen Teil. Pünktlich und fair.', 0.2, { just: 0.5, plan: 1 }, 'soichiro matsuda misa', 'Solide. Genau solche Leute sucht die Task Force.'),
+      o('Moment, wir haben ein Gruppenprojekt?', 0, {}, 'ryuk', 'Ryuk: Hyuk. Ich mag dich.'),
+    ] },
+
+    { type: 'p', text: 'Der Lehrer erwischt dich mit dem Handy unter dem Tisch. Was passiert als Nächstes?', opts: [
+      o('Pokerface. Ich hab eine glaubwürdige Erklärung, bevor er den Satz zu Ende gesprochen hat.', 1, { mask: 2, iq: 1 }, 'light near', 'Null Schweiß. Das ist lowkey beunruhigend.'),
+      o('Ich werd knallrot und stammel irgendwas.', 0, {}, 'matsuda misa', 'Matsuda-Moment. Passiert den Besten.'),
+      o('Ich geb es direkt zu. Lügen lohnt sich eh nicht.', 0.1, { just: 0.5 }, 'soichiro mikami', 'Ehrlich und gerade. Kira findet das langweilig.'),
+      o('Ich stell so lange Gegenfragen, bis er vergessen hat, worum es eigentlich ging.', 0.6, { mask: 1, iq: 1, ego: 0.5 }, 'l mello ryuk', 'L macht das auch. Nur mit mehr Zucker.'),
+    ] },
+
+    { type: 'l', text: 'Ein Apfel und ein Notizbuch kosten zusammen 1,10 €. Das Notizbuch kostet genau 1 € mehr als der Apfel. Was kostet der Apfel?',
+      opts: ['10 Cent', '5 Cent', '1 Cent', '55 Cent'], a: 1, time: 35,
+      why: 'Apfel = x, Notizbuch = x + 1 €. Zusammen 2x + 1 € = 1,10 €, also x = 5 Cent. Wer 10 Cent sagt, landet bei 1,20 €. Auf den Klassiker fallen fast alle rein.' },
+
+    { type: 'p', text: 'Du spielst Schach oder irgendein Strategiespiel. Wie spielst du?', opts: [
+      o('Ich denke mehrere Züge voraus und opfere auch mal eine Figur, wenn es sich später auszahlt.', 1, { plan: 2, iq: 1, ego: 1 }, 'light l near', 'Kleine Opfer, großer Plan. Klassisches Kira-Denken.'),
+      o('Angriff. Immer. Verteidigung ist was für Feiglinge.', 0.3, { ego: 1.5 }, 'mello misa', 'Mello-Vibes. Viel Mut, wenig Plan.'),
+      o('Ich schau, was mein Gegner macht, und reagiere darauf.', 0.3, { plan: 1 }, 'soichiro mikami', 'Sicher gespielt. Aber auch gut vorhersehbar.'),
+      o('Wie läuft nochmal das Pferd?', 0, {}, 'matsuda ryuk', 'Ryuk: Äpfel sind einfacher.'),
+    ] },
+
+    { type: 'p', text: 'Jemand aus deiner Klasse schreibt dauernd ab und kriegt dafür bessere Noten als du. Was machst du?', opts: [
+      o('Das ist unfair. Regeln gelten für alle, also sag ich es dem Lehrer.', 0.5, { just: 1.5 }, 'soichiro matsuda', 'Klarer Gerechtigkeitssinn. Ohne Umwege.'),
+      o('Ich sammle ganz leise Beweise und warte auf den perfekten Moment.', 1, { just: 2, plan: 2, mask: 1.5 }, 'light near mikami', 'Geduldig, gerecht, gefährlich. Sehr Kira.'),
+      o('Nicht mein Problem, solange niemand bei mir abschreibt.', 0, {}, 'l ryuk', 'Entspannt. Vielleicht ein bisschen zu entspannt.'),
+      o('Ich sag es der Person vor der ganzen Klasse ins Gesicht.', 0.3, { just: 1, ego: 1.5 }, 'mello misa', 'Mutig. Aber Kira arbeitet nie vor Publikum.'),
+    ] },
+
+    { type: 'l', text: '5 Ermittler brauchen 5 Minuten, um 5 Akten durchzugehen. Wie lange brauchen 100 Ermittler für 100 Akten?',
+      opts: ['1 Minute', '5 Minuten', '20 Minuten', '100 Minuten'], a: 1, time: 30,
+      why: 'Jeder Ermittler schafft eine Akte in 5 Minuten. 100 Ermittler arbeiten gleichzeitig an 100 Akten, also bleibt es bei 5 Minuten.' },
+
+    { type: 'p', text: 'Mal ehrlich: Wie schlau bist du im Vergleich zu den Leuten um dich herum?', opts: [
+      o('Schlauer als die meisten. Aber das sag ich natürlich nicht laut.', 1, { ego: 2, mask: 2 }, 'light near mikami', 'Stilles Selbstbewusstsein. Das Markenzeichen von Light.'),
+      o('Ich bin die Nummer eins, und das darf ruhig jeder wissen.', 0.5, { ego: 2 }, 'l mello misa', 'Main-Character-Energie. Mello bietet dir gerade Schoki an.'),
+      o('Irgendwo im Mittelfeld. Passt schon.', 0.1, { ego: 0.5 }, 'soichiro ryuk', 'Gesund. Fast schon verdächtig gesund.'),
+      o('Die anderen sind eh alle schlauer als ich.', 0, {}, 'matsuda', 'L notiert: unterschätzt sich. Das tun übrigens oft die Schlauen.'),
+    ] },
+
+    { type: 'm' },
+
+    { type: 'p', text: 'Du hast ein Geheimnis, das wirklich niemand erfahren darf. Wie lange hält es?', opts: [
+      o('Für immer. Und niemand merkt überhaupt, dass es ein Geheimnis gibt.', 1, { mask: 2, plan: 1 }, 'light l near mikami', 'Nicht mal Ryuk würde was merken.'),
+      o('Bis zur nächsten Pause. Dann weiß es die halbe Schule.', 0, {}, 'matsuda ryuk', 'Wild. Aber wenigstens ehrlich.'),
+      o('Ich erzähl es nur meiner besten Freundin oder meinem besten Freund. Die Person ist ja safe.', 0.2, { mask: 0.5 }, 'misa', 'So fliegen ungefähr 90 % aller Geheimnisse auf.'),
+      o('Ich halt dicht, aber man sieht mir an, dass was ist.', 0.4, { mask: 1 }, 'soichiro mello', 'Mund zu, Gesicht offen. L hätte es in fünf Minuten raus.'),
+    ] },
+
+    { type: 'l', text: 'Alle Shinigami mögen Äpfel. Tobi mag Äpfel. Folgt daraus zwingend, dass Tobi ein Shinigami ist?',
+      opts: ['Ja, das folgt zwingend.', 'Nein, das folgt nicht zwingend.', 'Nur wenn Tobi Flügel hat.'], a: 1, time: 25,
+      why: 'Der erste Satz sagt nur: Wer Shinigami ist, mag Äpfel. Umgekehrt gilt das nicht. Tobi kann genauso gut ein Mensch mit gutem Geschmack sein.' },
+
+    { type: 'p', text: 'Du musst etwas heimlich erledigen, aber in deinem Zimmer könnten versteckte Kameras hängen. Was machst du?', opts: [
+      o('Ich versteck alles in einer Chipstüte und esse dabei ganz entspannt Chips.', 1, { plan: 2, mask: 2, iq: 1, ego: 1 }, 'light mikami', 'Die Chipstüten-Szene. Absolut legendär.'),
+      o('Ich kleb die Kameras ab. Völlig unauffällig.', 0.2, { plan: 0.5 }, 'matsuda misa', 'L: Die Wahrscheinlichkeit ist gerade um 3 % gestiegen.'),
+      o('Ich lass es einfach. Zu riskant.', 0.3, { plan: 1 }, 'soichiro l near', 'Vernünftig. Langweilig, aber vernünftig.'),
+      o('Ich mach es einfach. Wer guckt sich bitte die ganzen Aufnahmen an?', 0.1, { ego: 1 }, 'mello ryuk', 'Spoiler: L guckt sich alle an. Wirklich alle.'),
+    ] },
+
+    { type: 'p', text: 'Nächste Woche ist eine richtig wichtige Prüfung. Wie bereitest du dich vor?', opts: [
+      o('Mit Plan: jeden Tag ein Thema, am Ende alte Prüfungen unter Zeitdruck.', 1, { plan: 2, iq: 1, ego: 1 }, 'light mikami soichiro mello', 'Musterschüler-Modus. Light war landesweit auf Platz eins.'),
+      o('Gar nicht. Ich versteh es einfach.', 0.5, { ego: 2, iq: 1 }, 'l near', 'Bold. Entweder Genie oder Drama.'),
+      o('Die Nacht davor alles reinprügeln.', 0.1, {}, 'matsuda misa', 'Klassiker. Funktioniert erstaunlich oft.'),
+      o('Ich hoffe einfach auf das Beste.', 0, {}, 'ryuk', 'Ryuk: Hoffen ist auch eine Strategie. Eine schlechte.'),
+    ] },
+
+    { type: 'l', text: 'Die Seerosen auf einem Teich verdoppeln ihre Fläche jeden Tag. Nach 48 Tagen ist der ganze Teich bedeckt. Nach wie vielen Tagen war er halb bedeckt?',
+      opts: ['24', '36', '46', '47'], a: 3, time: 30,
+      why: 'Wenn sich die Fläche jeden Tag verdoppelt, war der Teich einen Tag vor dem Ende halb voll: Tag 47.' },
+
+    { type: 'p', text: 'Du schaust die Nachrichten. Was denkst du dir?', opts: [
+      o('Die Welt ist ziemlich kaputt. Jemand müsste das endlich mal in Ordnung bringen.', 1, { just: 2, ego: 1.5 }, 'light mikami', '„Diese Welt ist verrottet.“ Genau so hat Light auch angefangen.'),
+      o('Ist alles kompliziert. Erst verstehen, dann urteilen.', 0.4, { iq: 1, plan: 0.5, just: 0.5 }, 'l near soichiro', 'L-Denken. Erst die Fakten, dann die Meinung.'),
+      o('Läuft doch. Irgendwie.', 0, {}, 'matsuda mello', 'Entspannt. Kira hätte das nie gesagt.'),
+      o('Nachrichten? Ich schau nur TikTok.', 0, {}, 'misa ryuk', 'Ryuk scrollt mit. Hyuk hyuk.'),
+    ] },
+
+    { type: 'l', text: 'Drei Verdächtige, genau eine Person ist Kira. Kira lügt, die anderen beiden sagen die Wahrheit. Wer ist Kira?',
+      lines: [['Anna', '„Chris ist nicht Kira.“'], ['Ben', '„Anna ist Kira.“'], ['Chris', '„Ben lügt.“']],
+      opts: ['Anna', 'Ben', 'Chris'], a: 1, time: 60,
+      why: 'Wäre Anna Kira, wäre ihr Satz gelogen, also wäre auch Chris Kira. Zwei Kiras gibt es nicht. Wäre Chris Kira, hätte Anna gelogen, obwohl sie unschuldig ist. Bleibt Ben: Er lügt über Anna, und Chris sagt zu Recht, dass Ben lügt.' },
+
+    { type: 'p', text: 'Jemand ist genauso schlau wie du und will dich unbedingt durchschauen. Dein Move?', opts: [
+      o('Ich freunde mich mit der Person an. Freunde nah, Rivalen noch näher.', 1, { mask: 2, plan: 2, ego: 1.5 }, 'light', 'Light und L beim Tennis. Exakt so.'),
+      o('Ich zeig direkt, wer hier die Nummer eins ist.', 0.4, { ego: 2 }, 'mello mikami', 'Offener Kampf. Mutig, aber leicht zu lesen.'),
+      o('Ich geh der Person einfach aus dem Weg.', 0, {}, 'matsuda misa soichiro', 'Wirkt leider maximal verdächtig.'),
+      o('Endlich jemand auf meinem Level. Ich will einfach nur mit der Person reden.', 0.3, { iq: 1 }, 'l near ryuk', 'Das ist wholesome. Und sehr L.'),
+    ] },
+
+    { type: 'p', text: 'Letzte Frage. Wie siehst du Gut und Böse?', opts: [
+      o('Es gibt klar richtig und falsch. Und ich weiß ziemlich genau, was richtig ist.', 1, { just: 2, ego: 2 }, 'light mikami misa', '„Ich bin die Gerechtigkeit.“ Kira hätte das unterschrieben.'),
+      o('Alles ist grau. Es kommt immer auf die Situation an.', 0.2, { iq: 1, plan: 0.5 }, 'l near mello', 'Differenziert. Near würde zustimmen.'),
+      o('Regeln sind Regeln. Die gelten für alle, auch für mich.', 0.3, { just: 1.5 }, 'soichiro matsuda', 'Soichiro-Energie. Ehrlich und gerade.'),
+      o('Keine Ahnung, ich bin eher so der Chiller.', 0, {}, 'ryuk', 'Ryuk: Beste Antwort des Tages.'),
+    ] },
+  ];
+
+  const MEM_POOL = ['Apfel', 'Uhr', 'Schlüssel', 'Kuli', 'Chipstüte', 'Handy', 'Tasse', 'Brille', 'Würfel', 'Kopfhörer', 'Radiergummi', 'Zuckerwürfel'];
+  const MEM_ITEMS = 7;
+  const MEM_SECONDS = 7;
+
+  const LINES_RIGHT = [
+    'Richtig. L hebt kurz eine Augenbraue.',
+    'Korrekt. Light wäre stolz. Oder neidisch.',
+    'Stimmt. Die Task Force macht sich Notizen.',
+    'Richtig. Near legt kurz sein Puzzle weg.',
+    'Sauber gelöst. Watari bringt dir Tee.',
+  ];
+  const LINES_WRONG = [
+    'Falsch. Ryuk lacht sich kaputt.',
+    'Leider daneben. Matsuda hätte dasselbe getippt.',
+    'Nope. L isst deswegen jetzt ein extra Stück Kuchen.',
+    'Knapp vorbei ist auch vorbei.',
+  ];
+  const LINES_TIMEOUT = [
+    'Zeit abgelaufen. Kira hätte längst geantwortet.',
+    'Zu langsam. L hat in der Zeit drei Stück Kuchen gegessen.',
+  ];
+
+  const N_LOGIC = Q.filter(q => q.type === 'l').length;
+  const N_PERS = Q.filter(q => q.type === 'p').length;
+
+  // ------------------------------------------------------------- Helpers
+
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function roman(n) {
+    const map = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+    let s = '';
+    for (const [v, r] of map) while (n >= v) { s += r; n -= v; }
+    return s;
+  }
+
+  const clockText = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  // "Ryuk: Text" → Sprecher als kleines Label
+  const speaker = r => r.replace(/^([A-ZÄÖÜ][a-zäöüß]*): /, '<span class="who">$1</span>');
+
+  const store = {
+    get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } },
+    set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* egal */ } },
+  };
+  const KEY_LAST = 'kira-test:last';
+  const KEY_NAME = 'kira-test:name';
+
+  // --------------------------------------------------------------- State
+
+  const state = {
+    screen: 'intro',
+    name: '',
+    idx: 0,
+    answers: [],
+    perm: [],
+    mem: null,
+    locked: false,
+    shareText: '',
+  };
+
+  let raf = 0;
+  let timeouts = [];
+  let timeLeft = null;
+
+  function clearTimers() {
+    cancelAnimationFrame(raf);
+    raf = 0;
+    timeouts.forEach(clearTimeout);
+    timeouts = [];
+    timeLeft = null;
+  }
+
+  function runClock(seconds, onDone) {
+    const t0 = performance.now();
+    const dur = seconds * 1000;
+    const bar = $('#timer');
+    const fill = bar && bar.firstElementChild;
+    const label = $('#secs');
+    const left = () => Math.max(0, 1 - (performance.now() - t0) / dur);
+    const step = () => {
+      const l = left();
+      const secs = Math.ceil(l * seconds);
+      if (fill) fill.style.transform = `scaleX(${l})`;
+      if (bar) bar.classList.toggle('low', secs <= 5);
+      if (label) label.textContent = clockText(secs);
+      if (l <= 0) { raf = 0; onDone(); return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return left;
+  }
+
+  function newGame() {
+    state.idx = 0;
+    state.answers = [];
+    state.mem = null;
+    // Auch die Rätsel werden gemischt, sonst lernt man einfach „meistens B“.
+    state.perm = Q.map(q => (q.opts ? shuffle(q.opts.map((_, i) => i)) : null));
+  }
+
+  function show(html) {
+    $app.innerHTML = html;
+    window.scrollTo(0, 0);
+  }
+
+  // --------------------------------------------------------------- Intro
+
+  function renderIntro() {
+    clearTimers();
+    state.screen = 'intro';
+    const last = store.get(KEY_LAST);
+    show(`
+      <section class="screen intro">
+        <div>
+          <p class="eyebrow">Death Note · Persönlichkeitstest</p>
+          <h1 class="title">Bist du Kira?</h1>
+          <p class="lede">${Q.length} Fragen über Logik, Strategie und Pokerface. Am Ende rechnet L aus, zu wie viel Prozent du Kira bist.</p>
+        </div>
+
+        <form class="start" id="start" novalidate>
+          <label class="label" for="codename">Dein Deckname</label>
+          <input id="codename" name="codename" type="text" maxlength="24" autocomplete="nickname" placeholder="z. B. Ryuzaki" value="${esc(state.name)}">
+          <p class="hint">Echte Namen gibt man hier nicht an. Frag mal L.</p>
+          <button class="btn" type="submit">Test starten</button>
+        </form>
+
+        <section class="rules" aria-labelledby="rules-h">
+          <h2 class="rules-h" id="rules-h">How to use it</h2>
+          <ol class="roman">
+            <li>Antworte ehrlich. L merkt, wenn du schummelst.</li>
+            <li>${N_LOGIC} Logikrätsel laufen auf Zeit. Wer schnell ist, kriegt Bonuspunkte.</li>
+            <li>Einmal musst du dir einen Schreibtisch merken. Details entscheiden.</li>
+            <li>Niemandem passiert hier was. Es geht nur darum, wie du denkst.</li>
+          </ol>
+        </section>
+
+        ${last && typeof last.pct === 'number'
+          ? `<p class="last">Letztes Ergebnis: ${last.pct} % Kira · ${esc(last.tier || '')}</p>`
+          : ''}
+      </section>`);
+  }
+
+  // ------------------------------------------------------------ Question
+
+  function header(i, chip) {
+    return `
+      <header class="qhead">
+        <div class="progress" aria-hidden="true"><i style="width:${(i / Q.length) * 100}%"></i></div>
+        <div class="qmeta">
+          <span class="qnum" aria-hidden="true">${roman(i + 1)}</span>
+          <span class="count">Frage ${i + 1} von ${Q.length}</span>
+          ${chip}
+        </div>
+      </header>`;
+  }
+
+  function optButtons(labels) {
+    return `<div class="opts">${labels.map(([value, text], n) =>
+      `<button type="button" class="opt" data-opt="${value}"><span class="key">${'ABCD'[n]}</span><span>${text}</span></button>`
+    ).join('')}</div>`;
+  }
+
+  function renderQuestion() {
+    clearTimers();
+    state.screen = 'q';
+    state.locked = false;
+    const i = state.idx;
+    const q = Q[i];
+
+    if (q.type === 'm') return renderMemory();
+
+    if (q.type === 'p') {
+      const labels = state.perm[i].map(j => [j, q.opts[j].t]);
+      show(`
+        <section class="screen">
+          ${header(i, '<span class="chip">Persönlichkeit</span>')}
+          <h2 class="q-text" tabindex="-1">${q.text}</h2>
+          ${optButtons(labels)}
+          <div class="after" id="after" aria-live="polite"></div>
+        </section>`);
+    } else {
+      const labels = state.perm[i].map(j => [j, q.opts[j]]);
+      const statements = q.lines
+        ? `<ul class="statements">${q.lines.map(([who, said]) => `<li><b>${who}</b><span>${said}</span></li>`).join('')}</ul>`
+        : '';
+      const seq = q.seq ? `<p class="seq">${q.seq}</p>` : '';
+      show(`
+        <section class="screen">
+          ${header(i, '<span class="chip chip-hot">Logik · auf Zeit</span>')}
+          <div class="clock">
+            <div class="timer" id="timer"><i></i></div>
+            <span class="secs" id="secs">${clockText(q.time)}</span>
+          </div>
+          <h2 class="q-text" tabindex="-1">${q.text}</h2>
+          ${seq}${statements}
+          ${optButtons(labels)}
+          <div class="after" id="after" aria-live="polite"></div>
+        </section>`);
+      timeLeft = runClock(q.time, () => answerLogic(-1));
+    }
+    const h = $('.q-text');
+    if (h) h.focus({ preventScroll: true });
+  }
+
+  function lockOptions(decorate) {
+    $app.querySelectorAll('[data-opt]').forEach(btn => {
+      btn.disabled = true;
+      decorate(btn, btn.dataset.opt);
+    });
+  }
+
+  function showAfter(html) {
+    const last = state.idx === Q.length - 1;
+    const after = $('#after');
+    after.innerHTML = `${html}<button type="button" class="btn" data-next>${last ? 'Auswerten' : 'Weiter'}</button>`;
+    after.querySelector('[data-next]').focus();
+  }
+
+  function answerPersonality(j) {
+    if (state.locked) return;
+    state.locked = true;
+    const q = Q[state.idx];
+    state.answers[state.idx] = { opt: j };
+    lockOptions((btn, v) => btn.classList.add(Number(v) === j ? 'picked' : 'dim'));
+    showAfter(`<p class="react">${speaker(q.opts[j].r)}</p>`);
+  }
+
+  function answerLogic(j) {
+    if (state.locked) return;
+    state.locked = true;
+    const q = Q[state.idx];
+    const left = j < 0 || !timeLeft ? 0 : timeLeft();
+    clearTimers();
+    const correct = j === q.a;
+    state.answers[state.idx] = { opt: j, correct, left, secs: Math.round(q.time * (1 - left)) };
+    lockOptions((btn, v) => {
+      const n = Number(v);
+      if (n === q.a) btn.classList.add('right');
+      else if (n === j) btn.classList.add('wrong');
+      else btn.classList.add('dim');
+    });
+    const line = j < 0 ? pick(LINES_TIMEOUT) : correct ? pick(LINES_RIGHT) : pick(LINES_WRONG);
+    showAfter(`<p class="verdict ${correct ? 'ok' : 'no'}">${line}</p><p class="why">${q.why}</p>`);
+  }
+
+  // ------------------------------------------------ Detail-Test (Türtrick)
+
+  function setupMemory() {
+    const pool = shuffle(MEM_POOL.slice());
+    const items = pool.slice(0, MEM_ITEMS);
+    const unseen = pool.slice(MEM_ITEMS);
+    const cells = shuffle([...items, ...Array(9 - MEM_ITEMS).fill(null)]);
+    const filled = cells.map((c, i) => (c ? i : -1)).filter(i => i >= 0);
+    const missCell = pick(filled);
+    const missing = cells[missCell];
+    // Die falschen Antworten lagen nie auf dem Tisch. Sonst könnte man
+    // einfach nachzählen, was noch da ist.
+    return { cells, missCell, missing, opts: shuffle([missing, ...unseen.slice(0, 3)]), phase: 'show' };
+  }
+
+  function desk(cells, hide) {
+    const visible = cells.filter((c, i) => c && i !== hide);
+    return `<div class="desk" role="img" aria-label="Auf dem Schreibtisch: ${visible.join(', ')}">${
+      cells.map((c, i) => (c && i !== hide
+        ? `<div class="slot"><span class="item" lang="de">${c}</span></div>`
+        : '<div class="slot empty"></div>')).join('')
+    }</div>`;
+  }
+
+  function renderMemory() {
+    const i = state.idx;
+    if (!state.mem) state.mem = setupMemory();
+    const m = state.mem;
+    const chip = '<span class="chip chip-hot">Detail-Test</span>';
+
+    if (m.phase === 'show') {
+      show(`
+        <section class="screen">
+          ${header(i, chip)}
+          <h2 class="q-text" tabindex="-1">Light klemmt ein Stück Papier in seine Zimmertür. So merkt er sofort, ob jemand drin war. Wie gut achtest du auf Details?</h2>
+          <p class="sub">Merk dir den Schreibtisch. Du hast ${MEM_SECONDS} Sekunden.</p>
+          <div class="clock">
+            <div class="timer" id="timer"><i></i></div>
+            <span class="secs" id="secs">${clockText(MEM_SECONDS)}</span>
+          </div>
+          ${desk(m.cells, -1)}
+          <div class="after"><button type="button" class="btn btn-ghost" data-memdone>Hab’s mir gemerkt</button></div>
+        </section>`);
+      timeLeft = runClock(MEM_SECONDS, memoryAsk);
+    } else {
+      show(`
+        <section class="screen">
+          ${header(i, chip)}
+          <h2 class="q-text" tabindex="-1">Jemand war an deinem Schreibtisch. Ein Gegenstand fehlt jetzt. Welcher?</h2>
+          ${desk(m.cells, m.missCell)}
+          ${optButtons(m.opts.map((t, j) => [j, t]))}
+          <div class="after" id="after" aria-live="polite"></div>
+        </section>`);
+    }
+    const h = $('.q-text');
+    if (h) h.focus({ preventScroll: true });
+  }
+
+  function memoryAsk() {
+    clearTimers();
+    state.mem.phase = 'ask';
+    state.locked = false;
+    renderMemory();
+  }
+
+  function answerMemory(j) {
+    if (state.locked) return;
+    state.locked = true;
+    const m = state.mem;
+    const correct = m.opts[j] === m.missing;
+    state.answers[state.idx] = { opt: j, correct };
+    lockOptions((btn, v) => {
+      const n = Number(v);
+      if (m.opts[n] === m.missing) btn.classList.add('right');
+      else if (n === j) btn.classList.add('wrong');
+      else btn.classList.add('dim');
+    });
+    showAfter(correct
+      ? '<p class="verdict ok">Detail-Blick bestätigt. Das Papier in der Tür hättest du auch bemerkt.</p>'
+      : `<p class="verdict no">Knapp. Gefehlt hat: ${m.missing}. Light hätte es gesehen.</p>`);
+  }
+
+  function next() {
+    if (state.idx >= Q.length - 1) return renderAnalysis();
+    state.idx += 1;
+    renderQuestion();
+  }
+
+  // ------------------------------------------------------------- Scoring
+
+  function score(answers) {
+    const sum = {};
+    const max = {};
+    DIMS.forEach(([d]) => { sum[d] = 0; max[d] = 0; });
+    const agree = {};
+    Object.keys(CHARS).forEach(c => { agree[c] = 0; });
+    let kira = 0;
+    let brain = 0;
+    let brainN = 0;
+    let solved = 0;
+    let memOk = false;
+    let fastest = Infinity;
+
+    Q.forEach((q, i) => {
+      const a = answers[i] || { opt: -1, correct: false, left: 0 };
+      if (q.type === 'p') {
+        DIMS.forEach(([d]) => { max[d] += Math.max(0, ...q.opts.map(x => x.d[d] || 0)); });
+        const opt = q.opts[a.opt];
+        if (!opt) return;
+        DIMS.forEach(([d]) => { sum[d] += opt.d[d] || 0; });
+        kira += opt.k;
+        opt.who.forEach(c => { agree[c] += 1; });
+        return;
+      }
+      // Rätsel und Detail-Test zählen auf den Intellekt.
+      // Schnelle Lösung (in der ersten Hälfte der Zeit) gibt volle Punkte.
+      let s = 0;
+      if (a.correct) s = q.type === 'm' ? 1 : 0.85 + 0.15 * Math.min(1, (a.left || 0) * 2);
+      max.iq += 2;
+      sum.iq += 2 * s;
+      brain += s;
+      brainN += 1;
+      if (q.type === 'm') memOk = !!a.correct;
+      else if (a.correct) { solved += 1; fastest = Math.min(fastest, a.secs); }
+    });
+
+    const dims = {};
+    DIMS.forEach(([d]) => { dims[d] = max[d] ? sum[d] / max[d] : 0; });
+    const b = brainN ? brain / brainN : 0;
+    const pct = Math.max(0, Math.min(100, Math.round(100 * (0.7 * (kira / N_PERS) + 0.3 * b))));
+
+    let twin = 'light';
+    let best = -Infinity;
+    Object.entries(CHARS).forEach(([id, c]) => {
+      const s = agree[id] + 3 * (1 - Math.abs(b - c.brain));
+      if (s > best) { best = s; twin = id; }
+    });
+
+    return { dims, pct, twin, agree: agree[twin], solved, memOk, fastest };
+  }
+
+  // So würde Light selbst abschneiden: Referenz für die roten Markierungen.
+  const KIRA_DIMS = score(Q.map(q => {
+    if (q.type === 'p') return { opt: q.opts.findIndex(x => x.k === 1) };
+    return { opt: q.a, correct: true, left: 1, secs: 0 };
+  })).dims;
+
+  // ------------------------------------------------------------- Analyse
+
+  function renderAnalysis() {
+    clearTimers();
+    state.screen = 'analysis';
+    show(`
+      <section class="screen">
+        <div class="lscreen" aria-hidden="true"><span class="bigL">L</span></div>
+        <ul class="log" id="log" aria-live="polite"></ul>
+      </section>`);
+    const lines = [
+      'Antworten werden mit der Akte KIRA abgeglichen …',
+      'Pokerface wird vermessen …',
+      'Chipstüten werden gezählt …',
+      'Wahrscheinlichkeit berechnet.',
+    ];
+    const log = $('#log');
+    lines.forEach((text, n) => {
+      timeouts.push(setTimeout(() => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        if (n === lines.length - 1) li.className = 'done';
+        log.append(li);
+      }, 300 + n * 650));
+    });
+    timeouts.push(setTimeout(renderResult, 300 + lines.length * 650 + 450));
+  }
+
+  // ------------------------------------------------------------ Ergebnis
+
+  function renderResult() {
+    clearTimers();
+    state.screen = 'result';
+    const r = score(state.answers);
+    const tier = TIERS.find(t => r.pct >= t.min);
+    const twin = CHARS[r.twin];
+    const name = state.name;
+
+    state.shareText = `Kira-Test: ${name ? `${name} ist` : 'Ich bin'} zu ${r.pct} % Kira. Stufe: ${tier.title}. Death-Note-Zwilling: ${twin.name}. Und du?`;
+    store.set(KEY_LAST, { pct: r.pct, tier: tier.title });
+
+    const bars = DIMS.map(([d, label]) => {
+      const v = Math.round(r.dims[d] * 100);
+      const k = Math.round(KIRA_DIMS[d] * 100);
+      return `
+        <div class="bar">
+          <span class="bar-label">${label}</span>
+          <span class="track" role="img" aria-label="${label}: ${v} von 100, Kira: ${k}">
+            <span class="fill" style="width:${v}%"></span>
+            <span class="tick" style="left:${k}%"></span>
+          </span>
+          <span class="bar-val">${v}</span>
+        </div>`;
+    }).join('');
+
+    show(`
+      <section class="screen result">
+        <p class="eyebrow">Auswertung · Akte ${esc(name || 'Unbekannt')}</p>
+        <p class="verdict-lead">${name ? `${esc(name)} ist` : 'Du bist'} zu</p>
+        <p class="pct" aria-label="${r.pct} Prozent"><span id="pct">${r.pct}</span><small>%</small></p>
+        <p class="kira-word">Kira.</p>
+
+        <h2 class="tier">${tier.title}</h2>
+        <p class="tier-text">${tier.text}</p>
+
+        <section class="block">
+          <h3 class="block-h">Dein Profil</h3>
+          <div class="bars">${bars}</div>
+          <p class="legend"><i aria-hidden="true"></i>So würde Light selbst abschneiden</p>
+        </section>
+
+        <section class="block">
+          <h3 class="block-h">Dein Death-Note-Zwilling</h3>
+          <p class="twin-name">${twin.name}</p>
+          <p class="twin-meta">${r.agree} von ${N_PERS} Antworten wie ${twin.name}</p>
+          <p class="twin-text">${twin.text}</p>
+        </section>
+
+        <section class="block">
+          <h3 class="block-h">Logik</h3>
+          <dl class="stats">
+            <div><dt>Rätsel gelöst</dt><dd>${r.solved}/${N_LOGIC}</dd></div>
+            <div><dt>Detail-Test</dt><dd>${r.memOk ? 'bestanden' : 'verpasst'}</dd></div>
+            <div><dt>Schnellste Lösung</dt><dd>${Number.isFinite(r.fastest) ? `${Math.max(1, r.fastest)} s` : '–'}</dd></div>
+          </dl>
+        </section>
+
+        <div class="actions">
+          <button type="button" class="btn" data-copy>Ergebnis kopieren</button>
+          <button type="button" class="btn btn-ghost" data-restart>Nochmal spielen</button>
+        </div>
+        <textarea id="share-text" readonly hidden aria-label="Ergebnis zum Kopieren"></textarea>
+
+        <p class="foot">Nur Spaß. Kein Notizbuch wurde benutzt.</p>
+      </section>`);
+
+    countUp($('#pct'), r.pct);
+  }
+
+  function countUp(el, to) {
+    if (reduceMotion || !el) return;
+    const t0 = performance.now();
+    const dur = 1300;
+    const step = now => {
+      const p = Math.min(1, (now - t0) / dur);
+      el.textContent = Math.round((1 - Math.pow(1 - p, 3)) * to);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+
+  function copyResult(btn) {
+    const text = state.shareText;
+    const done = () => {
+      btn.textContent = 'Kopiert';
+      timeouts.push(setTimeout(() => { btn.textContent = 'Ergebnis kopieren'; }, 1800));
+    };
+    const fallback = () => {
+      const ta = $('#share-text');
+      ta.hidden = false;
+      ta.value = text;
+      ta.focus();
+      ta.select();
+      btn.textContent = 'Text markiert';
+    };
+    try {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } catch (e) {
+      fallback();
+    }
+  }
+
+  // -------------------------------------------------------------- Events
+
+  $app.addEventListener('submit', e => {
+    if (e.target.id !== 'start') return;
+    e.preventDefault();
+    state.name = e.target.codename.value.trim().slice(0, 24);
+    store.set(KEY_NAME, state.name);
+    newGame();
+    renderQuestion();
+  });
+
+  $app.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn || btn.disabled) return;
+    if (btn.dataset.opt !== undefined) {
+      const j = Number(btn.dataset.opt);
+      const q = Q[state.idx];
+      if (q.type === 'p') answerPersonality(j);
+      else if (q.type === 'l') answerLogic(j);
+      else answerMemory(j);
+    } else if ('next' in btn.dataset) {
+      next();
+    } else if ('memdone' in btn.dataset) {
+      memoryAsk();
+    } else if ('copy' in btn.dataset) {
+      copyResult(btn);
+    } else if ('restart' in btn.dataset) {
+      renderIntro();
+    }
+  });
+
+  // 1–4 oder A–D wählt eine Antwort, Enter geht weiter.
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    const key = e.key.toLowerCase();
+    let n = '1234'.indexOf(key);
+    if (n < 0 && key.length === 1) n = 'abcd'.indexOf(key);
+    if (n >= 0) {
+      const btn = $app.querySelectorAll('[data-opt]:not(:disabled)')[n];
+      if (btn) { e.preventDefault(); btn.click(); }
+      return;
+    }
+    if (e.key === 'Enter' && document.activeElement && document.activeElement.tagName !== 'BUTTON') {
+      const nx = $app.querySelector('[data-next], [data-memdone]');
+      if (nx) { e.preventDefault(); nx.click(); }
+    }
+  });
+
+  // --------------------------------------------------------------- Start
+
+  function snapshot() {
+    return {
+      v: 1,
+      screen: state.screen === 'analysis' ? 'result' : state.screen,
+      name: state.name,
+      idx: state.idx,
+      answers: state.answers,
+      perm: state.perm,
+      mem: state.mem,
+    };
+  }
+
+  function start(data) {
+    const saved = data && data.s;
+    const name = store.get(KEY_NAME);
+    state.name = typeof name === 'string' ? name : '';
+    if (saved && saved.v === 1 && Array.isArray(saved.perm) && saved.perm.length === Q.length) {
+      Object.assign(state, {
+        name: saved.name || '',
+        idx: Math.min(saved.idx || 0, Q.length - 1),
+        answers: saved.answers || [],
+        perm: saved.perm,
+        mem: saved.mem || null,
+      });
+      if (saved.screen === 'result') return renderResult();
+      if (saved.screen === 'q') return renderQuestion();
+    }
+    renderIntro();
+  }
+
+  try {
+    if (window.claude && window.claude.hot && window.claude.hot.snapshot) {
+      window.claude.hot.snapshot(() => ({ s: snapshot() }));
+    }
+  } catch (e) { /* ohne Hot-Reload geht's genauso */ }
+
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.ready) hot.ready(start);
+  else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>
