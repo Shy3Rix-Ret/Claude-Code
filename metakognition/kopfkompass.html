@@ -1,0 +1,614 @@
+<title>Kopfkompass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --sunken:#F5F7F9; --ink:#141A24; --muted:#5A6474; --line:#D5DBE3;
+  --accent:#1F6F63; --accent-ink:#FFFFFF; --accent-soft:#D9EDE8;
+  --over:#B4530B; --over-soft:#FBE8D6; --under:#1D5FBF; --under-soft:#DCE8FA;
+  --bad:#B42318; --bad-soft:#FBE0DD;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --dot:#141A24;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0F141B; --surface:#171E28; --sunken:#121821; --ink:#E6EBF2; --muted:#97A3B4; --line:#2A3444;
+    --accent:#4FC2AE; --accent-ink:#0B1411; --accent-soft:#17362F;
+    --over:#F59E4B; --over-soft:#3A2614; --under:#7AAEFF; --under-soft:#172A47;
+    --bad:#FF8A7E; --bad-soft:#3D1B18; --dot:#E6EBF2;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0F141B; --surface:#171E28; --sunken:#121821; --ink:#E6EBF2; --muted:#97A3B4; --line:#2A3444;
+  --accent:#4FC2AE; --accent-ink:#0B1411; --accent-soft:#17362F;
+  --over:#F59E4B; --over-soft:#3A2614; --under:#7AAEFF; --under-soft:#172A47;
+  --bad:#FF8A7E; --bad-soft:#3D1B18; --dot:#E6EBF2;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;padding:0 16px;padding-block:20px 48px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);line-height:1.1;text-wrap:balance;margin:0}
+p{margin:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.01em}
+.brand svg{width:28px;height:28px}
+.prog{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.bar{width:140px;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:18px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.lead{font-size:18px;color:var(--muted);max-width:60ch}
+.hero h1{font-size:clamp(34px,7vw,52px);letter-spacing:-.02em}
+.blocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.blk{background:var(--sunken);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:4px}
+.blk b{font-family:var(--display);font-size:17px}
+.blk span{font-size:14px;color:var(--muted)}
+.blk em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--accent)}
+.how{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:start;font-size:15px}
+.how .n{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:13px;padding-top:2px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:14px 20px;background:var(--accent);color:var(--accent-ink);cursor:pointer;font-size:16px;align-self:flex-start;transition:transform .1s,opacity .2s}
+.btn:hover{transform:translateY(-1px)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:focus-visible,.opt:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.qhead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.q{font-family:var(--display);font-weight:700;font-size:clamp(20px,4.2vw,25px);line-height:1.25;text-wrap:pretty}
+.opts{display:grid;gap:10px}
+.opts.two{grid-template-columns:1fr 1fr}
+.opt{font:inherit;text-align:left;background:var(--sunken);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:14px 16px;cursor:pointer;font-size:16px;transition:border-color .15s,background .15s}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.opt:disabled:not(.sel){opacity:.45;cursor:default}
+.conf{display:flex;flex-direction:column;gap:12px;border-top:1px dashed var(--line);padding-top:18px}
+.conf label{font-weight:700}
+.confrow{display:flex;align-items:center;gap:14px}
+.confrow input{flex:1;accent-color:var(--accent);height:28px}
+.confval{font-family:var(--mono);font-weight:700;font-size:22px;min-width:64px;text-align:right}
+.confval.idle{color:var(--muted);font-size:14px}
+.hint{font-size:14px;color:var(--muted)}
+.hint b{color:var(--ink)}
+canvas{width:100%;max-width:100%;display:block;border-radius:10px;background:var(--sunken);border:1px solid var(--line)}
+.big-num{font-family:var(--mono);font-weight:700;font-size:40px;text-align:center}
+/* results */
+.score{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center}
+.ring{width:132px;height:132px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:38px;line-height:1}
+.ring .val small{font-size:12px;color:var(--muted);font-weight:500;margin-top:4px}
+.arch{font-size:clamp(24px,5vw,32px);letter-spacing:-.01em}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{background:var(--sunken);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:4px}
+.tile .k{font-size:13px;color:var(--muted)}
+.tile .v{font-family:var(--mono);font-weight:700;font-size:24px;font-variant-numeric:tabular-nums}
+.tile .s{font-size:13px;color:var(--muted)}
+.pill{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.pill.good{background:var(--accent-soft);color:var(--accent)}
+.pill.over{background:var(--over-soft);color:var(--over)}
+.pill.under{background:var(--under-soft);color:var(--under)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.sub{display:grid;gap:10px}
+.subrow{display:grid;grid-template-columns:150px 1fr 48px;gap:12px;align-items:center;font-size:14px}
+.subrow .lbl{font-weight:700}
+.subrow .num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.track{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--accent);border-radius:5px}
+.chartbox{overflow-x:auto}
+.chart{width:100%;max-width:520px;display:block;margin:0 auto}
+.chart text{font-family:var(--mono);font-size:10px;fill:var(--muted)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunken);font-weight:700}
+td.n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.why{color:var(--muted);font-size:13px;margin-top:4px}
+.list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.list li{background:var(--sunken);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:15px}
+.list li .meta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px}
+.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.note{font-size:13px;color:var(--muted);max-width:65ch}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+@media (max-width:520px){
+  .card{padding:18px}
+  .score{grid-template-columns:1fr;justify-items:start}
+  .subrow{grid-template-columns:100px 1fr 44px}
+  .opts.two{grid-template-columns:1fr}
+  .compare{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M16 6 L20 16 L16 26 L12 16 Z" fill="var(--accent)"/><circle cx="16" cy="16" r="2" fill="var(--surface)"/></svg>
+      Kopfkompass
+    </div>
+    <div class="prog" id="prog" hidden><span id="progTxt">0 / 22</span><div class="bar"><i id="progBar"></i></div></div>
+  </header>
+  <main id="app"></main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const BLOCKS = {
+  wahrnehmung:{name:"Wahrnehmung", short:"Wahrn.", desc:"Punkte blitzen kurz auf. Welche Seite hatte mehr?"},
+  logik:{name:"Logik", short:"Logik", desc:"Schlussfolgern, Reihen, Regeln."},
+  fallen:{name:"Denkfallen", short:"Fallen", desc:"Die erste Antwort im Kopf ist oft falsch."},
+  wissen:{name:"Wissen", short:"Wissen", desc:"Allgemeinwissen. Weißt du, was du weißt?"}
+};
+const THINK = ["logik","fallen"];
+
+const QUESTIONS = [
+  {block:"logik", q:"Alle Blörks sind Fnügs. Manche Fnügs sind grün. Folgt daraus, dass manche Blörks grün sind?",
+   opts:["Ja, das folgt","Nein, das folgt nicht"], a:1,
+   why:"Die grünen Fnügs könnten alle keine Blörks sein. Es folgt also nichts über die Blörks."},
+  {block:"logik", q:"Vier Karten: A · K · 4 · 7. Regel: „Wenn vorne ein Vokal steht, steht hinten eine gerade Zahl.“ Welche Karten musst du umdrehen, um die Regel zu prüfen?",
+   opts:["A und 4","A und 7","Nur A","A, 4 und 7"], a:1, trap:0,
+   why:"A (hinten muss gerade sein) und 7 (vorne darf kein Vokal sein). Die 4 kann die Regel nie brechen."},
+  {block:"logik", q:"Tom ist größer als Lisa. Lisa ist größer als Ben. Ben ist größer als Mia. Wer ist am zweitkleinsten?",
+   opts:["Lisa","Ben","Mia","Tom"], a:1,
+   why:"Reihenfolge von klein nach groß: Mia, Ben, Lisa, Tom."},
+  {block:"logik", q:"Wie geht die Reihe weiter? 2 · 6 · 12 · 20 · 30 · ?",
+   opts:["36","40","42","44"], a:2,
+   why:"Die Abstände wachsen um 2: +4, +6, +8, +10, +12. Also 30 + 12 = 42."},
+  {block:"logik", q:"Wenn es regnet, ist die Straße nass. Die Straße ist nass. Was folgt daraus?",
+   opts:["Es hat geregnet","Man weiß es nicht"], a:1, trap:0,
+   why:"Die Straße kann auch aus anderen Gründen nass sein, zum Beispiel wegen einer Straßenreinigung."},
+
+  {block:"fallen", q:"Ein Döner und eine Cola kosten zusammen 7,20 €. Der Döner kostet 6 € mehr als die Cola. Was kostet die Cola?",
+   opts:["1,20 €","1,00 €","0,80 €","0,60 €"], a:3, trap:0,
+   why:"Cola 0,60 €, Döner 6,60 €. Zusammen 7,20 €. Bei 1,20 € wäre der Döner 6 €, also nur 4,80 € teurer."},
+  {block:"fallen", q:"5 Drucker brauchen 5 Minuten für 5 Seiten. Wie lange brauchen 100 Drucker für 100 Seiten?",
+   opts:["100 Minuten","20 Minuten","5 Minuten","1 Minute"], a:2, trap:0,
+   why:"Jeder Drucker schafft eine Seite in 5 Minuten. 100 Drucker schaffen 100 Seiten also auch in 5 Minuten."},
+  {block:"fallen", q:"Ein Schimmelfleck verdoppelt sich jeden Tag. Nach 30 Tagen ist das ganze Brot bedeckt. Nach wie vielen Tagen war die Hälfte bedeckt?",
+   opts:["15 Tage","20 Tage","28 Tage","29 Tage"], a:3, trap:0,
+   why:"Einen Tag vor „komplett“ war es die Hälfte, weil er sich verdoppelt. Also Tag 29."},
+  {block:"fallen", q:"Drei Türen, hinter einer ist ein Preis. Du wählst Tür 1. Der Moderator weiß, wo der Preis ist, öffnet Tür 3 (leer) und fragt, ob du wechseln willst. Was ist besser?",
+   opts:["Bleiben","Wechseln","Egal, es ist 50:50"], a:1, trap:2,
+   why:"Das Ziegenproblem: Mit Wechseln gewinnst du in 2 von 3 Fällen, weil der Moderator nie die Preistür öffnet."},
+  {block:"fallen", q:"Lenas Mutter hat drei Kinder. Das erste heißt Januar, das zweite Februar. Wie heißt das dritte?",
+   opts:["März","Lena","April"], a:1, trap:0,
+   why:"Steht in der Frage: Es ist Lenas Mutter."},
+
+  {block:"wissen", q:"Welches Land hat mehr Einwohner?", opts:["Kanada","Polen"], a:0,
+   why:"Kanada hat rund 41 Millionen Einwohner, Polen rund 37 Millionen."},
+  {block:"wissen", q:"Ist der Mount Everest höher als 9.000 Meter?", opts:["Ja","Nein"], a:1,
+   why:"Er ist 8.849 m hoch."},
+  {block:"wissen", q:"Welcher Planet hat die meisten bekannten Monde?", opts:["Jupiter","Saturn","Uranus","Neptun"], a:1,
+   why:"Saturn, mit weit über 200 bestätigten Monden."},
+  {block:"wissen", q:"Was ist länger?", opts:["Der Rhein","Die Donau"], a:1,
+   why:"Donau ungefähr 2.850 km, Rhein ungefähr 1.230 km."},
+  {block:"wissen", q:"Wie viele Knochen hat ein erwachsener Mensch ungefähr?", opts:["156","206","256","306"], a:1,
+   why:"Etwa 206. Babys haben mehr, weil einige Knochen später zusammenwachsen."},
+  {block:"wissen", q:"Was ist die Hauptstadt von Australien?", opts:["Sydney","Melbourne","Canberra","Perth"], a:2, trap:0,
+   why:"Canberra. Sydney ist nur die größte Stadt."}
+];
+
+const DOT_DIFFS = [14,10,8,6,4,3];
+const TOTAL = DOT_DIFFS.length + QUESTIONS.length;
+const LS_KEY = "kopfkompass:last";
+
+const app = document.getElementById("app");
+const prog = document.getElementById("prog");
+const progTxt = document.getElementById("progTxt");
+const progBar = document.getElementById("progBar");
+
+let S = null;
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+function pct(x){return Math.round(x*100);}
+function mean(a){return a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN;}
+function lsGet(){try{const v=localStorage.getItem(LS_KEY);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsSet(v){try{localStorage.setItem(LS_KEY,JSON.stringify(v));}catch(e){}}
+
+function buildItems(){
+  const dots = shuffle(DOT_DIFFS).map(d=>{
+    const base = 38 + Math.floor(Math.random()*8);
+    const more = base + d;
+    const leftMore = Math.random()<0.5;
+    return {block:"wahrnehmung", type:"dots", left:leftMore?more:base, right:leftMore?base:more,
+            opts:["Links","Rechts"], a:leftMore?0:1,
+            q:"Wo waren mehr Punkte?", why:`Links ${leftMore?more:base}, rechts ${leftMore?base:more}. Unterschied: ${d}.`};
+  });
+  const byBlock = b=>shuffle(QUESTIONS.filter(q=>q.block===b));
+  return [...dots, ...byBlock("logik"), ...byBlock("fallen"), ...byBlock("wissen")];
+}
+
+function setProgress(i){
+  prog.hidden = false;
+  progTxt.textContent = `${Math.min(i,TOTAL)} / ${TOTAL}`;
+  progBar.style.width = (100*i/TOTAL)+"%";
+}
+
+/* ---------- Intro ---------- */
+function intro(){
+  prog.hidden = true;
+  const last = lsGet();
+  app.innerHTML = `
+  <section class="card hero">
+    <span class="eyebrow">Metakognitions-Test · ca. 6 Minuten</span>
+    <h1>Weißt du, wann du richtig liegst?</h1>
+    <p class="lead">Hier geht es nicht darum, wie schlau du bist. Gemessen wird, wie gut deine Sicherheit zu deinen echten Treffern passt. Wer bei 60 % Sicherheit auch 60 % richtig hat, denkt gut über sein eigenes Denken nach.</p>
+    <div class="blocks">
+      ${Object.entries(BLOCKS).map(([k,b])=>{
+        const n = k==="wahrnehmung"?DOT_DIFFS.length:QUESTIONS.filter(q=>q.block===k).length;
+        return `<div class="blk"><em>${n} Aufgaben</em><b>${b.name}</b><span>${b.desc}</span></div>`;
+      }).join("")}
+    </div>
+    <div class="how">
+      <span class="n">1</span><span>Du schätzt vorher, wie viele von ${TOTAL} Aufgaben du schaffst.</span>
+      <span class="n">2</span><span>Bei jeder Aufgabe wählst du eine Antwort und sagst, wie sicher du bist (0–100 %).</span>
+      <span class="n">3</span><span>Am Ende schätzt du nochmal. Erst dann siehst du, was richtig war, und bekommst deine Auswertung.</span>
+    </div>
+    <p class="hint">Kein Taschenrechner, kein Googeln. Sonst misst der Test deine Suchmaschine und nicht dich.</p>
+    ${last?`<p class="hint">Letzter Versuch: <b>${last.score}/100</b> · ${esc(last.arch)} · ${new Date(last.at).toLocaleDateString("de-DE")}</p>`:""}
+    <button class="btn" id="go">Los geht’s</button>
+  </section>`;
+  document.getElementById("go").onclick = start;
+}
+
+function start(){
+  S = {items:buildItems(), i:0, answers:[], pre:null, post:null, t0:0};
+  estimate("pre");
+}
+
+/* ---------- Estimation ---------- */
+function estimate(kind){
+  setProgress(kind==="pre"?0:TOTAL);
+  const pre = kind==="pre";
+  const init = pre ? Math.round(TOTAL/2) : (S.pre ?? Math.round(TOTAL/2));
+  app.innerHTML = `
+  <section class="card">
+    <span class="eyebrow">${pre?"Bevor es losgeht":"Geschafft, eine letzte Frage"}</span>
+    <h2 class="q">${pre?`Wie viele der ${TOTAL} Aufgaben wirst du richtig haben?`:`Was glaubst du jetzt: Wie viele von ${TOTAL} hast du richtig?`}</h2>
+    <p class="hint">${pre?"Bauchgefühl reicht. Du weißt noch nicht, was kommt.":"Du hast noch keine Lösungen gesehen. Schätz ehrlich, das fließt in deinen Score ein."}</p>
+    <div class="big-num" id="estVal">${init}</div>
+    <input type="range" id="est" min="0" max="${TOTAL}" step="1" value="${init}" aria-label="Geschätzte Anzahl richtiger Antworten" style="accent-color:var(--accent);width:100%;height:28px">
+    <button class="btn" id="estGo">${pre?"Starten":"Auswertung zeigen"}</button>
+  </section>`;
+  const r = document.getElementById("est"), v = document.getElementById("estVal");
+  r.oninput = ()=>{v.textContent = r.value;};
+  document.getElementById("estGo").onclick = ()=>{
+    if(pre){S.pre = +r.value; showItem();}
+    else{S.post = +r.value; results();}
+  };
+}
+
+/* ---------- Items ---------- */
+function showItem(){
+  if(S.i>=S.items.length){estimate("post");return;}
+  setProgress(S.i);
+  const it = S.items[S.i];
+  const blk = BLOCKS[it.block];
+  const idxInBlock = S.items.slice(0,S.i+1).filter(x=>x.block===it.block).length;
+  const nBlock = S.items.filter(x=>x.block===it.block).length;
+  app.innerHTML = `
+  <section class="card">
+    <div class="qhead"><span class="eyebrow">${blk.name} · ${idxInBlock}/${nBlock}</span></div>
+    <div id="stage"></div>
+    <div class="conf" id="conf" hidden>
+      <label for="cs">Wie sicher bist du, dass deine Antwort stimmt?</label>
+      <div class="confrow">
+        <input type="range" id="cs" min="0" max="100" step="5" value="50">
+        <span class="confval idle" id="cv">zieh mich</span>
+      </div>
+      <p class="hint" id="chint">Reines Raten wäre hier <b>${Math.round(100/it.opts.length)} %</b>.</p>
+      <button class="btn" id="next" disabled>Weiter</button>
+    </div>
+  </section>`;
+  if(it.type==="dots") dotTrial(it); else mcTrial(it);
+}
+
+function renderOpts(it, host){
+  const two = it.opts.length===2;
+  host.insertAdjacentHTML("beforeend",`<div class="opts ${two?"two":""}">${it.opts.map((o,k)=>`<button class="opt" data-k="${k}">${esc(o)}</button>`).join("")}</div>`);
+  host.querySelectorAll(".opt").forEach(b=>b.onclick=()=>choose(+b.dataset.k));
+}
+
+function mcTrial(it){
+  const st = document.getElementById("stage");
+  st.innerHTML = `<h2 class="q">${esc(it.q)}</h2>`;
+  renderOpts(it, st);
+  S.t0 = performance.now();
+}
+
+function dotTrial(it){
+  const st = document.getElementById("stage");
+  st.innerHTML = `<canvas id="cv2" height="220" aria-label="Zwei Felder mit Punkten"></canvas><p class="hint" id="dh">Gleich blitzen links und rechts Punkte auf, nur ganz kurz. Schätze nicht durch Zählen, dafür ist keine Zeit.</p><button class="btn" id="showDots">Zeigen</button>`;
+  const cv = document.getElementById("cv2");
+  const ctx = cv.getContext("2d");
+  const dpr = window.devicePixelRatio||1;
+  const W = cv.clientWidth, H = 220;
+  cv.width = W*dpr; cv.height = H*dpr; ctx.scale(dpr,dpr);
+  const css = getComputedStyle(document.documentElement);
+  const dotC = css.getPropertyValue("--dot").trim()||"#141A24";
+  const lineC = css.getPropertyValue("--line").trim()||"#D5DBE3";
+  const mutedC = css.getPropertyValue("--muted").trim()||"#5A6474";
+  const gap = 14, pw = (W-gap*3)/2, ph = H-gap*2;
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle = lineC; ctx.lineWidth = 1.5;
+    ctx.strokeRect(gap,gap,pw,ph); ctx.strokeRect(gap*2+pw,gap,pw,ph);
+  }
+  function fixation(){
+    frame(); ctx.fillStyle = mutedC; ctx.font = "700 22px ui-monospace,monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("+",gap+pw/2,H/2); ctx.fillText("+",gap*2+pw+pw/2,H/2);
+  }
+  function place(n,x0){
+    const r = Math.max(2.6, Math.min(4, pw/70)), pts=[];
+    let tries=0;
+    while(pts.length<n && tries<20000){
+      tries++;
+      const x = x0+r+6+Math.random()*(pw-2*r-12), y = gap+r+6+Math.random()*(ph-2*r-12);
+      if(pts.every(p=>(p[0]-x)**2+(p[1]-y)**2 > (r*2.6)**2)) pts.push([x,y]);
+    }
+    ctx.fillStyle = dotC;
+    pts.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],r,0,Math.PI*2);ctx.fill();});
+  }
+  frame();
+  document.getElementById("showDots").onclick = function(){
+    this.remove();
+    document.getElementById("dh").textContent = "Schau auf die Felder …";
+    fixation();
+    setTimeout(()=>{
+      frame(); place(it.left,gap); place(it.right,gap*2+pw);
+      setTimeout(()=>{
+        fixation();
+        document.getElementById("dh").remove();
+        st.insertAdjacentHTML("beforeend",`<h2 class="q">${esc(it.q)}</h2>`);
+        renderOpts(it, st);
+        S.t0 = performance.now();
+      }, 750);
+    }, 500);
+  };
+}
+
+function choose(k){
+  const it = S.items[S.i];
+  const ms = performance.now()-S.t0;
+  document.querySelectorAll(".opt").forEach(b=>{b.disabled=true; if(+b.dataset.k===k) b.classList.add("sel");});
+  const conf = document.getElementById("conf"); conf.hidden = false;
+  const cs = document.getElementById("cs"), cv = document.getElementById("cv"), next = document.getElementById("next");
+  const words = v=> v<=20?"geraten": v<=45?"eher unsicher": v<=70?"vielleicht": v<=90?"ziemlich sicher":"bombensicher";
+  const upd = ()=>{cv.classList.remove("idle"); cv.textContent = cs.value+" %"; next.disabled=false;
+    document.getElementById("chint").innerHTML = `<b>${words(+cs.value)}</b> · Reines Raten wäre hier ${Math.round(100/it.opts.length)} %.`;};
+  cs.oninput = upd; cs.onchange = upd;
+  cs.focus({preventScroll:true});
+  conf.scrollIntoView({behavior:"smooth",block:"nearest"});
+  next.onclick = ()=>{
+    S.answers.push({it, choice:k, correct:k===it.a, conf:+cs.value/100, ms});
+    S.i++; showItem();
+  };
+}
+
+/* ---------- Scoring ---------- */
+function stats(ans){
+  const acc = mean(ans.map(a=>a.correct?1:0));
+  const conf = mean(ans.map(a=>a.conf));
+  const brier = mean(ans.map(a=>(a.conf-(a.correct?1:0))**2));
+  const cr = ans.filter(a=>a.correct).map(a=>a.conf), wr = ans.filter(a=>!a.correct).map(a=>a.conf);
+  let auroc = null;
+  if(cr.length && wr.length){
+    let s=0; cr.forEach(c=>wr.forEach(w=>{s += c>w?1:c===w?0.5:0;}));
+    auroc = s/(cr.length*wr.length);
+  }
+  return {n:ans.length, acc, conf, bias:conf-acc, brier, auroc,
+          confRight:cr.length?mean(cr):null, confWrong:wr.length?mean(wr):null,
+          time:mean(ans.map(a=>a.ms))/1000};
+}
+
+function bins(ans){
+  const edges=[0,.2,.4,.6,.8,1.0001];
+  const out=[];
+  for(let b=0;b<5;b++){
+    const inb = ans.filter(a=>a.conf>=edges[b] && a.conf<edges[b+1]);
+    if(inb.length) out.push({n:inb.length, conf:mean(inb.map(a=>a.conf)), acc:mean(inb.map(a=>a.correct?1:0))});
+  }
+  return out;
+}
+
+function evaluate(){
+  const A = S.answers;
+  const all = stats(A);
+  const bs = bins(A);
+  const ece = bs.reduce((s,b)=>s+b.n*Math.abs(b.acc-b.conf),0)/A.length;
+  const nRight = A.filter(a=>a.correct).length;
+  const calScore = clamp(100 - ece*100*2.5, 0, 100);
+  const resScore = all.auroc==null ? null : clamp((all.auroc-0.5)/0.4, 0, 1)*100;
+  const preErr = Math.abs(S.pre-nRight), postErr = Math.abs(S.post-nRight);
+  const globScore = clamp(100 - ((preErr+postErr)/2/TOTAL)*100*2.5, 0, 100);
+  const score = Math.round(resScore==null ? 0.65*calScore+0.35*globScore : 0.4*resScore+0.4*calScore+0.2*globScore);
+  const perBlock = Object.keys(BLOCKS).map(k=>({k, ...stats(A.filter(a=>a.it.block===k))}));
+  const think = stats(A.filter(a=>THINK.includes(a.it.block)));
+  const know = stats(A.filter(a=>!THINK.includes(a.it.block)));
+  const trapItems = A.filter(a=>a.it.trap!=null);
+  const traps = trapItems.filter(a=>a.choice===a.it.trap);
+  const danger = A.filter(a=>!a.correct && a.conf>=0.75);
+  const hidden = A.filter(a=>a.correct && a.conf<=0.4);
+
+  let arch, archTxt, tips;
+  const bias = all.bias*100;
+  if(resScore!=null && resScore<35){
+    arch="Bauchgefühl im Nebel";
+    archTxt="Ob du dich sicher fühlst oder nicht, sagt bei dir gerade wenig darüber aus, ob du richtig liegst. Dein innerer Kompass dreht sich noch ein bisschen im Kreis.";
+    tips=["Frag dich vor jeder Antwort: Woher weiß ich das eigentlich? Kannst du es begründen oder fühlt es sich nur vertraut an?","Nutz den Regler bewusst weiter. Wenn alles bei 70 % landet, kann der Kompass nichts unterscheiden.","Bei Wissensfragen: „Klingt bekannt“ ist nicht dasselbe wie „weiß ich“."];
+  } else if(bias>=10){
+    arch="Main-Character-Confidence";
+    archTxt=`Du warst im Schnitt ${Math.round(bias)} Prozentpunkte sicherer, als deine Treffer hergeben. Selbstbewusstsein ist gut, aber hier war es teilweise Fake-Sicherheit.`;
+    tips=["Bevor du „sicher“ sagst, such aktiv nach einem Grund, warum du falsch liegen könntest.","Bei Denkfallen gilt: Wenn die Antwort sofort da ist und sich leicht anfühlt, prüf sie nochmal.","Zieh den Regler bei Aufgaben, die du nicht begründen kannst, bewusst Richtung Mitte."];
+  } else if(bias<=-10){
+    arch="Heimlicher Checker";
+    archTxt=`Du warst im Schnitt ${Math.round(-bias)} Prozentpunkte unsicherer, als nötig gewesen wäre. Du kannst mehr, als du dir zutraust.`;
+    tips=["Schau dir unten die Liste „Unterschätzt“ an. Das sind Aufgaben, bei denen du richtig lagst, dir aber nicht vertraut hast.","Wenn du eine Antwort begründen kannst, darfst du auch 80 % oder mehr sagen.","Gerade in Mathe: Unsicherheit ist oft Gewohnheit und nicht die Wahrheit. Check, ob das bei dir auch so ist."];
+  } else if(score>=75){
+    arch="Kalibrierter Kopf";
+    archTxt="Deine Sicherheit passt ziemlich genau zu deinen Treffern. Du weißt meistens, wann du etwas weißt, und das können nicht viele.";
+    tips=["Nutz das beim Lernen: Du kannst ziemlich zuverlässig einschätzen, welche Themen noch sitzen und welche nicht.","Teste dich nochmal. Bei 22 Aufgaben spielt Glück noch mit. Wenn der Score stabil bleibt, ist er echt.","Schau trotzdem auf die „Sicher & falsch“-Liste. Da sitzen deine blinden Flecken."];
+  } else {
+    arch="Solide unterwegs";
+    archTxt="Keine große Über- oder Unterschätzung, aber deine Sicherheit trennt richtig und falsch noch nicht ganz sauber.";
+    tips=["Achte darauf, den Regler stärker zu spreizen: richtig sicher, wenn du es begründen kannst, und niedrig, wenn nicht.","Schau, in welchem Bereich deine Kalibrierung am schlechtesten ist, und übe genau da.","Die Denkfallen zeigen, ob du deiner ersten Idee zu schnell glaubst."];
+  }
+  return {all,bs,ece,nRight,calScore,resScore,globScore,score,perBlock,think,know,trapItems,traps,danger,hidden,arch,archTxt,tips,preErr,postErr};
+}
+
+/* ---------- Results ---------- */
+function biasPill(b){
+  const p = Math.round(b*100);
+  if(p>=10) return `<span class="pill over">+${p} überschätzt</span>`;
+  if(p<=-10) return `<span class="pill under">${p} unterschätzt</span>`;
+  return `<span class="pill good">${p>0?"+":""}${p} passt</span>`;
+}
+
+function chartSVG(bs){
+  const W=320,H=250,L=40,R=12,T=14,B=38, pw=W-L-R, ph=H-T-B;
+  const x=v=>L+v*pw, y=v=>T+(1-v)*ph;
+  let g="";
+  [0,.25,.5,.75,1].forEach(v=>{
+    g+=`<line x1="${x(0)}" x2="${x(1)}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>`;
+    g+=`<text x="${L-6}" y="${y(v)+3}" text-anchor="end">${v*100}</text>`;
+    g+=`<text x="${x(v)}" y="${H-B+14}" text-anchor="middle">${v*100}</text>`;
+  });
+  g+=`<text x="${L+pw/2}" y="${H-6}" text-anchor="middle">Deine Sicherheit (%)</text>`;
+  g+=`<text x="12" y="${T+ph/2}" text-anchor="middle" transform="rotate(-90 12 ${T+ph/2})">Wirklich richtig (%)</text>`;
+  g+=`<polygon points="${x(0)},${y(0)} ${x(1)},${y(1)} ${x(1)},${y(0)}" fill="var(--over-soft)" opacity=".7"/>`;
+  g+=`<polygon points="${x(0)},${y(0)} ${x(0)},${y(1)} ${x(1)},${y(1)}" fill="var(--under-soft)" opacity=".7"/>`;
+  g+=`<text x="${x(.97)}" y="${y(.08)}" text-anchor="end" style="fill:var(--over)">überschätzt</text>`;
+  g+=`<text x="${x(.03)}" y="${y(.9)}" text-anchor="start" style="fill:var(--under)">unterschätzt</text>`;
+  g+=`<line x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
+  if(bs.length>1) g+=`<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${bs.map(b=>`${x(b.conf)},${y(b.acc)}`).join(" ")}"/>`;
+  bs.forEach(b=>{
+    const r = 4+Math.sqrt(b.n)*2.2;
+    g+=`<circle cx="${x(b.conf)}" cy="${y(b.acc)}" r="${r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+    g+=`<text x="${x(b.conf)}" y="${y(b.acc)-r-4}" text-anchor="middle" style="fill:var(--ink);font-weight:700">${b.n}×</text>`;
+  });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Kalibrierungskurve">${g}</svg>`;
+}
+
+function ring(score){
+  const r=56, c=2*Math.PI*r, off=c*(1-score/100);
+  return `<div class="ring"><svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="${r}" fill="none" stroke="var(--line)" stroke-width="12"/><circle cx="66" cy="66" r="${r}" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg><div class="val">${score}<small>von 100</small></div></div>`;
+}
+
+function itemLabel(a){
+  if(a.it.type==="dots") return `Punkte: ${a.it.left} vs. ${a.it.right}`;
+  return a.it.q.length>90 ? a.it.q.slice(0,88)+"…" : a.it.q;
+}
+
+function results(){
+  prog.hidden = true;
+  const R = evaluate();
+  const last = lsGet();
+  lsSet({score:R.score, arch:R.arch, at:Date.now()});
+  const a = R.all;
+  const verdict = x=> x.correct
+    ? (x.conf<=0.4?`<span class="pill under">richtig, unsicher</span>`:`<span class="pill good">richtig</span>`)
+    : (x.conf>=0.75?`<span class="pill bad">falsch, sicher</span>`:`<span class="pill over">falsch</span>`);
+  const sub = (lbl,v,note)=>`<div class="subrow"><span class="lbl">${lbl}</span><div class="track"><i style="width:${v==null?0:Math.round(v)}%"></i></div><span class="num">${v==null?"–":Math.round(v)}</span></div>${note?`<p class="note">${note}</p>`:""}`;
+  const diff = last ? R.score-last.score : null;
+
+  const thinkBetter = R.think.acc - R.know.acc;
+  const thinkTxt = Math.abs(thinkBetter)<0.1
+    ? "Bei Denk- und Wissensaufgaben liegst du ungefähr gleich gut."
+    : thinkBetter>0 ? `Bei Denkaufgaben lagst du ${pct(thinkBetter)} Prozentpunkte besser als bei Wissen und Wahrnehmung.`
+    : `Bei Wissen und Wahrnehmung lagst du ${pct(-thinkBetter)} Prozentpunkte besser als bei den Denkaufgaben.`;
+
+  app.innerHTML = `
+  <section class="card">
+    <span class="eyebrow">Deine Auswertung</span>
+    <div class="score">
+      ${ring(R.score)}
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <h1 class="arch">${esc(R.arch)}</h1>
+        <p>${esc(R.archTxt)}</p>
+        ${diff!=null?`<p class="hint">Letzter Versuch: ${last.score}/100 (${diff>=0?"+":""}${diff})</p>`:""}
+      </div>
+    </div>
+    <div class="sub">
+      ${sub("Unterscheidung", R.resScore)}
+      ${sub("Kalibrierung", R.calScore)}
+      ${sub("Selbstschätzung", R.globScore)}
+    </div>
+    <p class="note">Der Score setzt sich zusammen aus Unterscheidung (40 %), Kalibrierung (40 %) und Selbstschätzung vorher und nachher (20 %). Wie viele Aufgaben du richtig hast, zählt nicht direkt. Jemand mit 50 % Treffern kann hier 100 Punkte holen.${R.resScore==null?" Weil du alles richtig oder alles falsch hattest, lässt sich die Unterscheidung nicht berechnen. Sie wurde deshalb weggelassen.":""}</p>
+  </section>
+
+  <section class="card">
+    <h2>Die Kennzahlen</h2>
+    <div class="tiles">
+      <div class="tile"><span class="k">Treffer</span><span class="v">${R.nRight}/${TOTAL}</span><span class="s">${pct(a.acc)} % richtig</span></div>
+      <div class="tile"><span class="k">Ø Sicherheit</span><span class="v">${pct(a.conf)} %</span><span class="s">${biasPill(a.bias)}</span></div>
+      <div class="tile"><span class="k">Sicherheit bei richtig / falsch</span><span class="v">${a.confRight==null?"–":pct(a.confRight)} / ${a.confWrong==null?"–":pct(a.confWrong)}</span><span class="s">Je größer der Abstand, desto besser</span></div>
+      <div class="tile"><span class="k">Unterscheidung (AUROC)</span><span class="v">${a.auroc==null?"–":a.auroc.toFixed(2)}</span><span class="s">0,50 = Zufall · 1,00 = perfekt</span></div>
+      <div class="tile"><span class="k">Kalibrierungsfehler</span><span class="v">${pct(R.ece)} pp</span><span class="s">Ø Abstand Sicherheit ↔ Treffer</span></div>
+      <div class="tile"><span class="k">Brier-Score</span><span class="v">${a.brier.toFixed(3)}</span><span class="s">0 = perfekt · 0,25 = immer 50 % sagen</span></div>
+      <div class="tile"><span class="k">Schätzung vorher</span><span class="v">${S.pre} → ${R.nRight}</span><span class="s">${R.preErr===0?"exakt getroffen":`${R.preErr} daneben`}</span></div>
+      <div class="tile"><span class="k">Schätzung nachher</span><span class="v">${S.post} → ${R.nRight}</span><span class="s">${R.postErr===0?"exakt getroffen":`${R.postErr} daneben`}${R.postErr<R.preErr?" · besser als vorher":""}</span></div>
+      <div class="tile"><span class="k">Ø Denkzeit</span><span class="v">${a.time.toFixed(1)} s</span><span class="s">pro Aufgabe, bis zur Antwort</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Kalibrierungskurve</h2>
+    <p class="hint">Jeder Punkt fasst Aufgaben mit ähnlicher Sicherheit zusammen. Liegt er auf der gestrichelten Linie, hat deine Sicherheit genau gestimmt. Darunter warst du zu sicher, darüber zu vorsichtig.</p>
+    <div class="chartbox">${chartSVG(R.bs)}</div>
+  </section>
+
+  <section class="card">
+    <h2>Nach Bereich</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Bereich</th><th style="text-align:right">Treffer</th><th style="text-align:right">Ø Sicherheit</th><th>Kalibrierung</th><th style="text-align:right">Ø Zeit</th></tr></thead>
+      <tbody>${R.perBlock.map(b=>`<tr><td><b>${BLOCKS[b.k].name}</b></td><td class="n">${pct(b.acc)} %</td><td class="n">${pct(b.conf)} %</td><td>${biasPill(b.bias)}</td><td class="n">${b.time.toFixed(1)} s</td></tr>`).join("")}</tbody>
+    </table></div>
+    <div class="compare">
+      <div class="tile"><span class="k">Denken (Logik + Fallen)</span><span class="v">${pct(R.think.acc)} %</span><span class="s">Sicherheit ${pct(R.think.conf)} % · ${biasPill(R.think.bias)}</span></div>
+      <div class="tile"><span class="k">Wissen + Wahrnehmung</span><span class="v">${pct(R.know.acc)} %</span><span class="s">Sicherheit ${pct(R.know.conf)} % · ${biasPill(R.know.bias)}</span></div>
+    </div>
+    <p>${thinkTxt}</p>
+    <p>Denkfallen: Bei <b>${R.traps.length} von ${R.trapItems.length}</b> Aufgaben mit einer typischen Bauchgefühl-Antwort hast du genau die gewählt.${R.traps.length===0?" Sauber, dein Kopf lässt sich nicht so leicht reinlegen.":R.traps.length>=3?" Dein schnelles Denken war da oft schneller als dein langsames.":""}</p>
+  </section>
+
+  <section class="card">
+    <h2>Blinde Flecken</h2>
+    <h3 style="font-size:18px">Sicher und trotzdem falsch <span class="pill bad">${R.danger.length}</span></h3>
+    ${R.danger.length?`<ul class="list">${R.danger.map(x=>`<li>${esc(itemLabel(x))}<div class="meta">${pct(x.conf)} % sicher · du: ${esc(x.it.opts[x.choice])} · richtig: ${esc(x.it.opts[x.it.a])}</div></li>`).join("")}</ul>`:`<p class="hint">Keine. Wenn du dir sicher warst (75 % und mehr), lagst du auch richtig.</p>`}
+    <h3 style="font-size:18px">Richtig, aber unterschätzt <span class="pill under">${R.hidden.length}</span></h3>
+    ${R.hidden.length?`<ul class="list">${R.hidden.map(x=>`<li>${esc(itemLabel(x))}<div class="meta">nur ${pct(x.conf)} % sicher · trotzdem richtig: ${esc(x.it.opts[x.it.a])}</div></li>`).join("")}</ul>`:`<p class="hint">Keine. Wenn du richtig lagst, wusstest du das meistens auch.</p>`}
+  </section>
+
+  <section class="card">
+    <h2>Was du damit machen kannst</h2>
+    <ul class="tips">${R.tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>
+  </section>
+
+  <section class="card">
+    <h2>Alle Aufgaben</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Aufgabe</th><th>Deine Antwort</th><th style="text-align:right">Sicher</th><th>Ergebnis</th></tr></thead>
+      <tbody>${S.answers.map(x=>`<tr><td><b>${BLOCKS[x.it.block].short}</b> · ${esc(itemLabel(x))}<div class="why">${esc(x.it.why)}</div></td><td>${esc(x.it.opts[x.choice])}</td><td class="n">${pct(x.conf)} %</td><td>${verdict(x)}</td></tr>`).join("")}</tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <p class="note">Kopfkompass ist ein Selbsttest zum Spaß und zur Orientierung, kein psychologisches Diagnoseverfahren. Mit ${TOTAL} Aufgaben spielt Zufall noch eine Rolle. Mach den Test ruhig ein paar Mal (die Punkte-Aufgaben sind jedes Mal neu) und schau, ob dein Profil stabil bleibt.</p>
+    <div class="actions"><button class="btn" id="again">Nochmal testen</button><button class="btn ghost" id="home">Zur Startseite</button></div>
+  </section>`;
+  document.getElementById("again").onclick = start;
+  document.getElementById("home").onclick = intro;
+  window.scrollTo({top:0});
+}
+
+intro();
+})();
+</script>
