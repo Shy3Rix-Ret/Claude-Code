@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",
-    "test": "node tools/sim-test.mjs"
+    "test": "node tools/sim-test.mjs",
+    "build": "node tools/build.mjs",
+    "lint": "eslint ."
   }
 }

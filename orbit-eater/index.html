@@ -195,7 +195,7 @@ python -m http.server 8000</pre>
         if (msg) document.getElementById('boot-error-text').textContent = msg;
         box.hidden = false;
       }
-      if (location.protocol === 'file:') { show(); return; }
+      /* dev-only */ if (location.protocol === 'file:') { show(); return; } /* end dev-only */
       window.addEventListener('error', function (e) {
         if (!window.__oeBooted) show('Fehler beim Start: ' + (e.message || 'Skript konnte nicht geladen werden') + '.');
       }, true);

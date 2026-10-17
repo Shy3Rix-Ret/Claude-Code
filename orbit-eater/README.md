@@ -19,8 +19,12 @@ Inspiriert vom Spielgefühl von slither.io und agar.io, aber mit eigener Mechani
 
 ## Starten
 
-ES-Module laden nicht über `file://`. Ein Doppelklick auf `index.html` reicht deshalb nicht,
-das Spiel braucht einen kleinen lokalen Webserver. Eine der folgenden Varianten genügt:
+**Am schnellsten:** `dist/orbit-eater.html` per Doppelklick öffnen. Das ist das komplette
+Spiel in einer einzigen Datei, ohne Server und ohne Internet. Gut zum Weitergeben.
+
+**Für die Entwicklung:** ES-Module laden nicht über `file://`. Ein Doppelklick auf
+`index.html` reicht deshalb nicht, das Spiel braucht einen kleinen lokalen Webserver. Eine
+der folgenden Varianten genügt:
 
 ```bash
 cd orbit-eater
@@ -31,8 +35,18 @@ python -m http.server 8000   # oder
 ```
 
 Danach die angezeigte Adresse im Browser öffnen. Läuft in aktuellen Versionen von Chrome,
-Edge, Firefox und Safari, am Desktop wie am Handy. Wer die Seite trotzdem per Doppelklick
+Edge, Firefox und Safari, am Desktop wie am Handy. Wer `index.html` trotzdem per Doppelklick
 öffnet, bekommt einen Hinweis angezeigt statt eines schwarzen Bildschirms.
+
+**Neu bauen** (nach Änderungen am Code):
+
+```bash
+npm run build      # → dist/orbit-eater.html
+```
+
+`tools/build.mjs` ist ein kleiner Bundler ohne Abhängigkeiten. Er gibt jedem Modul einen
+eigenen Scope, macht aus Importen Zugriffe auf das exportierende Modul und legt CSS und
+JavaScript inline in eine HTML-Datei.
 
 ## Steuerung
 
@@ -228,8 +242,11 @@ orbit-eater/
 │   └── utils.js          Mathe, Easing, seedbarer Zufall, Rauschen, Event-Bus
 ├── tools/
 │   ├── serve.mjs         statischer Entwicklungsserver (npm start)
+│   ├── build.mjs         Single-File-Build ohne Abhängigkeiten (npm run build)
 │   ├── sim-test.mjs      Headless-Test der Simulation (npm test)
 │   └── gallery.html      Galerie aller prozeduralen Körper
+├── dist/
+│   └── orbit-eater.html  das ganze Spiel in einer Datei, läuft per Doppelklick
 ├── docs/                 Screenshots für diese README
 └── eslint.config.js      Lint-Regeln (npx eslint .)
 ```
@@ -239,7 +256,7 @@ orbit-eater/
 ```bash
 npm test                        # 6 Minuten Spielzeit headless, Seed 1
 node tools/sim-test.mjs 7 10    # Seed 7, 10 Minuten
-npx eslint .                    # Lint
+npm run lint                    # ESLint
 ```
 
 Der **Simulationstest** lässt die Welt in Node laufen und steuert einen Spieler per Autopilot
