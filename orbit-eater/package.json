@@ -1,0 +1,11 @@
+{
+  "name": "orbit-eater",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ORBIT EATER – ein .io-Browserspiel über Schwerkraft und Appetit. Vanilla JS, Canvas 2D, Web Audio.",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node tools/sim-test.mjs"
+  }
+}

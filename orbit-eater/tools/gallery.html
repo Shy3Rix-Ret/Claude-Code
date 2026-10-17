@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Orbit Eater · Asset-Galerie</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #05070b; color: #ece6d6; font: 12px ui-monospace, monospace; }
+    h1 { font: 600 13px ui-monospace, monospace; letter-spacing: .2em; text-transform: uppercase; color: #ffb347; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <h1>Prozedurale Körper · 5 Stufen × 4 Seeds</h1>
+  <canvas id="c"></canvas>
+  <script type="module">
+    // Entwickler-Werkzeug: zeigt jede Stufe groß, um die prozedurale Kunst zu beurteilen.
+    import { Renderer } from '../js/renderer.js';
+    import { buildBodyArt } from '../js/sprites.js';
+    const cell = 240, cols = 4, rows = 5, dpr = Math.min(devicePixelRatio || 1, 2);
+    const c = document.getElementById('c');
+    c.width = cell * cols * dpr; c.height = cell * rows * dpr;
+    c.style.width = `${cell * cols}px`; c.style.height = `${cell * rows}px`;
+    const off = document.createElement('canvas');
+    const r = new Renderer(off, null);
+    const ctx = c.getContext('2d');
+    const shade = (() => {
+      const g = ctx.createRadialGradient(-0.42, -0.48, 0.02, -0.08, -0.08, 1.22);
+      g.addColorStop(0, 'rgba(255,250,235,0.22)'); g.addColorStop(0.32, 'rgba(255,250,235,0)');
+      g.addColorStop(0.6, 'rgba(0,0,0,0.1)'); g.addColorStop(0.84, 'rgba(0,0,0,0.6)'); g.addColorStop(1, 'rgba(0,0,0,0.9)');
+      return g;
+    })();
+    const arts = [];
+    for (let s = 0; s < rows; s++) for (let k = 0; k < cols; k++) arts.push({ s, k, art: buildBodyArt(1000 + k, s) });
+    function draw(t) {
+      r.time = t / 1000;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, cell * cols, cell * rows);
+      for (const a of arts) {
+        const x = a.k * cell + cell / 2, y = a.s * cell + cell / 2;
+        const rad = a.s === 3 ? 52 : a.s === 4 ? 50 : 76;
+        r.drawBody(ctx, a.art, x, y, rad, t / 4000, shade, 1);
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+    window.__galleryReady = true;
+  </script>
+</body>
+</html>

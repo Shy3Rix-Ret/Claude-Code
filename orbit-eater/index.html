@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05070b">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="ORBIT EATER – ein Browserspiel über Schwerkraft und Appetit. Friss, was kleiner ist. Meide, was größer ist.">
+  <title>Orbit Eater</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2305070b'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23ece6d6' stroke-width='3.5'/%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23ece6d6' stroke-opacity='.3'/%3E%3Ccircle cx='25.2' cy='6.8' r='3' fill='%23ffb347'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="is-menu">
+  <canvas id="stage" aria-label="Spielfeld"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="flash" id="flash" aria-hidden="true"></div>
+
+  <!-- ===================================================== Startbildschirm -->
+  <section class="screen screen--start is-visible" id="screen-start" aria-labelledby="title">
+    <header class="topbar">
+      <span class="topbar__mark">OE&thinsp;—&thinsp;01</span>
+      <span class="topbar__meta">Gravitationsarena · <span id="meta-count">20</span> Gegner · Echtzeit</span>
+      <button class="iconbtn" type="button" data-action="mute" aria-label="Ton aus">
+        <svg class="icon icon--sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="icon__wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="icon__cross" d="M16 9l6 6M22 9l-6 6"/></svg>
+      </button>
+    </header>
+
+    <div class="start">
+      <p class="kicker">Ein Spiel über Schwerkraft und Appetit</p>
+      <h1 class="title" id="title">
+        <span class="title__line"><svg class="title__o" viewBox="0 0 100 100" aria-hidden="true"><circle class="title__path" cx="50" cy="50" r="49"/><circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" stroke-width="15"/><g class="title__moon"><circle cx="50" cy="1.5" r="7"/></g></svg><span class="sr-only">O</span>rbit</span>
+        <span class="title__line">Eater<span class="title__dot">.</span></span>
+      </h1>
+      <p class="lead">Friss alles, was kleiner ist als du. Meide alles, was größer ist. Und lass die Schwerkraft für dich arbeiten.</p>
+
+      <form class="entry" id="entry" autocomplete="off">
+        <label class="field">
+          <span class="label">Rufname</span>
+          <input class="field__input" id="name" name="name" maxlength="16" placeholder="Weltraumtourist" spellcheck="false" enterkeyhint="go">
+        </label>
+        <button class="btn btn--primary" type="submit">Spielen <span class="btn__arrow" aria-hidden="true">→</span></button>
+      </form>
+      <p class="record" id="record">Noch kein Rekord. Zeit, das zu ändern.</p>
+    </div>
+
+    <footer class="sheet">
+      <div class="sheet__col">
+        <h2 class="sheet__head"><span>01</span>Steuerung</h2>
+        <dl class="keys keys--mouse">
+          <div><dt><kbd>Maus</kbd></dt><dd>Richtung &amp; Tempo</dd></div>
+          <div><dt><kbd>Shift</kbd></dt><dd>Boost – kostet Masse</dd></div>
+          <div><dt><kbd>Klick halten</kbd></dt><dd>Schleuder laden, loslassen feuert</dd></div>
+          <div><dt><kbd>Esc</kbd> <kbd>M</kbd></dt><dd>Pause · Ton</dd></div>
+        </dl>
+        <dl class="keys keys--touch">
+          <div><dt><kbd>Ziehen</kbd></dt><dd>Steuern wie ein Joystick</dd></div>
+          <div><dt><kbd>2. Finger</kbd></dt><dd>Boost – kostet Masse</dd></div>
+          <div><dt><kbd>Schleuder</kbd></dt><dd>Halten, loslassen feuert</dd></div>
+        </dl>
+      </div>
+      <div class="sheet__col">
+        <h2 class="sheet__head"><span>02</span>Regeln</h2>
+        <ul class="rules">
+          <li><i class="swatch swatch--prey"></i>Grün, gestrichelt: kleiner als 85&nbsp;% von dir. Fressbar.</li>
+          <li><i class="swatch swatch--threat"></i>Rot, durchgezogen: frisst dich bei Berührung.</li>
+          <li><i class="swatch swatch--amber"></i>Asteroiden in deinem Orbit sind Munition.</li>
+        </ul>
+      </div>
+      <div class="sheet__col sheet__col--stages">
+        <h2 class="sheet__head"><span>03</span>Evolution</h2>
+        <ol class="stages" id="stages"></ol>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ===================================================== HUD -->
+  <div class="hud" id="hud" hidden>
+    <div class="hud__mass">
+      <span class="label">Masse</span>
+      <output class="hud__value" id="hud-mass">22</output>
+      <div class="hud__stage"><span id="hud-stage">Asteroid</span><span class="hud__stagenum" id="hud-stagenum">1 / 5</span></div>
+      <div class="ruler" id="hud-ruler" aria-hidden="true"></div>
+      <div class="hud__next" id="hud-next">Mond bei 60</div>
+    </div>
+
+    <div class="combo" id="combo" aria-hidden="true">
+      <span class="label">Kombo</span>
+      <span class="combo__mult" id="combo-mult">×1,08</span>
+      <span class="combo__count" id="combo-count">3 in Folge</span>
+      <span class="combo__bar"><i id="combo-bar"></i></span>
+    </div>
+
+    <div class="hud__tools">
+      <button class="iconbtn" type="button" data-action="mute" aria-label="Ton aus">
+        <svg class="icon icon--sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="icon__wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="icon__cross" d="M16 9l6 6M22 9l-6 6"/></svg>
+      </button>
+      <button class="iconbtn" type="button" data-action="pause" aria-label="Pause">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+      </button>
+    </div>
+
+    <aside class="board" aria-label="Rangliste">
+      <header class="board__head"><span class="label">Rangliste</span><span class="label" id="board-count"></span></header>
+      <ol class="board__list" id="board"></ol>
+    </aside>
+
+    <div class="abilities">
+      <div class="ability" id="ab-orbit">
+        <span class="label">Orbit</span>
+        <span class="pips" id="orbit-pips"></span>
+        <span class="ability__val" id="orbit-val">0 / 5</span>
+      </div>
+      <div class="ability" id="ab-boost">
+        <span class="label">Boost</span>
+        <span class="ability__val" id="boost-state">ab 30 Masse</span>
+      </div>
+      <div class="ability ability--pos">
+        <span class="label">Pos</span>
+        <span class="ability__val" id="coords">000° · 0 AE</span>
+      </div>
+    </div>
+
+    <figure class="minimap">
+      <canvas id="minimap" aria-label="Übersichtskarte"></canvas>
+      <figcaption class="label">Karte · Umkreis <span id="map-range">2.400</span> AE</figcaption>
+    </figure>
+
+    <div class="feed" id="feed" aria-live="polite"></div>
+    <p class="hint" id="hint" aria-live="polite"></p>
+  </div>
+
+  <div class="toast" id="toast" aria-live="assertive">
+    <span class="toast__kicker" id="toast-kicker"></span>
+    <strong class="toast__title" id="toast-title"></strong>
+    <span class="toast__line" id="toast-line"></span>
+  </div>
+
+  <div class="touch" id="touch" hidden>
+    <button class="touch__btn touch__btn--boost" id="btn-boost" type="button">Boost</button>
+    <button class="touch__btn touch__btn--sling" id="btn-sling" type="button">Schleuder</button>
+  </div>
+
+  <!-- ===================================================== Pause -->
+  <section class="screen screen--overlay" id="screen-pause" aria-labelledby="pause-title" hidden>
+    <div class="panel">
+      <p class="kicker">Simulation angehalten</p>
+      <h2 class="headline" id="pause-title">Pause</h2>
+      <div class="actions">
+        <button class="btn btn--primary" type="button" data-action="resume">Weiter <span class="btn__arrow" aria-hidden="true">→</span></button>
+        <button class="btn btn--ghost" type="button" data-action="menu">Hauptmenü</button>
+      </div>
+      <label class="volume">
+        <span class="label">Lautstärke</span>
+        <input type="range" id="volume" min="0" max="100" step="1">
+        <output class="label" id="volume-val">70</output>
+      </label>
+    </div>
+  </section>
+
+  <!-- ===================================================== Game Over -->
+  <section class="screen screen--overlay screen--over" id="screen-over" aria-labelledby="over-title" hidden>
+    <div class="panel">
+      <p class="kicker" id="over-kicker">Runde beendet</p>
+      <h2 class="headline headline--over" id="over-title">Verschlungen.</h2>
+      <p class="over__by" id="over-by"></p>
+      <dl class="stats">
+        <div><dt class="label">Endmasse</dt><dd id="st-mass">0</dd></div>
+        <div><dt class="label">Höchste Masse</dt><dd id="st-max">0</dd></div>
+        <div><dt class="label">Stufe</dt><dd id="st-stage">Asteroid</dd></div>
+        <div><dt class="label">Kills</dt><dd id="st-kills">0</dd></div>
+        <div><dt class="label">Zeit</dt><dd id="st-time">0:00</dd></div>
+      </dl>
+      <p class="record record--over" id="over-record"></p>
+      <div class="actions">
+        <button class="btn btn--primary" type="button" data-action="restart">Nochmal spielen <span class="btn__arrow" aria-hidden="true">→</span></button>
+        <button class="btn btn--ghost" type="button" data-action="menu">Hauptmenü</button>
+      </div>
+    </div>
+  </section>
+
+  <pre class="debug" id="debug" hidden></pre>
+
+  <div class="boot-error" id="boot-error" hidden>
+    <p class="kicker">Startproblem</p>
+    <p id="boot-error-text">Das Spiel braucht einen lokalen Webserver, weil Browser ES-Module nicht direkt aus dem Dateisystem laden.</p>
+    <pre>npx serve .        # oder
+python -m http.server 8000</pre>
+  </div>
+
+  <script>
+    // Läuft vor dem Spielcode: Wer index.html per Doppelklick öffnet, sieht sonst nur Schwarz.
+    (function () {
+      function show(msg) {
+        var box = document.getElementById('boot-error');
+        if (msg) document.getElementById('boot-error-text').textContent = msg;
+        box.hidden = false;
+      }
+      if (location.protocol === 'file:') { show(); return; }
+      window.addEventListener('error', function (e) {
+        if (!window.__oeBooted) show('Fehler beim Start: ' + (e.message || 'Skript konnte nicht geladen werden') + '.');
+      }, true);
+      setTimeout(function () { if (!window.__oeBooted) show('Das Spiel hat nicht gestartet. Läuft es über einen Webserver?'); }, 8000);
+    })();
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
