@@ -582,7 +582,7 @@ export class Renderer {
 
     for (const b of list) {
       const x = lerp(b.px, b.x, alpha), y = lerp(b.py, b.y, alpha);
-      if (!this.inView(x, y, b.r * 3.4)) continue;
+      if (!this.inView(x, y, b.r * ((b.art && b.art.reach) || 3.4))) continue;
       let scale = 1 + b.pulse * 0.07;
       let stretch = 0;
       if (!b.alive) {
@@ -666,56 +666,28 @@ export class Renderer {
       ctx.fill();
       return;
     }
-    const t = this.time;
-    const screenR = r * z;
-    const slices = clamp(Math.round(screenR / 5), 1, 16);
-    const ov = 0.7 / z;
-
-    if (art.kind === 'rock') {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      ctx.beginPath();
-      const s = art.shape;
-      ctx.moveTo(s[0] * r, s[1] * r);
-      for (let i = 2; i < s.length; i += 2) ctx.lineTo(s[i] * r, s[i + 1] * r);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(art.surface, -r * 1.05, -r * 1.05, r * 2.1, r * 2.1);
-      ctx.rotate(-rot);
-      ctx.scale(r, r);
-      ctx.fillStyle = shade;
-      ctx.fillRect(-1.2, -1.2, 2.4, 2.4);
-      ctx.restore();
-      return;
+    switch (art.kind) {
+      case 'rock': this.drawRock(ctx, art, x, y, r, rot, shade); return;
+      case 'pulsar': this.drawPulsar(ctx, art, x, y, r, z, phase0); return;
+      case 'hole':
+      case 'quasar': this.drawHoleBody(ctx, art, x, y, r, z); return;
+      case 'galaxy': this.drawGalaxy(ctx, art, x, y, r); return;
     }
 
-    if (art.kind === 'star') {
-      const pulse = 1 + 0.05 * Math.sin(t * 2 + art.flare);
+    const t = this.time;
+    const slices = clamp(Math.round((r * z) / 5), 1, 16);
+    const ov = 0.7 / z;
+
+    // Schein hinter dem Körper (Lava, Glut)
+    if (art.glow) {
+      const s = r * art.glowSize;
       ctx.globalCompositeOperation = 'lighter';
-      let s = r * 3.4 * pulse;
-      ctx.globalAlpha = 0.5;
-      ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
-      s = r * 1.75;
-      ctx.globalAlpha = 0.7;
-      ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
-      // Strahlen
-      ctx.globalAlpha = 0.07;
-      ctx.fillStyle = art.corona;
-      ctx.beginPath();
-      for (let i = 0; i < 18; i++) {
-        const a = art.flare + t * 0.03 + (i / 18) * TAU;
-        const len = r * (1.35 + 0.9 * valueNoise(t * 0.5 + i * 3.1, i, 5));
-        const wdt = 0.045;
-        ctx.moveTo(x + Math.cos(a - wdt) * r * 0.9, y + Math.sin(a - wdt) * r * 0.9);
-        ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
-        ctx.lineTo(x + Math.cos(a + wdt) * r * 0.9, y + Math.sin(a + wdt) * r * 0.9);
-      }
-      ctx.fill();
+      ctx.globalAlpha = art.glowAlpha * (0.85 + 0.15 * Math.sin(t * 1.7 + art.flare));
+      ctx.drawImage(glowSprite(art.glow, 128), x - s, y - s, s * 2, s * 2);
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
-
+    if (art.kind === 'star') this.drawCorona(ctx, art, x, y, r);
     if (art.ring) this.drawRingHalf(ctx, art.ring, x, y, r, false);
 
     ctx.save();
@@ -724,7 +696,8 @@ export class Renderer {
     ctx.clip();
     const phase = phase0 + t * art.rate;
     drawSphere(ctx, art.surface, x, y, r, phase, slices, ov);
-    if (art.clouds) drawSphere(ctx, art.clouds, x, y, r, phase * 1.35 + 0.37, slices, 0);
+    if (art.clouds) drawSphere(ctx, art.clouds, x, y, r, phase * (art.cloudRate || 1.35) + 0.37, slices, 0);
+    ctx.save();
     ctx.translate(x, y);
     ctx.scale(r, r);
     if (art.kind === 'star') {
@@ -738,17 +711,25 @@ export class Renderer {
     }
     ctx.fillRect(-1, -1, 2, 2);
     ctx.restore();
+    // Leuchtschicht nach der Schattierung: Lava glüht auch auf der Nachtseite
+    if (art.emissive) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.78 + 0.22 * Math.sin(t * 2.3 + art.flare);
+      drawSphere(ctx, art.emissive, x, y, r, phase, slices, 0);
+    }
+    ctx.restore();
 
     if (art.atmo) {
       // Atmosphäre: dünner, leuchtender Saum
-      const g = ctx.createRadialGradient(x, y, r * 0.94, x, y, r * 1.13);
+      const outer = art.atmoSize || 1.13;
+      const g = ctx.createRadialGradient(x, y, r * 0.94, x, y, r * outer);
       g.addColorStop(0, rgba(art.atmo, 0));
       g.addColorStop(0.3, rgba(art.atmo, 0.38));
       g.addColorStop(1, rgba(art.atmo, 0));
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(x, y, r * 1.13, 0, TAU);
+      ctx.arc(x, y, r * outer, 0, TAU);
       ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -761,6 +742,228 @@ export class Renderer {
       ctx.globalCompositeOperation = 'source-over';
     }
     if (art.ring) this.drawRingHalf(ctx, art.ring, x, y, r, true);
+  }
+
+  drawRock(ctx, art, x, y, r, rot, shade) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    const s = art.shape;
+    ctx.moveTo(s[0] * r, s[1] * r);
+    for (let i = 2; i < s.length; i += 2) ctx.lineTo(s[i] * r, s[i + 1] * r);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(art.surface, -r * 1.05, -r * 1.05, r * 2.1, r * 2.1);
+    ctx.rotate(-rot);
+    ctx.scale(r, r);
+    ctx.fillStyle = shade;
+    ctx.fillRect(-1.2, -1.2, 2.4, 2.4);
+    ctx.restore();
+  }
+
+  /** Korona und Strahlen eines Sterns — Größe und Strahlenzahl je Sterntyp. */
+  drawCorona(ctx, art, x, y, r) {
+    const t = this.time;
+    const pulse = 1 + 0.05 * Math.sin(t * 2 + art.flare);
+    ctx.globalCompositeOperation = 'lighter';
+    let s = r * art.coronaMul * pulse;
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
+    s = r * 1.75;
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
+    if (art.rays > 0) {
+      const n = art.rays;
+      const reach = 1.35 + (art.coronaMul - 3.4) * 0.25;
+      ctx.globalAlpha = art.rayAlpha;
+      ctx.fillStyle = art.corona;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const a = art.flare + t * 0.03 + (i / n) * TAU;
+        const len = r * (reach + 0.9 * valueNoise(t * 0.5 + i * 3.1, i, 5));
+        const wdt = 0.045;
+        ctx.moveTo(x + Math.cos(a - wdt) * r * 0.9, y + Math.sin(a - wdt) * r * 0.9);
+        ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+        ctx.lineTo(x + Math.cos(a + wdt) * r * 0.9, y + Math.sin(a + wdt) * r * 0.9);
+      }
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Pulsar: Magnetfeldlinien, gleißender Kern und zwei rotierende Lichtkegel. */
+  drawPulsar(ctx, art, x, y, r, z, phase0) {
+    const t = this.time;
+    const a = art.axis + (t / art.period) * TAU;
+    const ax = Math.cos(a), ay = Math.sin(a);
+    const flash = Math.abs(Math.sin(a * 2)) ** 6;
+
+    ctx.globalCompositeOperation = 'lighter';
+    let s = r * (2.6 + flash);
+    ctx.globalAlpha = 0.3 + flash * 0.25;
+    ctx.drawImage(glowSprite(art.beam, 128), x - s, y - s, s * 2, s * 2);
+
+    // Dipolfeld: Schleifen von Pol zu Pol auf beiden Seiten der Magnetachse
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = art.beam;
+    ctx.lineWidth = Math.max(1.2 / z, r * 0.03);
+    for (const k of [1.2, 1.9, 2.8]) {
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(x - ay * side * r * k * 0.8, y + ax * side * r * k * 0.8, r * k * 1.15, r * k * 0.85, a, 0, TAU);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Kern
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, TAU);
+    ctx.clip();
+    drawSphere(ctx, art.surface, x, y, r, phase0 + t * art.rate, clamp(Math.round((r * z) / 5), 1, 16), 0.7 / z);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.5)');
+    g.addColorStop(0.7, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(120,170,255,0.6)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.restore();
+
+    // Lichtkegel entlang der Magnetachse
+    ctx.globalCompositeOperation = 'lighter';
+    const len = r * 7;
+    for (const dir of [1, -1]) {
+      const bx = ax * dir, by = ay * dir;
+      const px = -by, py = bx;
+      const grad = ctx.createLinearGradient(x, y, x + bx * len, y + by * len);
+      grad.addColorStop(0, `rgba(230,245,255,${0.5 + flash * 0.3})`);
+      grad.addColorStop(0.35, 'rgba(160,215,255,0.22)');
+      grad.addColorStop(1, 'rgba(160,215,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(x + px * r * 0.25, y + py * r * 0.25);
+      ctx.lineTo(x + bx * len + px * r * 0.9, y + by * len + py * r * 0.9);
+      ctx.lineTo(x + bx * len - px * r * 0.9, y + by * len - py * r * 0.9);
+      ctx.lineTo(x - px * r * 0.25, y - py * r * 0.25);
+      ctx.fill();
+    }
+    s = r * 1.4;
+    ctx.globalAlpha = 0.3 + flash * 0.35;
+    ctx.drawImage(glowSprite('#ffffff', 64), x - s, y - s, s * 2, s * 2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Spieler als Schwarzes Loch (bzw. Quasar mit Jets): Schatten, Scheibe, Horizont, Photonenring. */
+  drawHoleBody(ctx, art, x, y, r, z) {
+    const t = this.time;
+    const hr = r * 0.62;
+    const spin = t * 0.7 * art.spinDir;
+    const quasar = art.kind === 'quasar';
+
+    const shadow = ctx.createRadialGradient(x, y, hr, x, y, hr * 4.5);
+    shadow.addColorStop(0, 'rgba(0,0,0,0.85)');
+    shadow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shadow;
+    ctx.beginPath();
+    ctx.arc(x, y, hr * 4.5, 0, TAU);
+    ctx.fill();
+
+    this.diskHalf(ctx, x, y, hr * 3.4, art.rot, art.tilt, spin, quasar ? 1 : 0.85, false);
+    if (quasar) this.drawJets(ctx, art, x, y, r, hr);
+
+    // Halo vor dem Horizont zeichnen: Ein radialer Verlauf füllt auch das Innere
+    // seines Startkreises — der schwarze Horizont muss danach darüber.
+    ctx.globalCompositeOperation = 'lighter';
+    const halo = ctx.createRadialGradient(x, y, hr * 0.98, x, y, hr * 1.75);
+    halo.addColorStop(0, quasar ? 'rgba(220,240,255,0.85)' : 'rgba(255,214,160,0.75)');
+    halo.addColorStop(0.18, quasar ? 'rgba(140,190,255,0.35)' : 'rgba(255,150,70,0.32)');
+    halo.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(x, y, hr * 1.75, 0, TAU);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(x, y, hr, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,236,205,0.9)';
+    ctx.lineWidth = Math.max(1.5 / z, hr * 0.04);
+    ctx.beginPath();
+    ctx.arc(x, y, hr * 1.02, 0, TAU);
+    ctx.stroke();
+
+    this.diskHalf(ctx, x, y, hr * 3.4, art.rot, art.tilt, spin, 1, true);
+  }
+
+  /** Relativistische Jets eines Quasars — senkrecht zur Scheibe, flackernd. */
+  drawJets(ctx, art, x, y, r, hr) {
+    const flicker = 0.8 + 0.2 * Math.sin(this.time * 13) * Math.sin(this.time * 7.3);
+    const len = r * 8;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(art.rot);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const side of [-1, 1]) {
+      const g = ctx.createLinearGradient(0, side * hr * 0.4, 0, side * len);
+      g.addColorStop(0, `rgba(235,245,255,${0.95 * flicker})`);
+      g.addColorStop(0.25, `rgba(150,200,255,${0.5 * flicker})`);
+      g.addColorStop(1, 'rgba(120,170,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.22, side * hr * 0.4);
+      ctx.lineTo(-hr * 0.5, side * len);
+      ctx.lineTo(hr * 0.5, side * len);
+      ctx.lineTo(hr * 0.22, side * hr * 0.4);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${0.7 * flicker})`;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.06, side * hr * 0.4);
+      ctx.lineTo(0, side * len * 0.7);
+      ctx.lineTo(hr * 0.06, side * hr * 0.4);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /** Galaxie: gekippte, langsam rotierende Spiralscheibe mit hellem Kern. */
+  drawGalaxy(ctx, art, x, y, r) {
+    const s = r * 1.6;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(art.rot0);
+    ctx.scale(1, art.tilt);
+    ctx.rotate(this.time * art.spin);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(art.sprite, -s, -s, s * 2, s * 2);
+    ctx.restore();
+    const c = r * 0.55;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.75;
+    ctx.drawImage(glowSprite('#ffe8c0', 128), x - c, y - c, c * 2, c * 2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Eine Hälfte einer gekippten Akkretionsscheibe (hinten oder vorne). */
+  diskHalf(ctx, x, y, R, rot, tilt, spin, alpha, front) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(1, tilt);
+    ctx.beginPath();
+    ctx.rect(-R, front ? 0 : -R, R * 2, R);
+    ctx.clip();
+    ctx.rotate(spin);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(this.bhDisk, -R, -R, R * 2, R * 2);
+    ctx.restore();
   }
 
   /** Ringe: erst die hintere Hälfte, dann der Planet, dann die vordere. */
@@ -908,22 +1111,9 @@ export class Renderer {
     this.drawDisk(h, x, y, r, true);
   }
 
-  /** Akkretionsscheibe, gekippt; rotiert in der gestauchten Ebene. */
+  /** Akkretionsscheibe eines Gefahren-Lochs, gekippt; rotiert in der gestauchten Ebene. */
   drawDisk(h, x, y, r, front) {
-    const ctx = this.ctx;
-    const R = r * 3.3;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(-0.32 + (h.r0 % 1) * 0.3);
-    ctx.scale(1, 0.3);
-    ctx.beginPath();
-    ctx.rect(-R, front ? 0 : -R, R * 2, R);
-    ctx.clip();
-    ctx.rotate(h.spin * 0.7);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = h.strength * (front ? 1 : 0.8);
-    ctx.drawImage(this.bhDisk, -R, -R, R * 2, R * 2);
-    ctx.restore();
+    this.diskHalf(this.ctx, x, y, r * 3.3, -0.32 + (h.r0 % 1) * 0.3, 0.3, h.spin * 0.7, h.strength * (front ? 1 : 0.8), front);
   }
 
   // =====================================================================
@@ -945,7 +1135,7 @@ export class Renderer {
       if (sx < -150 || sx > w + 150 || sy < -60 || sy > h + 60) continue;
       const rel = this.relation(b);
       const name = b.upperName || (b.upperName = b.name.toLocaleUpperCase('de-DE'));
-      const y0 = sy + sr + (b.stage === 4 ? 14 : 8);
+      const y0 = sy + sr * ((b.art && b.art.extent) || 1) + 8;
       ctx.font = `600 11px ${FONT_DISPLAY}`;
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(5,7,11,0.8)';
@@ -1206,7 +1396,7 @@ export class Renderer {
     const ctx = c.getContext('2d');
     ctx.scale(dpr, dpr);
     const art = buildBodyArt(seed + stage, stage);
-    const r = size * (stage === 3 ? 0.22 : stage === 4 ? 0.2 : 0.34);
+    const r = size * (art.thumb || 0.34);
     this.drawBody(ctx, art, size / 2, size / 2, r, 0.4, makeShade(ctx), 2);
     // Ränder weich ausblenden, damit Korona und Ringe nicht an der Canvas-Kante abreißen
     const m = ctx.createRadialGradient(size / 2, size / 2, size * 0.32, size / 2, size / 2, size / 2);

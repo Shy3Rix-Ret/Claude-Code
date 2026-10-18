@@ -390,6 +390,8 @@ export class Game {
     integrate(b, dt);
     containCircle(b, b.r);
 
+    // Obergrenze: sonst wird ein Körper größer als die Arena und die Randbegrenzung kippt
+    if (b.mass > BODY.maxMass) b.mass = BODY.maxMass;
     b.r = damp(b.r, radiusForMass(b.mass), BODY.radiusEase, dt);
     b.angle += (b.spin / (1 + b.r / 60)) * dt;
     b.pulse = damp(b.pulse, 0, 8, dt);
@@ -552,7 +554,8 @@ export class Game {
     d.captureGap = Math.max(ORBIT.minGap, dist - b.r - d.r);
     const depth = gravityRadius(b) - b.r;
     d.orbitGap = Math.max(ORBIT.minGap, randRange(ORBIT.gapMin, ORBIT.gapMax) * depth);
-    d.orbitSpeed = (ORBIT.speed + b.stage * ORBIT.speedPerStage) * randRange(0.85, 1.15);
+    const bonus = Math.min(ORBIT.speedBonusMax, Math.sqrt(b.mass) * ORBIT.speedPerSqrtMass);
+    d.orbitSpeed = (ORBIT.speed + bonus) * randRange(0.85, 1.15);
     d.orbitBlend = 0;
     d.spin = randRange(-2.5, 2.5);
     b.orbiters.push(d);

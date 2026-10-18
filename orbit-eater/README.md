@@ -3,7 +3,8 @@
 **Ein Browserspiel über Schwerkraft und Appetit.** Du bist ein kleiner Himmelskörper in einer
 kreisrunden Arena. Friss, was kleiner ist, meide, was größer ist, und nutze deine eigene
 Schwerkraft: Staub fällt in Spiralen auf dich zu, Asteroiden gehen in deine Umlaufbahn und
-werden zu Munition. Vom Asteroiden über Mond, Planet und Gasriesen bis zum Stern.
+werden zu Munition. 19 Stufen: vom Asteroiden über Monde, Planeten, Riesen und Sterne bis zum
+Schwarzen Loch, zum Quasar und am Ende zur ganzen Galaxie.
 
 Inspiriert vom Spielgefühl von slither.io und agar.io, aber mit eigener Mechanik
 (Gravitation, Orbits, Schleuder) und eigener Gestaltung.
@@ -91,15 +92,36 @@ als Munition verwenden?
 **Boost.** Schneller, kostet aber laufend Masse. Sie bleibt als Staubspur hinter dir zurück
 und kann von anderen gefressen werden. Unter 30 Masse gibt es keinen Boost.
 
-**Evolution.**
+**Evolution.** 19 Stufen, jede mit eigener prozeduraler Optik. Die Abstände wachsen um etwa
+30 % pro Stufe: Am Anfang kommt alle paar Sekunden eine neue Stufe, später alle ein bis zwei
+Minuten. Die letzten fünf Stufen erreicht nur, wer die Arena dominiert (oder die
+Admin-Konsole benutzt).
 
-| Stufe | ab Masse | Aussehen |
-|---|---|---|
-| Asteroid | Start (22) | unregelmäßiger Felsbrocken mit Kratern |
-| Mond | 60 | kraterübersäte Kugel, dreht sich |
-| Planet | 170 | Kontinente, Polkappen, eigene Wolkenschicht, Atmosphärensaum |
-| Gasriese | 450 | Wolkenbänder, Sturmfleck, meist Ringe |
-| Stern | 1.100 | Granulation, Korona, Strahlen |
+| # | Stufe | ab Masse | Aussehen |
+|---|---|---|---|
+| 1 | Asteroid | Start (22) | unregelmäßiger Felsbrocken mit Kratern |
+| 2 | Mond | 40 | graue Kraterkugel mit dunklen Ebenen |
+| 3 | Eismond | 70 | helles Eis, rostbraune Flecken, lange Risse (wie Europa) |
+| 4 | Lavamond | 110 | dunkle Kruste, Schwefelfelder, glühende Spalten und Vulkane, leuchtet auch nachts (wie Io) |
+| 5 | Wüstenplanet | 160 | rote oder gelbe Wüste, Polkappen, dünne Atmosphäre (wie der Mars) |
+| 6 | Ozeanplanet | 230 | Meere, Kontinente, Polkappen, Wolkenschicht, blauer Saum |
+| 7 | Wolkenwelt | 320 | geschlossene, gelbliche Wolkendecke, schnell rotierend (wie die Venus) |
+| 8 | Eisriese | 430 | glatte, kühle Bänder und ein fast senkrechter Ring (wie Uranus) |
+| 9 | Gasriese | 570 | Wolkenbänder, großer Sturmfleck, manchmal Ringe (wie Jupiter) |
+| 10 | Ringriese | 750 | breites, helles Ringsystem (wie Saturn) |
+| 11 | Brauner Zwerg | 980 | dunkle Bänder, die von innen glimmen |
+| 12 | Roter Zwerg | 1.280 | kleiner roter Stern |
+| 13 | Sonne | 1.650 | gelber Stern mit Korona und Strahlen |
+| 14 | Blauer Riese | 2.100 | gleißend blau-weiß, große Korona |
+| 15 | Roter Überriese | 2.700 | grobe Konvektionszellen, weiche rote Korona |
+| 16 | Neutronenstern | 3.500 | Pulsar mit zwei rotierenden Lichtkegeln und Magnetfeldlinien |
+| 17 | Schwarzes Loch | 4.500 | schwarzer Horizont, Photonenring, gekippte Akkretionsscheibe |
+| 18 | Quasar | 6.000 | Schwarzes Loch mit relativistischen Jets |
+| 19 | Galaxie | 8.000 | rotierende Spiralgalaxie mit Staubbahnen |
+
+![Alle 19 Stufen aus der Asset-Galerie](docs/stufen.jpg)
+
+Jeder Körper kann höchstens 25.000 Masse haben. Darüber wäre er größer als die halbe Arena.
 
 **Reibung.** Ab 250 Masse kostet Bewegung etwas Masse. Bei voller Fahrt sind das 0,5 % der
 Masse über 250 pro Sekunde, also bei 600 Masse etwa 1,7 pro Sekunde. Langsamer heißt weniger
@@ -130,7 +152,7 @@ dürfen ein deutsches Komma haben (`/zeit 0,5`). In Klammern stehen die englisch
 |---|---|
 | `/hilfe` (`/help`) | alle Befehle anzeigen |
 | `/masse <zahl>` (`/mass`) | eigene Masse setzen |
-| `/stufe <1–5 \| name>` (`/stage`) | direkt auf eine Stufe springen, z. B. `/stufe stern` |
+| `/stufe <1–19 \| name>` (`/stage`) | direkt auf eine Stufe springen, z. B. `/stufe 13`, `/stufe quasar`, `/stufe saturn` |
 | `/gott` (`/god`) | unverwundbar an/aus |
 | `/tempo <faktor>` (`/speed`) | eigenes Tempo, 1 = normal, bis 5 |
 | `/bot [masse] [anzahl]` (`/spawn`) | Bots neben dir erzeugen |
@@ -220,8 +242,16 @@ und fBm) und als Offscreen-Canvas gecacht.
   Breite dem Sinus der Länge folgt. Am Rand läuft die Oberfläche dadurch zusammen wie auf
   einer echten Kugel. Die Zeilen sind schon bei der Erzeugung nach Breitengrad verteilt,
   Krater werden zu den Polen hin passend gedehnt.
-- **Aus einem Seed.** Jede Stufe hat mehrere Paletten (Erde, Wüste, Mars, Violett; Jupiter,
-  Neptun, Saturn …). Bots sehen über ihren Seed nach jeder Evolution „verwandt“ aus.
+- **Aus einem Seed.** Viele Stufen haben mehrere Paletten (Erde, Türkis, Violett; zwei
+  Wüsten; Uranus- und Neptun-Blau …). Bots sehen über ihren Seed nach jeder Evolution
+  „verwandt“ aus.
+- **Parametrisierte Generatoren.** 19 Stufen bedeuten nicht 19 Zeichenprogramme. Planeten,
+  Riesen und Sterne entstehen aus je einem Generator mit Optionen (Meeresspiegel, Wolken,
+  Bandfrequenz, Sturm, Ring, Korona, Zellgröße). Eigene Zeichenarten haben nur die Exoten:
+  Pulsar, Schwarzes Loch, Quasar und Galaxie.
+- **Leuchtschichten.** Lava und die Glut des Braunen Zwergs liegen in einer eigenen Textur,
+  die nach der Schattierung additiv gezeichnet wird. Sie leuchten deshalb auch auf der
+  Nachtseite.
 - **Textur-Cache mit Vorwärmen.** Eine Planetentextur kostet rund 20 ms. Deshalb wird höchstens
   eine pro Frame gebaut, und zwar schon, wenn ein Körper sich der nächsten Stufe nähert. Beim
   Evolutions-Moment liegt sie bereit, es gibt keinen Ruckler.
@@ -314,8 +344,8 @@ Median um 450–600 ein, mit vereinzelten Sternen. Als die Reibung später gesen
 derselbe Test, dass dafür etwas weniger Staub nachwachsen muss.
 
 Im Browser zeigen `?debug` in der Adresse oder **F3** die FPS, die Zeit für Simulation und
-Zeichnen sowie alle Objektzahlen an. `tools/gallery.html` rendert jede Stufe in mehreren
-Paletten groß, um die prozedurale Grafik zu beurteilen.
+Zeichnen sowie alle Objektzahlen an. `tools/gallery.html` rendert alle 19 Stufen
+groß (mit `?seed=123` in anderen Varianten), um die prozedurale Grafik zu beurteilen.
 
 ## Bewusste Entscheidungen
 

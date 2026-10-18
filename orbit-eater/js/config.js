@@ -49,16 +49,36 @@ export const BODY = {
   gravityAdd: 36,
   bodyPull: 150,          // Sog großer Körper auf fressbare kleinere (Einheiten/s² am Rand der Oberfläche)
   spawnShield: 3,         // Sekunden Schutz nach dem Spawn
+  maxMass: 25000,         // Obergrenze — darüber würde ein Körper größer als die halbe Arena
   spawnFade: 0.6,
 };
 
-/** Evolutionsstufen. `min` ist die Masse, ab der die Stufe erreicht wird. */
+/**
+ * Evolutionsstufen. `min` ist die Masse, ab der die Stufe erreicht wird.
+ * Die Abstände wachsen um ~30 % pro Stufe: Am Anfang kommt alle 15–30 s eine
+ * neue Stufe, die letzten fünf sind etwas für Dominanz (oder die Admin-Konsole).
+ * Das Aussehen jeder Stufe steht in sprites.js unter demselben `key`.
+ */
 export const STAGES = [
-  { key: 'asteroid', name: 'Asteroid', min: 0,    line: 'Klein, kantig, hungrig.' },
-  { key: 'moon',     name: 'Mond',     min: 60,   line: 'Jetzt mit Kratern. Und Ambitionen.' },
-  { key: 'planet',   name: 'Planet',   min: 170,  line: 'Eigene Atmosphäre, eigenes Wetter, eigene Regeln.' },
-  { key: 'giant',    name: 'Gasriese', min: 450,  line: 'Hauptsächlich heiße Luft. Aber sehr viel davon.' },
-  { key: 'star',     name: 'Stern',    min: 1100, line: 'Ab jetzt drehen sich die anderen um dich.' },
+  { key: 'asteroid',   name: 'Asteroid',        min: 0,    line: 'Klein, kantig, hungrig.' },
+  { key: 'moon',       name: 'Mond',            min: 40,   line: 'Jetzt mit Kratern. Und Ambitionen.' },
+  { key: 'icemoon',    name: 'Eismond',         min: 70,   line: 'Außen gefroren, innen ein Ozean voller Pläne.' },
+  { key: 'lavamoon',   name: 'Lavamond',        min: 110,  line: 'Ständig am Brodeln. Wie ein Gruppenchat um Mitternacht.' },
+  { key: 'desert',     name: 'Wüstenplanet',    min: 160,  line: 'Viel Sand, wenig Gnade.' },
+  { key: 'ocean',      name: 'Ozeanplanet',     min: 230,  line: 'Blau, wolkig, bewohnbar. Fast schon gemütlich.' },
+  { key: 'cloud',      name: 'Wolkenwelt',      min: 320,  line: 'Dicke Luft. Und zwar überall.' },
+  { key: 'icegiant',   name: 'Eisriese',        min: 430,  line: 'Kalt, blau und ziemlich schräg unterwegs.' },
+  { key: 'gasgiant',   name: 'Gasriese',        min: 570,  line: 'Hauptsächlich heiße Luft. Aber sehr viel davon.' },
+  { key: 'ringgiant',  name: 'Ringriese',       min: 750,  line: 'Schmuck ist Pflicht.' },
+  { key: 'browndwarf', name: 'Brauner Zwerg',   min: 980,  line: 'Fast ein Stern. Fast.' },
+  { key: 'reddwarf',   name: 'Roter Zwerg',     min: 1280, line: 'Die erste eigene Kernfusion. Glückwunsch.' },
+  { key: 'sun',        name: 'Sonne',           min: 1650, line: 'Ab jetzt drehen sich die anderen um dich.' },
+  { key: 'bluegiant',  name: 'Blauer Riese',    min: 2100, line: 'Heiß, hell, laut. Nicht lange, aber spektakulär.' },
+  { key: 'redgiant',   name: 'Roter Überriese', min: 2700, line: 'Aufgebläht und stolz drauf.' },
+  { key: 'neutron',    name: 'Neutronenstern',  min: 3500, line: 'Ein Teelöffel von dir wiegt eine Milliarde Tonnen.' },
+  { key: 'blackhole',  name: 'Schwarzes Loch',  min: 4500, line: 'Licht? Kommt hier nicht mehr raus.' },
+  { key: 'quasar',     name: 'Quasar',          min: 6000, line: 'Du leuchtest heller als ganze Galaxien.' },
+  { key: 'galaxy',     name: 'Galaxie',         min: 8000, line: 'Du bist jetzt das Universum. Mehr geht nicht.' },
 ];
 /** Abstieg erst, wenn die Masse 10 % unter die Stufengrenze fällt — sonst flackert die Stufe. */
 export const STAGE_DOWN = 0.9;
@@ -72,7 +92,8 @@ export const ORBIT = {
   gapMax: 0.62,
   minGap: 5,
   speed: 105,             // Bahngeschwindigkeit
-  speedPerStage: 16,
+  speedPerSqrtMass: 1.5,  // große Körper: schnellere Bahnen …
+  speedBonusMax: 90,      // … aber nur bis zu diesem Aufschlag
   blendTime: 0.75,        // weicher Übergang vom freien Flug in die Umlaufbahn
   accretionRate: 0.22,    // Masse pro Sekunde, die jeder Orbiter an den Körper abgibt
   decay: 0.03,            // Bahn sinkt langsam

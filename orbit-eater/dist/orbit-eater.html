@@ -536,48 +536,42 @@ kbd {
 
 .stages {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
-  counter-reset: stage;
 }
 
 .stages li {
-  position: relative;
   display: grid;
-  justify-items: center;
-  gap: 4px;
-  text-align: center;
+  place-items: center;
+  height: 44px;
+  border-radius: 2px;
+  outline: none;
+  transition: background-color 0.2s;
 }
 
-.stages li + li::before {
-  content: "";
-  position: absolute;
-  top: 28px;
-  left: -14%;
-  width: 28%;
-  height: 1px;
-  background: var(--hair);
+.stages li:hover,
+.stages li:focus-visible {
+  background: rgba(236, 230, 214, 0.07);
+}
+
+.stages li:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--amber);
 }
 
 .stages canvas {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
 }
 
-.stages b {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.stages small {
+.stages__caption {
+  min-height: 1.4em;
+  margin: 10px 0 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--paper-3);
+  font-size: 11.5px;
+  color: var(--paper-2);
 }
 
 /* Pause / Game Over: gleiche Linke-Kante-Typografie wie der Start */
@@ -1481,13 +1475,17 @@ body.console-open .hint {
     gap: 22px;
   }
 
-  .stages canvas {
-    width: 44px;
-    height: 44px;
+  .stages {
+    grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
   }
 
-  .stages li + li::before {
-    top: 22px;
+  .stages li {
+    height: 38px;
+  }
+
+  .stages canvas {
+    width: 34px;
+    height: 34px;
   }
 
   .stats {
@@ -1643,6 +1641,7 @@ body.console-open .hint {
       <div class="sheet__col sheet__col--stages">
         <h2 class="sheet__head"><span>03</span>Evolution</h2>
         <ol class="stages" id="stages"></ol>
+        <p class="stages__caption" id="stages-caption" aria-live="polite"></p>
       </div>
     </footer>
   </section>
@@ -1847,16 +1846,36 @@ const BODY = {
   gravityAdd: 36,
   bodyPull: 150,          // Sog großer Körper auf fressbare kleinere (Einheiten/s² am Rand der Oberfläche)
   spawnShield: 3,         // Sekunden Schutz nach dem Spawn
+  maxMass: 25000,         // Obergrenze — darüber würde ein Körper größer als die halbe Arena
   spawnFade: 0.6,
 };
 
-/** Evolutionsstufen. `min` ist die Masse, ab der die Stufe erreicht wird. */
+/**
+ * Evolutionsstufen. `min` ist die Masse, ab der die Stufe erreicht wird.
+ * Die Abstände wachsen um ~30 % pro Stufe: Am Anfang kommt alle 15–30 s eine
+ * neue Stufe, die letzten fünf sind etwas für Dominanz (oder die Admin-Konsole).
+ * Das Aussehen jeder Stufe steht in sprites.js unter demselben `key`.
+ */
 const STAGES = [
-  { key: 'asteroid', name: 'Asteroid', min: 0,    line: 'Klein, kantig, hungrig.' },
-  { key: 'moon',     name: 'Mond',     min: 60,   line: 'Jetzt mit Kratern. Und Ambitionen.' },
-  { key: 'planet',   name: 'Planet',   min: 170,  line: 'Eigene Atmosphäre, eigenes Wetter, eigene Regeln.' },
-  { key: 'giant',    name: 'Gasriese', min: 450,  line: 'Hauptsächlich heiße Luft. Aber sehr viel davon.' },
-  { key: 'star',     name: 'Stern',    min: 1100, line: 'Ab jetzt drehen sich die anderen um dich.' },
+  { key: 'asteroid',   name: 'Asteroid',        min: 0,    line: 'Klein, kantig, hungrig.' },
+  { key: 'moon',       name: 'Mond',            min: 40,   line: 'Jetzt mit Kratern. Und Ambitionen.' },
+  { key: 'icemoon',    name: 'Eismond',         min: 70,   line: 'Außen gefroren, innen ein Ozean voller Pläne.' },
+  { key: 'lavamoon',   name: 'Lavamond',        min: 110,  line: 'Ständig am Brodeln. Wie ein Gruppenchat um Mitternacht.' },
+  { key: 'desert',     name: 'Wüstenplanet',    min: 160,  line: 'Viel Sand, wenig Gnade.' },
+  { key: 'ocean',      name: 'Ozeanplanet',     min: 230,  line: 'Blau, wolkig, bewohnbar. Fast schon gemütlich.' },
+  { key: 'cloud',      name: 'Wolkenwelt',      min: 320,  line: 'Dicke Luft. Und zwar überall.' },
+  { key: 'icegiant',   name: 'Eisriese',        min: 430,  line: 'Kalt, blau und ziemlich schräg unterwegs.' },
+  { key: 'gasgiant',   name: 'Gasriese',        min: 570,  line: 'Hauptsächlich heiße Luft. Aber sehr viel davon.' },
+  { key: 'ringgiant',  name: 'Ringriese',       min: 750,  line: 'Schmuck ist Pflicht.' },
+  { key: 'browndwarf', name: 'Brauner Zwerg',   min: 980,  line: 'Fast ein Stern. Fast.' },
+  { key: 'reddwarf',   name: 'Roter Zwerg',     min: 1280, line: 'Die erste eigene Kernfusion. Glückwunsch.' },
+  { key: 'sun',        name: 'Sonne',           min: 1650, line: 'Ab jetzt drehen sich die anderen um dich.' },
+  { key: 'bluegiant',  name: 'Blauer Riese',    min: 2100, line: 'Heiß, hell, laut. Nicht lange, aber spektakulär.' },
+  { key: 'redgiant',   name: 'Roter Überriese', min: 2700, line: 'Aufgebläht und stolz drauf.' },
+  { key: 'neutron',    name: 'Neutronenstern',  min: 3500, line: 'Ein Teelöffel von dir wiegt eine Milliarde Tonnen.' },
+  { key: 'blackhole',  name: 'Schwarzes Loch',  min: 4500, line: 'Licht? Kommt hier nicht mehr raus.' },
+  { key: 'quasar',     name: 'Quasar',          min: 6000, line: 'Du leuchtest heller als ganze Galaxien.' },
+  { key: 'galaxy',     name: 'Galaxie',         min: 8000, line: 'Du bist jetzt das Universum. Mehr geht nicht.' },
 ];
 /** Abstieg erst, wenn die Masse 10 % unter die Stufengrenze fällt — sonst flackert die Stufe. */
 const STAGE_DOWN = 0.9;
@@ -1870,7 +1889,8 @@ const ORBIT = {
   gapMax: 0.62,
   minGap: 5,
   speed: 105,             // Bahngeschwindigkeit
-  speedPerStage: 16,
+  speedPerSqrtMass: 1.5,  // große Körper: schnellere Bahnen …
+  speedBonusMax: 90,      // … aber nur bis zu diesem Aufschlag
   blendTime: 0.75,        // weicher Übergang vom freien Flug in die Umlaufbahn
   accretionRate: 0.22,    // Masse pro Sekunde, die jeder Orbiter an den Körper abgibt
   decay: 0.03,            // Bahn sinkt langsam
@@ -3325,6 +3345,8 @@ class Game {
     integrate(b, dt);
     containCircle(b, b.r);
 
+    // Obergrenze: sonst wird ein Körper größer als die Arena und die Randbegrenzung kippt
+    if (b.mass > BODY.maxMass) b.mass = BODY.maxMass;
     b.r = damp(b.r, radiusForMass(b.mass), BODY.radiusEase, dt);
     b.angle += (b.spin / (1 + b.r / 60)) * dt;
     b.pulse = damp(b.pulse, 0, 8, dt);
@@ -3487,7 +3509,8 @@ class Game {
     d.captureGap = Math.max(ORBIT.minGap, dist - b.r - d.r);
     const depth = gravityRadius(b) - b.r;
     d.orbitGap = Math.max(ORBIT.minGap, randRange(ORBIT.gapMin, ORBIT.gapMax) * depth);
-    d.orbitSpeed = (ORBIT.speed + b.stage * ORBIT.speedPerStage) * randRange(0.85, 1.15);
+    const bonus = Math.min(ORBIT.speedBonusMax, Math.sqrt(b.mass) * ORBIT.speedPerSqrtMass);
+    d.orbitSpeed = (ORBIT.speed + bonus) * randRange(0.85, 1.15);
     d.orbitBlend = 0;
     d.spin = randRange(-2.5, 2.5);
     b.orbiters.push(d);
@@ -4262,7 +4285,7 @@ const __sprites = (() => {
  * Die Zeilen sind nach Breitengrad verteilt (y ∝ sin φ), dadurch sitzen
  * Muster ohne weitere Verzerrung korrekt auf der Kugel.
  */
-const { ASTEROID } = __config;
+const { ASTEROID, STAGES } = __config;
 const { TAU, clamp, lerp, fbm, valueNoise, hexToRgb, mixRgb, mulberry32, smoothstep } = __utils;
 
 const STRIP_H = 128;
@@ -4298,26 +4321,66 @@ const MOON = [
   { dark: '#62584a', base: '#b3a58f', light: '#e0d3bc', mare: '#7a6d5a' },
 ].map(rgbAll);
 
-const PLANET = [
+const ICE = [
+  { dark: '#8fb2c8', base: '#cfe3ee', light: '#f6fbff', stain: '#a8704e' },
+  { dark: '#9aaebc', base: '#d9e4ea', light: '#ffffff', stain: '#b0805a' },
+  { dark: '#7fa6ad', base: '#c4dde0', light: '#eefcff', stain: '#8a5a44' },
+].map(rgbAll);
+
+const LAVA = [
+  { crust: '#1c1714', crust2: '#3b2f27', sulfur: '#b8a040', lava: '#ff6a12', hot: '#ffd36a' },
+  { crust: '#33291a', crust2: '#5e4e22', sulfur: '#d8c860', lava: '#ff5a1a', hot: '#ffe08a' },
+].map(rgbAll);
+
+const DESERT = [
+  { deep: '#3a160e', shallow: '#6a2a18', low: '#a2482a', high: '#cf7d4a', peak: '#efc08a', ice: '#fbe9d8', atmo: '#ffab7a' },
+  { deep: '#3a2a12', shallow: '#6a4a22', low: '#b08040', high: '#d8a860', peak: '#f0d8a0', ice: '#fff4e0', atmo: '#ffd59a' },
+].map(rgbAll);
+
+const OCEAN = [
   { deep: '#0b2545', shallow: '#1d5f8a', low: '#3f6b35', high: '#8a7a4a', peak: '#cbbf98', ice: '#eef3f5', atmo: '#7fc8ff' },
   { deep: '#0f3436', shallow: '#1f7f78', low: '#7a4a2e', high: '#b07a4a', peak: '#e0c08a', ice: '#f4efe6', atmo: '#8fe3d0' },
   { deep: '#1d1638', shallow: '#3d3478', low: '#5f7f62', high: '#a8a878', peak: '#dcd6a8', ice: '#f0eefa', atmo: '#b9a8ff' },
-  { deep: '#2a100c', shallow: '#5a2416', low: '#a2482a', high: '#cf7d4a', peak: '#efc08a', ice: '#fbe9d8', atmo: '#ffab7a' },
 ].map(rgbAll);
 
-const GIANT = [
+const VENUS = [
+  { a: '#f4e6b8', b: '#dcbc74', c: '#b58e4c', atmo: '#ffe2a0' },
+  { a: '#f1e9d6', b: '#d2c09a', c: '#a8916a', atmo: '#fff0c8' },
+].map(rgbAll);
+
+const ICEGIANT = [
+  { bands: ['#c8f0f4', '#a4e2ea', '#86d2de', '#d8f6f8', '#70c2d0'], storm: '#2d6f8a', ring: '#b8d8e0' },
+  { bands: ['#a8c8f6', '#7aa2ea', '#5880d6', '#c8dcf8', '#4466c0'], storm: '#1d2f66', ring: '#a8c0e0' },
+].map(rgbAll);
+
+const JOVIAN = [
   { bands: ['#efe0c0', '#c99a68', '#a7643f', '#f4e9d2', '#8a4b30'], storm: '#b5502e', ring: '#d8c4a0' },
-  { bands: ['#d6e6f6', '#7fa6d8', '#3f66b0', '#eaf2fa', '#2b4a8a'], storm: '#1d2f66', ring: '#a8c0e0' },
-  { bands: ['#efdcaa', '#cfae6a', '#a5844a', '#f7ebc8', '#7a5c34'], storm: '#f5e6b8', ring: '#e6d2a0' },
+  { bands: ['#f0d8b8', '#d8a878', '#b07048', '#f8ead8', '#986040'], storm: '#c06038', ring: '#e0c8a8' },
   { bands: ['#c9ece2', '#6fb8a8', '#2f7f78', '#e2f6ef', '#1f5a55'], storm: '#e8fff8', ring: '#a8d8cc' },
 ].map(rgbAll);
 
-const STAR = [
-  { core: '#fff8e6', mid: '#ffd27a', edge: '#f08a32', corona: '#ffb347' },
-  { core: '#ffffff', mid: '#dce8ff', edge: '#7f9cff', corona: '#9fc0ff' },
-  { core: '#fff0e0', mid: '#ff9a62', edge: '#c8402a', corona: '#ff6a4a' },
-  { core: '#fffdf0', mid: '#fff0a8', edge: '#ffbf40', corona: '#ffe08a' },
+const SATURN = [
+  { bands: ['#efdcaa', '#cfae6a', '#a5844a', '#f7ebc8', '#7a5c34'], storm: '#f5e6b8', ring: '#e6d2a0' },
+  { bands: ['#f2e6c8', '#dcc89a', '#bfa470', '#faf2dc', '#a08a5a'], storm: '#fff4d8', ring: '#ece0c0' },
 ].map(rgbAll);
+
+const BROWN = [
+  { bands: ['#5a1e2a', '#3a1018', '#7a2a2a', '#2a0c12', '#8a3a2a'], glow: '#ff4a2a', ember: '#ff7a3a' },
+  { bands: ['#4a2420', '#2a1210', '#6a3424', '#1e0c0a', '#7a4428'], glow: '#ff6a2a', ember: '#ff9a4a' },
+].map(rgbAll);
+
+const STARS = {
+  red: [{ core: '#fff0e0', mid: '#ff9a62', edge: '#c8402a', corona: '#ff6a4a' }],
+  sun: [
+    { core: '#fff8e6', mid: '#ffd27a', edge: '#f08a32', corona: '#ffb347' },
+    { core: '#fffdf0', mid: '#fff0a8', edge: '#ffbf40', corona: '#ffe08a' },
+  ],
+  blue: [{ core: '#ffffff', mid: '#dce8ff', edge: '#7f9cff', corona: '#9fc0ff' }],
+  giant: [{ core: '#ffe8c8', mid: '#ff8a4a', edge: '#9a2a16', corona: '#ff5a2a' }],
+};
+for (const k of Object.keys(STARS)) STARS[k] = STARS[k].map(rgbAll);
+
+const pal = (list, seed) => list[seed % list.length];
 
 // --- Pixel-Helfer ---------------------------------------------------------------
 
@@ -4398,6 +4461,53 @@ function crater(ctx, x, y, rx, ry, light) {
 }
 
 // --- Körper-Kunst je Stufe --------------------------------------------------------
+//
+// Jede Stufe aus config.js (STAGES[i].key) hat hier einen Bauplan. Die meisten
+// nutzen parametrisierte Generatoren (Planet, Riese, Stern) mit eigenen Paletten;
+// Exoten wie Pulsar, Schwarzes Loch und Galaxie haben eigene Zeichenarten.
+//
+// Felder, die der Renderer auswertet:
+//   kind      'rock' | 'sphere' | 'star' | 'pulsar' | 'hole' | 'quasar' | 'galaxy'
+//   surface   Oberflächentextur (Kugelstreifen bzw. Quadrat bei 'rock')
+//   clouds    zweite, halbtransparente Schicht, dreht `cloudRate`-mal so schnell
+//   emissive  Leuchtschicht (Lava, Glut) — leuchtet auch auf der Nachtseite
+//   atmo      Farbe des Atmosphärensaums, `atmoSize` = Außenradius
+//   glow      weicher Schein hinter dem Körper (`glowSize`, `glowAlpha`)
+//   ring      Ringsystem { canvas, tilt, rot, outer }
+//   thumb     Radius in der Stufen-Vorschau (Anteil der Bildgröße)
+//   extent    wie weit das Namensschild nach unten rücken muss (× r)
+//   reach     wie weit der Körper optisch reicht (× r), fürs Culling
+
+const STAGE_ART = {
+  asteroid: (seed, rng) => rockArt(seed, rng),
+  moon: (seed, rng) => moonArt(seed, rng, pal(MOON, seed)),
+  icemoon: (seed, rng) => iceMoonArt(seed, rng, pal(ICE, seed)),
+  lavamoon: (seed, rng) => lavaMoonArt(seed, rng, pal(LAVA, seed)),
+  desert: (seed, rng) => planetArt(seed, rng, pal(DESERT, seed), { sea: 0.32, clouds: 0.35, ice: 0.84 }),
+  ocean: (seed, rng) => planetArt(seed, rng, pal(OCEAN, seed), { sea: 0.52, clouds: 1, ice: 0.76 }),
+  cloud: (seed, rng) => cloudWorldArt(seed, rng, pal(VENUS, seed)),
+  icegiant: (seed, rng) => giantArt(seed, rng, pal(ICEGIANT, seed), {
+    freq: 3.5, turb: 0.5, streak: 14, storm: 0.6,
+    ring: { chance: 1, outer: 1.85, inner: 0.8, alpha: 0.5, rot: Math.PI / 2 - 0.3, tilt: 0.24 },
+  }),
+  gasgiant: (seed, rng) => giantArt(seed, rng, pal(JOVIAN, seed), {
+    freq: 7, turb: 1.4, streak: 46, storm: 1,
+    ring: { chance: 0.3, outer: 1.9, inner: 0.72, alpha: 0.55 },
+  }),
+  ringgiant: (seed, rng) => giantArt(seed, rng, pal(SATURN, seed), {
+    freq: 6, turb: 1, streak: 30, storm: 0.4,
+    ring: { chance: 1, outer: 2.6, inner: 0.48, alpha: 1 },
+  }),
+  browndwarf: (seed, rng) => brownDwarfArt(seed, rng, pal(BROWN, seed)),
+  reddwarf: (seed, rng) => starArt(seed, rng, STARS.red[0], { corona: 2.6, rays: 10, cells: 1 }),
+  sun: (seed, rng) => starArt(seed, rng, pal(STARS.sun, seed), { corona: 3.4, rays: 18, cells: 1 }),
+  bluegiant: (seed, rng) => starArt(seed, rng, STARS.blue[0], { corona: 4.2, rays: 26, cells: 1.4, rayAlpha: 0.09 }),
+  redgiant: (seed, rng) => starArt(seed, rng, STARS.giant[0], { corona: 3, rays: 0, cells: 0.4, spots: 7 }),
+  neutron: (seed, rng) => pulsarArt(seed, rng),
+  blackhole: (seed, rng) => holeArt(seed, rng, false),
+  quasar: (seed, rng) => holeArt(seed, rng, true),
+  galaxy: (seed, rng) => galaxyArt(seed, rng),
+};
 
 /**
  * Erzeugt das Aussehen eines Körpers für eine Stufe. Deterministisch aus dem
@@ -4405,17 +4515,22 @@ function crater(ctx, x, y, rx, ry, light) {
  */
 function buildBodyArt(seed, stage) {
   const rng = mulberry32(seed + stage * 7919);
-  switch (stage) {
-    case 0: return rockArt(seed, rng);
-    case 1: return moonArt(seed, rng);
-    case 2: return planetArt(seed, rng);
-    case 3: return giantArt(seed, rng);
-    default: return starArt(seed, rng);
-  }
+  const art = STAGE_ART[STAGES[stage].key](seed, rng);
+  art.stage = stage;
+  return art;
+}
+
+/** Zufallsquelle mit Normalverteilung für die Generatoren (unabhängig vom Spiel-Zufall). */
+function gaussFrom(rng) {
+  return () => {
+    let u = 0;
+    while (u === 0) u = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * rng());
+  };
 }
 
 function rockArt(seed, rng) {
-  const p = ROCK[seed % ROCK.length];
+  const p = pal(ROCK, seed);
   const S = 128;
   const c = makeCanvas(S, S);
   const ctx = c.getContext('2d');
@@ -4444,11 +4559,10 @@ function rockArt(seed, rng) {
     shape[i * 2] = (Math.cos(a) * radii[i]) / max;
     shape[i * 2 + 1] = (Math.sin(a) * radii[i]) / max;
   }
-  return { stage: 0, kind: 'rock', surface: c, shape, tint: p.baseHex, light: p.lightHex };
+  return { kind: 'rock', surface: c, shape, tint: p.baseHex, thumb: 0.34 };
 }
 
-function moonArt(seed, rng) {
-  const p = MOON[seed % MOON.length];
+function moonArt(seed, rng, p) {
   const s = sphereStrip((u, v, out) => {
     const n = fbm(u * 8, v * 4, seed, 5, 8);
     const m = fbm(u * 3, v * 1.5, seed + 7, 3, 3);
@@ -4462,12 +4576,87 @@ function moonArt(seed, rng) {
     const r = 2 + rng() * rng() * 13;
     wrapDraw(s.W, rng() * s.W, r * stretch, x => crater(s.ctx, x, y, r * stretch, r, p.light));
   }
-  return { stage: 1, kind: 'sphere', surface: closeStrip(s), tint: p.baseHex, rate: 0.016 + rng() * 0.01 };
+  return { kind: 'sphere', surface: closeStrip(s), tint: p.baseHex, rate: 0.016 + rng() * 0.01, thumb: 0.34 };
 }
 
-function planetArt(seed, rng) {
-  const p = PLANET[seed % PLANET.length];
-  const sea = 0.46 + rng() * 0.1;
+/** Eismond wie Europa: helles Eis, rostbraune Flecken und lange Risse (Lineae). */
+function iceMoonArt(seed, rng, p) {
+  const s = sphereStrip((u, v, out) => {
+    const n = fbm(u * 6, v * 3, seed, 5, 6);
+    const chaos = fbm(u * 3, v * 1.5, seed + 9, 3, 3);
+    if (n < 0.5) mixRgb(p.dark, p.base, n * 2, out);
+    else mixRgb(p.base, p.light, (n - 0.5) * 2, out);
+    mixRgb(out, p.stain, smoothstep(0.56, 0.76, chaos) * 0.42, out);
+  });
+  const ctx = s.ctx;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 30; i++) {
+    const y0 = 10 + rng() * (s.H - 20);
+    const a = (rng() - 0.5) * 1.1;
+    const len = 40 + rng() * 120;
+    const bend = (rng() - 0.5) * 50;
+    const w = 0.6 + rng() * 1.5;
+    wrapDraw(s.W, rng() * s.W, len, x => {
+      const ex = x + Math.cos(a) * len, ey = y0 + Math.sin(a) * len;
+      const cx = (x + ex) / 2 - Math.sin(a) * bend, cy = (y0 + ey) / 2 + Math.cos(a) * bend * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(x, y0);
+      ctx.quadraticCurveTo(cx, cy, ex, ey);
+      ctx.strokeStyle = rgbStr(p.stain, 0.6);
+      ctx.lineWidth = w;
+      ctx.stroke();
+      ctx.strokeStyle = rgbStr(p.light, 0.4);
+      ctx.lineWidth = w * 0.35;
+      ctx.stroke();
+    });
+  }
+  return { kind: 'sphere', surface: closeStrip(s), atmo: '#d8f0ff', atmoSize: 1.06, tint: p.baseHex, rate: 0.014 + rng() * 0.01, thumb: 0.34 };
+}
+
+/** Lavamond wie Io: dunkle Kruste, Schwefelfelder, glühende Spalten und Vulkane. */
+function lavaMoonArt(seed, rng, p) {
+  const s = sphereStrip((u, v, out) => {
+    const n = fbm(u * 7, v * 3.5, seed, 5, 7);
+    const sul = fbm(u * 4, v * 2, seed + 3, 3, 4);
+    mixRgb(p.crust, p.crust2, n, out);
+    mixRgb(out, p.sulfur, smoothstep(0.58, 0.78, sul) * 0.55, out);
+  });
+  // Leuchtschicht: feine Grate im Rauschen ergeben ein Netz aus Lavaspalten
+  const e = sphereStrip((u, v, out) => {
+    const n = fbm(u * 6, v * 3, seed + 11, 4, 6);
+    const ridge = 1 - Math.abs(n * 2 - 1);
+    const region = smoothstep(0.36, 0.6, fbm(u * 3, v * 1.5, seed + 21, 3, 3));
+    mixRgb(p.lava, p.hot, smoothstep(0.95, 1, ridge), out);
+    out[3] = smoothstep(0.87, 0.98, ridge) * region * 255;
+  });
+  for (let i = 0; i < 9; i++) {
+    const { y, stretch } = latToY(0.15 + rng() * 0.7, s.H);
+    const r = 2 + rng() * 4;
+    wrapDraw(s.W, rng() * s.W, r * 3 * stretch, x => {
+      s.ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      s.ctx.beginPath();
+      s.ctx.ellipse(x, y, r * 2.4 * stretch, r * 2.4, 0, 0, TAU);
+      s.ctx.fill();
+      const g = e.ctx.createRadialGradient(x, y, 0, x, y, r * 1.8 * stretch);
+      g.addColorStop(0, rgbStr(p.hot, 1));
+      g.addColorStop(0.45, rgbStr(p.lava, 0.85));
+      g.addColorStop(1, rgbStr(p.lava, 0));
+      e.ctx.fillStyle = g;
+      e.ctx.beginPath();
+      e.ctx.ellipse(x, y, r * 1.8 * stretch, r * 1.8, 0, 0, TAU);
+      e.ctx.fill();
+    });
+  }
+  return {
+    kind: 'sphere', surface: closeStrip(s), emissive: closeStrip(e),
+    glow: p.lavaHex, glowSize: 1.7, glowAlpha: 0.22,
+    tint: p.lavaHex, rate: 0.02 + rng() * 0.01, flare: rng() * TAU, thumb: 0.34,
+  };
+}
+
+/** Gesteinsplanet: Meere (oder Tiefländer), Kontinente, Polkappen, optional Wolken. */
+function planetArt(seed, rng, p, o) {
+  const sea = o.sea - 0.05 + rng() * 0.1;
   const tmp = [0, 0, 0];
   const s = sphereStrip((u, v, out) => {
     const h = fbm(u * 5, v * 2.5, seed, 5, 5);
@@ -4477,86 +4666,138 @@ function planetArt(seed, rng) {
       const t = (h - sea) / (1 - sea);
       if (t < 0.45) mixRgb(p.low, p.high, t / 0.45, out);
       else mixRgb(p.high, p.peak, (t - 0.45) / 0.55, out);
-      // feine Struktur auf Land
       const f = fbm(u * 20, v * 10, seed + 4, 2, 20) - 0.5;
       out[0] += f * 30; out[1] += f * 30; out[2] += f * 30;
     }
     const lat = Math.abs(v - 0.5) * 2;
-    const ice = smoothstep(0.76, 0.86, lat + (fbm(u * 12, v * 6, seed + 3, 3, 12) - 0.5) * 0.25);
+    const ice = smoothstep(o.ice, o.ice + 0.1, lat + (fbm(u * 12, v * 6, seed + 3, 3, 12) - 0.5) * 0.25);
     mixRgb(out, p.ice, ice, tmp);
     out[0] = tmp[0]; out[1] = tmp[1]; out[2] = tmp[2];
   });
-  const cl = sphereStrip((u, v, out) => {
-    const n = fbm(u * 5, v * 9, seed + 50, 5, 5);
-    const lat = Math.abs(v - 0.5) * 2;
-    out[0] = 255; out[1] = 255; out[2] = 255;
-    out[3] = smoothstep(0.56, 0.8, n) * (0.5 + 0.5 * (1 - lat)) * 200;
-  });
+  let clouds = null;
+  if (o.clouds > 0) {
+    const cl = sphereStrip((u, v, out) => {
+      const n = fbm(u * 5, v * 9, seed + 50, 5, 5);
+      const lat = Math.abs(v - 0.5) * 2;
+      out[0] = 255; out[1] = 255; out[2] = 255;
+      out[3] = smoothstep(0.56, 0.8, n) * (0.5 + 0.5 * (1 - lat)) * 200 * o.clouds;
+    });
+    clouds = closeStrip(cl);
+  }
   return {
-    stage: 2, kind: 'sphere', surface: closeStrip(s), clouds: closeStrip(cl),
-    atmo: p.atmoHex, tint: p.shallowHex, rate: 0.022 + rng() * 0.012,
+    kind: 'sphere', surface: closeStrip(s), clouds,
+    atmo: p.atmoHex, tint: o.sea < 0.4 ? p.lowHex : p.shallowHex, rate: 0.022 + rng() * 0.012, thumb: 0.34,
   };
 }
 
-function giantArt(seed, rng) {
-  const p = GIANT[seed % GIANT.length];
+/** Wolkenwelt wie die Venus: geschlossene, gelbliche Wolkendecke mit V-förmigen Bändern. */
+function cloudWorldArt(seed, rng, p) {
+  const s = sphereStrip((u, v, out) => {
+    const warp = fbm(u * 3, v * 5, seed, 4, 3);
+    const t = v * 5 + (warp - 0.5) * 2.4 + Math.abs(Math.sin(u * TAU * 2)) * 0.5 * (0.5 - Math.abs(v - 0.5));
+    const f = t - Math.floor(t);
+    const k = fbm(u * 10, v * 18, seed + 4, 3, 10);
+    mixRgb(p.b, p.a, clamp(smoothstep(0.2, 0.8, f) * 0.7 + k * 0.3, 0, 1), out);
+    mixRgb(out, p.c, smoothstep(0.62, 0.85, warp) * 0.5, out);
+  });
+  const cl = sphereStrip((u, v, out) => {
+    const n = fbm(u * 6, v * 14, seed + 40, 4, 6);
+    out[0] = p.a[0]; out[1] = p.a[1]; out[2] = p.a[2];
+    out[3] = smoothstep(0.5, 0.76, n) * 150;
+  });
+  return {
+    kind: 'sphere', surface: closeStrip(s), clouds: closeStrip(cl), cloudRate: 2.4,
+    atmo: p.atmoHex, atmoSize: 1.2, tint: p.bHex, rate: 0.012 + rng() * 0.008, thumb: 0.32,
+  };
+}
+
+/** Gas- und Eisriesen: Wolkenbänder, Sturmfleck, Ringe — alles über Optionen steuerbar. */
+function giantArt(seed, rng, p, o) {
   const bands = p.bands;
   const nb = bands.length;
-  const freq = 5 + rng() * 4;
+  const freq = o.freq * (0.8 + rng() * 0.4);
   const s = sphereStrip((u, v, out) => {
     const turb = fbm(u * 4, v * 6, seed, 4, 4);
-    const pos = v * freq + (turb - 0.5) * 1.4 + Math.sin(u * TAU * 2 + v * 9) * 0.05;
+    const pos = v * freq + (turb - 0.5) * o.turb + Math.sin(u * TAU * 2 + v * 9) * 0.05;
     const i = Math.floor(pos);
     const a = bands[((i % nb) + nb) % nb], b = bands[(((i + 1) % nb) + nb) % nb];
     mixRgb(a, b, smoothstep(0.62, 1, pos - i), out);
-    const streak = (fbm(u * 16, v * 48, seed + 5, 3, 16) - 0.5) * 46;
+    const streak = (fbm(u * 16, v * 48, seed + 5, 3, 16) - 0.5) * o.streak;
     out[0] += streak; out[1] += streak; out[2] += streak;
   });
-  // Großer Sturm — wie der Rote Fleck
-  const sv = 0.3 + rng() * 0.4;
-  const { y, stretch } = latToY(sv, s.H);
-  const rx = (8 + rng() * 7) * stretch, ry = 5 + rng() * 3;
-  wrapDraw(s.W, rng() * s.W, rx, x => {
-    const ctx = s.ctx;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(rx, ry);
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-    g.addColorStop(0, rgbStr(p.storm, 0.95));
-    g.addColorStop(0.6, rgbStr(p.storm, 0.6));
-    g.addColorStop(1, rgbStr(p.storm, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(0, 0, 1, 0, TAU);
-    ctx.fill();
-    ctx.lineWidth = 0.08;
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 0.62, 0.48, 0.2, 0, TAU);
-    ctx.stroke();
-    ctx.restore();
-  });
-  const ring = rng() < 0.8 ? {
-    canvas: ringSprite(p.ring, seed),
-    tilt: 0.2 + rng() * 0.16,
-    rot: (rng() - 0.5) * 0.9,
-    outer: 2.15,
+  if (rng() < o.storm) {
+    const { y, stretch } = latToY(0.3 + rng() * 0.4, s.H);
+    const rx = (8 + rng() * 7) * stretch, ry = 5 + rng() * 3;
+    wrapDraw(s.W, rng() * s.W, rx, x => {
+      const ctx = s.ctx;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(rx, ry);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      g.addColorStop(0, rgbStr(p.storm, 0.95));
+      g.addColorStop(0.6, rgbStr(p.storm, 0.6));
+      g.addColorStop(1, rgbStr(p.storm, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, 1, 0, TAU);
+      ctx.fill();
+      ctx.lineWidth = 0.08;
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 0.62, 0.48, 0.2, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+  const R = o.ring;
+  const ring = rng() < R.chance ? {
+    canvas: ringSprite(p.ring, seed, R.inner, R.alpha),
+    tilt: R.tilt ?? 0.2 + rng() * 0.16,
+    rot: R.rot ?? (rng() - 0.5) * 0.9,
+    outer: R.outer,
   } : null;
-  return { stage: 3, kind: 'sphere', surface: closeStrip(s), ring, tint: p.bandsHex[1], rate: 0.03 + rng() * 0.015 };
+  return {
+    kind: 'sphere', surface: closeStrip(s), ring, tint: p.bandsHex[1], rate: 0.03 + rng() * 0.015,
+    thumb: ring ? Math.min(0.34, 0.47 / ring.outer) : 0.34,
+  };
 }
 
-function starArt(seed, rng) {
-  const p = STAR[seed % STAR.length];
+/** Brauner Zwerg: zu klein für Kernfusion — dunkle Bänder, die von innen glimmen. */
+function brownDwarfArt(seed, rng, p) {
+  const bands = p.bands;
+  const nb = bands.length;
   const s = sphereStrip((u, v, out) => {
-    const g = fbm(u * 10, v * 5, seed, 5, 10);
+    const turb = fbm(u * 4, v * 6, seed, 4, 4);
+    const pos = v * 6 + (turb - 0.5) * 1.6;
+    const i = Math.floor(pos);
+    const a = bands[((i % nb) + nb) % nb], b = bands[(((i + 1) % nb) + nb) % nb];
+    mixRgb(a, b, smoothstep(0.55, 1, pos - i), out);
+  });
+  const e = sphereStrip((u, v, out) => {
+    const n = fbm(u * 5, v * 10, seed + 7, 4, 5);
+    out[0] = p.ember[0]; out[1] = p.ember[1]; out[2] = p.ember[2];
+    out[3] = smoothstep(0.52, 0.85, n) * 140;
+  });
+  return {
+    kind: 'sphere', surface: closeStrip(s), emissive: closeStrip(e),
+    glow: p.glowHex, glowSize: 2.3, glowAlpha: 0.32,
+    tint: p.emberHex, rate: 0.028 + rng() * 0.01, flare: rng() * TAU, thumb: 0.3,
+  };
+}
+
+/** Sterne: Granulation, Sonnenflecken, Korona und Strahlen — Größe und Farbe je Typ. */
+function starArt(seed, rng, p, o) {
+  const f = Math.max(2, Math.round(10 * o.cells));
+  const s = sphereStrip((u, v, out) => {
+    const g = fbm(u * f, v * f * 0.5, seed, 5, f);
     const fine = fbm(u * 36, v * 18, seed + 3, 3, 36);
     const t = clamp(g * 0.8 + fine * 0.35 - 0.08, 0, 1);
     if (t < 0.5) mixRgb(p.edge, p.mid, t * 2, out);
     else mixRgb(p.mid, p.core, (t - 0.5) * 2, out);
   });
-  for (let i = 0; i < 3; i++) {
-    const v = 0.3 + rng() * 0.4;
-    const { y, stretch } = latToY(v, s.H);
+  const spots = o.spots ?? 3;
+  for (let i = 0; i < spots; i++) {
+    const { y, stretch } = latToY(0.3 + rng() * 0.4, s.H);
     const r = 2 + rng() * 3;
     wrapDraw(s.W, rng() * s.W, r * stretch, x => {
       s.ctx.fillStyle = 'rgba(70,20,0,0.45)';
@@ -4566,15 +4807,119 @@ function starArt(seed, rng) {
     });
   }
   return {
-    stage: 4, kind: 'star', surface: closeStrip(s),
-    corona: p.coronaHex, edge: p.edgeHex, core: p.coreHex, tint: p.midHex, rate: 0.012 + rng() * 0.008,
-    flare: rng() * TAU,
+    kind: 'star', surface: closeStrip(s),
+    corona: p.coronaHex, coronaMul: o.corona, rays: o.rays, rayAlpha: o.rayAlpha ?? 0.07,
+    edge: p.edgeHex, core: p.coreHex, tint: p.midHex, rate: 0.012 + rng() * 0.008,
+    flare: rng() * TAU, thumb: clamp(0.62 / o.corona, 0.14, 0.24), extent: 1.15,
+  };
+}
+
+/** Neutronenstern: winzig, gleißend, mit zwei rotierenden Lichtkegeln (Pulsar). */
+function pulsarArt(seed, rng) {
+  const cool = [92, 140, 235], hot = [235, 245, 255];
+  const s = sphereStrip((u, v, out) => {
+    mixRgb(cool, hot, smoothstep(0.3, 0.75, fbm(u * 12, v * 6, seed, 4, 12)), out);
+  });
+  return {
+    kind: 'pulsar', surface: closeStrip(s), tint: '#bfe4ff', beam: '#a8dcff',
+    axis: rng() * TAU, period: 1.4 + rng() * 0.8, rate: 0.35, thumb: 0.2, extent: 1.2, reach: 7.5,
+  };
+}
+
+/** Schwarzes Loch als Spielerstufe — mit `jets` wird daraus ein Quasar. */
+function holeArt(seed, rng, jets) {
+  return {
+    kind: jets ? 'quasar' : 'hole', tint: jets ? '#bfe6ff' : '#ffb070',
+    rot: -0.5 + rng() * 0.6, tilt: 0.26 + rng() * 0.08, spinDir: rng() < 0.5 ? -1 : 1,
+    thumb: jets ? 0.17 : 0.2, extent: 1.1, reach: jets ? 9 : 3.6,
+  };
+}
+
+/** Galaxie: Spiralarme aus Tausenden Sternen, Staubbahnen und ein heller Kern. */
+function galaxyArt(seed, rng) {
+  const gauss = gaussFrom(rng);
+  const S = 384, R = S / 2;
+  const c = makeCanvas(S, S);
+  const ctx = c.getContext('2d');
+  ctx.translate(R, R);
+  const arms = rng() < 0.55 ? 2 : 3;
+  const twist = 2.4 + rng() * 1.2;
+  const armAngle = (arm, t) => (arm * TAU) / arms + t * twist;
+  const radius = t => (0.06 + t * 0.9) * R;
+
+  const disk = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+  disk.addColorStop(0, 'rgba(255,236,200,0.9)');
+  disk.addColorStop(0.08, 'rgba(255,214,160,0.5)');
+  disk.addColorStop(0.3, 'rgba(170,190,255,0.2)');
+  disk.addColorStop(0.7, 'rgba(120,150,255,0.07)');
+  disk.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = disk;
+  ctx.fillRect(-R, -R, S, S);
+
+  // Nebliger Schimmer entlang der Arme (breite, sehr transparente Striche)
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (let arm = 0; arm < arms; arm++) {
+    for (const [w, a, col] of [[R * 0.22, 0.05, '150,175,255'], [R * 0.1, 0.08, '190,205,255'], [R * 0.04, 0.12, '255,235,215']]) {
+      ctx.strokeStyle = `rgba(${col},${a})`;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      for (let k = 0; k <= 45; k++) {
+        const t = 0.04 + k * 0.02;
+        const ang = armAngle(arm, t), rr = radius(t);
+        if (k === 0) ctx.moveTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+        else ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+      }
+      ctx.stroke();
+    }
+  }
+  for (let i = 0; i < 8000; i++) {
+    const arm = i % arms;
+    const t = Math.pow(rng(), 0.8);
+    const a = armAngle(arm, t) + gauss() * 0.22 * (1 - t * 0.5);
+    const rr = radius(t) * (1 + gauss() * 0.04);
+    const roll = rng();
+    const col = t < 0.22 ? '255,226,180' : roll < 0.04 ? '255,140,190' : roll < 0.5 ? '200,220,255' : '255,250,240';
+    const size = roll < 0.04 ? 1.8 : 0.5 + rng() * 1.1;
+    ctx.fillStyle = `rgba(${col},${0.25 + rng() * 0.6})`;
+    ctx.fillRect(Math.cos(a) * rr, Math.sin(a) * rr, size, size);
+  }
+
+  // Staubbahnen an der Innenkante der Arme
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.strokeStyle = 'rgba(30,14,10,0.35)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (let arm = 0; arm < arms; arm++) {
+    ctx.beginPath();
+    for (let k = 0; k <= 38; k++) {
+      const t = 0.1 + k * 0.02;
+      const a = armAngle(arm, t) - 0.18;
+      const x = Math.cos(a) * radius(t), y = Math.sin(a) * radius(t);
+      if (k === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.globalCompositeOperation = 'lighter';
+  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.16);
+  core.addColorStop(0, 'rgba(255,248,230,1)');
+  core.addColorStop(0.4, 'rgba(255,224,170,0.6)');
+  core.addColorStop(1, 'rgba(255,200,140,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(-R, -R, S, S);
+
+  return {
+    kind: 'galaxy', sprite: c, tint: '#cfd8ff',
+    spin: (rng() < 0.5 ? -1 : 1) * (0.035 + rng() * 0.02), tilt: 0.72 + rng() * 0.2, rot0: rng() * TAU,
+    thumb: 0.32, extent: 1.45, reach: 1.8,
   };
 }
 
 /** Ringsystem als Kreisscheibe — wird beim Zeichnen gestaucht und in Vorder-/Rückseite geteilt. */
-function ringSprite(color, seed) {
-  const S = 256, R = S / 2, inner = 0.62;
+function ringSprite(color, seed, inner = 0.62, alpha = 0.85) {
+  const S = 256, R = S / 2;
   const c = makeCanvas(S, S);
   const ctx = c.getContext('2d');
   const [cr, cg, cb] = color;
@@ -4587,7 +4932,7 @@ function ringSprite(color, seed) {
     const edge = smoothstep(0, 0.06, t) * (1 - smoothstep(0.88, 1, t));
     const shade = 0.75 + 0.25 * band;
     out[0] = cr * shade; out[1] = cg * shade; out[2] = cb * shade;
-    out[3] = 255 * band * gap * edge * 0.85;
+    out[3] = 255 * band * gap * edge * alpha;
   });
   return c;
 }
@@ -5391,7 +5736,7 @@ class Renderer {
 
     for (const b of list) {
       const x = lerp(b.px, b.x, alpha), y = lerp(b.py, b.y, alpha);
-      if (!this.inView(x, y, b.r * 3.4)) continue;
+      if (!this.inView(x, y, b.r * ((b.art && b.art.reach) || 3.4))) continue;
       let scale = 1 + b.pulse * 0.07;
       let stretch = 0;
       if (!b.alive) {
@@ -5475,56 +5820,28 @@ class Renderer {
       ctx.fill();
       return;
     }
-    const t = this.time;
-    const screenR = r * z;
-    const slices = clamp(Math.round(screenR / 5), 1, 16);
-    const ov = 0.7 / z;
-
-    if (art.kind === 'rock') {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      ctx.beginPath();
-      const s = art.shape;
-      ctx.moveTo(s[0] * r, s[1] * r);
-      for (let i = 2; i < s.length; i += 2) ctx.lineTo(s[i] * r, s[i + 1] * r);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(art.surface, -r * 1.05, -r * 1.05, r * 2.1, r * 2.1);
-      ctx.rotate(-rot);
-      ctx.scale(r, r);
-      ctx.fillStyle = shade;
-      ctx.fillRect(-1.2, -1.2, 2.4, 2.4);
-      ctx.restore();
-      return;
+    switch (art.kind) {
+      case 'rock': this.drawRock(ctx, art, x, y, r, rot, shade); return;
+      case 'pulsar': this.drawPulsar(ctx, art, x, y, r, z, phase0); return;
+      case 'hole':
+      case 'quasar': this.drawHoleBody(ctx, art, x, y, r, z); return;
+      case 'galaxy': this.drawGalaxy(ctx, art, x, y, r); return;
     }
 
-    if (art.kind === 'star') {
-      const pulse = 1 + 0.05 * Math.sin(t * 2 + art.flare);
+    const t = this.time;
+    const slices = clamp(Math.round((r * z) / 5), 1, 16);
+    const ov = 0.7 / z;
+
+    // Schein hinter dem Körper (Lava, Glut)
+    if (art.glow) {
+      const s = r * art.glowSize;
       ctx.globalCompositeOperation = 'lighter';
-      let s = r * 3.4 * pulse;
-      ctx.globalAlpha = 0.5;
-      ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
-      s = r * 1.75;
-      ctx.globalAlpha = 0.7;
-      ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
-      // Strahlen
-      ctx.globalAlpha = 0.07;
-      ctx.fillStyle = art.corona;
-      ctx.beginPath();
-      for (let i = 0; i < 18; i++) {
-        const a = art.flare + t * 0.03 + (i / 18) * TAU;
-        const len = r * (1.35 + 0.9 * valueNoise(t * 0.5 + i * 3.1, i, 5));
-        const wdt = 0.045;
-        ctx.moveTo(x + Math.cos(a - wdt) * r * 0.9, y + Math.sin(a - wdt) * r * 0.9);
-        ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
-        ctx.lineTo(x + Math.cos(a + wdt) * r * 0.9, y + Math.sin(a + wdt) * r * 0.9);
-      }
-      ctx.fill();
+      ctx.globalAlpha = art.glowAlpha * (0.85 + 0.15 * Math.sin(t * 1.7 + art.flare));
+      ctx.drawImage(glowSprite(art.glow, 128), x - s, y - s, s * 2, s * 2);
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
-
+    if (art.kind === 'star') this.drawCorona(ctx, art, x, y, r);
     if (art.ring) this.drawRingHalf(ctx, art.ring, x, y, r, false);
 
     ctx.save();
@@ -5533,7 +5850,8 @@ class Renderer {
     ctx.clip();
     const phase = phase0 + t * art.rate;
     drawSphere(ctx, art.surface, x, y, r, phase, slices, ov);
-    if (art.clouds) drawSphere(ctx, art.clouds, x, y, r, phase * 1.35 + 0.37, slices, 0);
+    if (art.clouds) drawSphere(ctx, art.clouds, x, y, r, phase * (art.cloudRate || 1.35) + 0.37, slices, 0);
+    ctx.save();
     ctx.translate(x, y);
     ctx.scale(r, r);
     if (art.kind === 'star') {
@@ -5547,17 +5865,25 @@ class Renderer {
     }
     ctx.fillRect(-1, -1, 2, 2);
     ctx.restore();
+    // Leuchtschicht nach der Schattierung: Lava glüht auch auf der Nachtseite
+    if (art.emissive) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.78 + 0.22 * Math.sin(t * 2.3 + art.flare);
+      drawSphere(ctx, art.emissive, x, y, r, phase, slices, 0);
+    }
+    ctx.restore();
 
     if (art.atmo) {
       // Atmosphäre: dünner, leuchtender Saum
-      const g = ctx.createRadialGradient(x, y, r * 0.94, x, y, r * 1.13);
+      const outer = art.atmoSize || 1.13;
+      const g = ctx.createRadialGradient(x, y, r * 0.94, x, y, r * outer);
       g.addColorStop(0, rgba(art.atmo, 0));
       g.addColorStop(0.3, rgba(art.atmo, 0.38));
       g.addColorStop(1, rgba(art.atmo, 0));
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(x, y, r * 1.13, 0, TAU);
+      ctx.arc(x, y, r * outer, 0, TAU);
       ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -5570,6 +5896,228 @@ class Renderer {
       ctx.globalCompositeOperation = 'source-over';
     }
     if (art.ring) this.drawRingHalf(ctx, art.ring, x, y, r, true);
+  }
+
+  drawRock(ctx, art, x, y, r, rot, shade) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    const s = art.shape;
+    ctx.moveTo(s[0] * r, s[1] * r);
+    for (let i = 2; i < s.length; i += 2) ctx.lineTo(s[i] * r, s[i + 1] * r);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(art.surface, -r * 1.05, -r * 1.05, r * 2.1, r * 2.1);
+    ctx.rotate(-rot);
+    ctx.scale(r, r);
+    ctx.fillStyle = shade;
+    ctx.fillRect(-1.2, -1.2, 2.4, 2.4);
+    ctx.restore();
+  }
+
+  /** Korona und Strahlen eines Sterns — Größe und Strahlenzahl je Sterntyp. */
+  drawCorona(ctx, art, x, y, r) {
+    const t = this.time;
+    const pulse = 1 + 0.05 * Math.sin(t * 2 + art.flare);
+    ctx.globalCompositeOperation = 'lighter';
+    let s = r * art.coronaMul * pulse;
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
+    s = r * 1.75;
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(glowSprite(art.corona, 128), x - s, y - s, s * 2, s * 2);
+    if (art.rays > 0) {
+      const n = art.rays;
+      const reach = 1.35 + (art.coronaMul - 3.4) * 0.25;
+      ctx.globalAlpha = art.rayAlpha;
+      ctx.fillStyle = art.corona;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const a = art.flare + t * 0.03 + (i / n) * TAU;
+        const len = r * (reach + 0.9 * valueNoise(t * 0.5 + i * 3.1, i, 5));
+        const wdt = 0.045;
+        ctx.moveTo(x + Math.cos(a - wdt) * r * 0.9, y + Math.sin(a - wdt) * r * 0.9);
+        ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+        ctx.lineTo(x + Math.cos(a + wdt) * r * 0.9, y + Math.sin(a + wdt) * r * 0.9);
+      }
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Pulsar: Magnetfeldlinien, gleißender Kern und zwei rotierende Lichtkegel. */
+  drawPulsar(ctx, art, x, y, r, z, phase0) {
+    const t = this.time;
+    const a = art.axis + (t / art.period) * TAU;
+    const ax = Math.cos(a), ay = Math.sin(a);
+    const flash = Math.abs(Math.sin(a * 2)) ** 6;
+
+    ctx.globalCompositeOperation = 'lighter';
+    let s = r * (2.6 + flash);
+    ctx.globalAlpha = 0.3 + flash * 0.25;
+    ctx.drawImage(glowSprite(art.beam, 128), x - s, y - s, s * 2, s * 2);
+
+    // Dipolfeld: Schleifen von Pol zu Pol auf beiden Seiten der Magnetachse
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = art.beam;
+    ctx.lineWidth = Math.max(1.2 / z, r * 0.03);
+    for (const k of [1.2, 1.9, 2.8]) {
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(x - ay * side * r * k * 0.8, y + ax * side * r * k * 0.8, r * k * 1.15, r * k * 0.85, a, 0, TAU);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Kern
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, TAU);
+    ctx.clip();
+    drawSphere(ctx, art.surface, x, y, r, phase0 + t * art.rate, clamp(Math.round((r * z) / 5), 1, 16), 0.7 / z);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.5)');
+    g.addColorStop(0.7, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(120,170,255,0.6)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.restore();
+
+    // Lichtkegel entlang der Magnetachse
+    ctx.globalCompositeOperation = 'lighter';
+    const len = r * 7;
+    for (const dir of [1, -1]) {
+      const bx = ax * dir, by = ay * dir;
+      const px = -by, py = bx;
+      const grad = ctx.createLinearGradient(x, y, x + bx * len, y + by * len);
+      grad.addColorStop(0, `rgba(230,245,255,${0.5 + flash * 0.3})`);
+      grad.addColorStop(0.35, 'rgba(160,215,255,0.22)');
+      grad.addColorStop(1, 'rgba(160,215,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(x + px * r * 0.25, y + py * r * 0.25);
+      ctx.lineTo(x + bx * len + px * r * 0.9, y + by * len + py * r * 0.9);
+      ctx.lineTo(x + bx * len - px * r * 0.9, y + by * len - py * r * 0.9);
+      ctx.lineTo(x - px * r * 0.25, y - py * r * 0.25);
+      ctx.fill();
+    }
+    s = r * 1.4;
+    ctx.globalAlpha = 0.3 + flash * 0.35;
+    ctx.drawImage(glowSprite('#ffffff', 64), x - s, y - s, s * 2, s * 2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Spieler als Schwarzes Loch (bzw. Quasar mit Jets): Schatten, Scheibe, Horizont, Photonenring. */
+  drawHoleBody(ctx, art, x, y, r, z) {
+    const t = this.time;
+    const hr = r * 0.62;
+    const spin = t * 0.7 * art.spinDir;
+    const quasar = art.kind === 'quasar';
+
+    const shadow = ctx.createRadialGradient(x, y, hr, x, y, hr * 4.5);
+    shadow.addColorStop(0, 'rgba(0,0,0,0.85)');
+    shadow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shadow;
+    ctx.beginPath();
+    ctx.arc(x, y, hr * 4.5, 0, TAU);
+    ctx.fill();
+
+    this.diskHalf(ctx, x, y, hr * 3.4, art.rot, art.tilt, spin, quasar ? 1 : 0.85, false);
+    if (quasar) this.drawJets(ctx, art, x, y, r, hr);
+
+    // Halo vor dem Horizont zeichnen: Ein radialer Verlauf füllt auch das Innere
+    // seines Startkreises — der schwarze Horizont muss danach darüber.
+    ctx.globalCompositeOperation = 'lighter';
+    const halo = ctx.createRadialGradient(x, y, hr * 0.98, x, y, hr * 1.75);
+    halo.addColorStop(0, quasar ? 'rgba(220,240,255,0.85)' : 'rgba(255,214,160,0.75)');
+    halo.addColorStop(0.18, quasar ? 'rgba(140,190,255,0.35)' : 'rgba(255,150,70,0.32)');
+    halo.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(x, y, hr * 1.75, 0, TAU);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(x, y, hr, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,236,205,0.9)';
+    ctx.lineWidth = Math.max(1.5 / z, hr * 0.04);
+    ctx.beginPath();
+    ctx.arc(x, y, hr * 1.02, 0, TAU);
+    ctx.stroke();
+
+    this.diskHalf(ctx, x, y, hr * 3.4, art.rot, art.tilt, spin, 1, true);
+  }
+
+  /** Relativistische Jets eines Quasars — senkrecht zur Scheibe, flackernd. */
+  drawJets(ctx, art, x, y, r, hr) {
+    const flicker = 0.8 + 0.2 * Math.sin(this.time * 13) * Math.sin(this.time * 7.3);
+    const len = r * 8;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(art.rot);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const side of [-1, 1]) {
+      const g = ctx.createLinearGradient(0, side * hr * 0.4, 0, side * len);
+      g.addColorStop(0, `rgba(235,245,255,${0.95 * flicker})`);
+      g.addColorStop(0.25, `rgba(150,200,255,${0.5 * flicker})`);
+      g.addColorStop(1, 'rgba(120,170,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.22, side * hr * 0.4);
+      ctx.lineTo(-hr * 0.5, side * len);
+      ctx.lineTo(hr * 0.5, side * len);
+      ctx.lineTo(hr * 0.22, side * hr * 0.4);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${0.7 * flicker})`;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.06, side * hr * 0.4);
+      ctx.lineTo(0, side * len * 0.7);
+      ctx.lineTo(hr * 0.06, side * hr * 0.4);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /** Galaxie: gekippte, langsam rotierende Spiralscheibe mit hellem Kern. */
+  drawGalaxy(ctx, art, x, y, r) {
+    const s = r * 1.6;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(art.rot0);
+    ctx.scale(1, art.tilt);
+    ctx.rotate(this.time * art.spin);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(art.sprite, -s, -s, s * 2, s * 2);
+    ctx.restore();
+    const c = r * 0.55;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.75;
+    ctx.drawImage(glowSprite('#ffe8c0', 128), x - c, y - c, c * 2, c * 2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Eine Hälfte einer gekippten Akkretionsscheibe (hinten oder vorne). */
+  diskHalf(ctx, x, y, R, rot, tilt, spin, alpha, front) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(1, tilt);
+    ctx.beginPath();
+    ctx.rect(-R, front ? 0 : -R, R * 2, R);
+    ctx.clip();
+    ctx.rotate(spin);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(this.bhDisk, -R, -R, R * 2, R * 2);
+    ctx.restore();
   }
 
   /** Ringe: erst die hintere Hälfte, dann der Planet, dann die vordere. */
@@ -5717,22 +6265,9 @@ class Renderer {
     this.drawDisk(h, x, y, r, true);
   }
 
-  /** Akkretionsscheibe, gekippt; rotiert in der gestauchten Ebene. */
+  /** Akkretionsscheibe eines Gefahren-Lochs, gekippt; rotiert in der gestauchten Ebene. */
   drawDisk(h, x, y, r, front) {
-    const ctx = this.ctx;
-    const R = r * 3.3;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(-0.32 + (h.r0 % 1) * 0.3);
-    ctx.scale(1, 0.3);
-    ctx.beginPath();
-    ctx.rect(-R, front ? 0 : -R, R * 2, R);
-    ctx.clip();
-    ctx.rotate(h.spin * 0.7);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = h.strength * (front ? 1 : 0.8);
-    ctx.drawImage(this.bhDisk, -R, -R, R * 2, R * 2);
-    ctx.restore();
+    this.diskHalf(this.ctx, x, y, r * 3.3, -0.32 + (h.r0 % 1) * 0.3, 0.3, h.spin * 0.7, h.strength * (front ? 1 : 0.8), front);
   }
 
   // =====================================================================
@@ -5754,7 +6289,7 @@ class Renderer {
       if (sx < -150 || sx > w + 150 || sy < -60 || sy > h + 60) continue;
       const rel = this.relation(b);
       const name = b.upperName || (b.upperName = b.name.toLocaleUpperCase('de-DE'));
-      const y0 = sy + sr + (b.stage === 4 ? 14 : 8);
+      const y0 = sy + sr * ((b.art && b.art.extent) || 1) + 8;
       ctx.font = `600 11px ${FONT_DISPLAY}`;
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(5,7,11,0.8)';
@@ -6015,7 +6550,7 @@ class Renderer {
     const ctx = c.getContext('2d');
     ctx.scale(dpr, dpr);
     const art = buildBodyArt(seed + stage, stage);
-    const r = size * (stage === 3 ? 0.22 : stage === 4 ? 0.2 : 0.34);
+    const r = size * (art.thumb || 0.34);
     this.drawBody(ctx, art, size / 2, size / 2, r, 0.4, makeShade(ctx), 2);
     // Ränder weich ausblenden, damit Korona und Ringe nicht an der Canvas-Kante abreißen
     const m = ctx.createRadialGradient(size / 2, size / 2, size * 0.32, size / 2, size / 2, size / 2);
@@ -6107,11 +6642,12 @@ const __audio = (() => {
  * Ereignisse anderer Körper werden nach Entfernung leiser und im Stereobild
  * verortet.
  */
-const { AUDIO } = __config;
+const { AUDIO, STAGES } = __config;
 const { clamp } = __utils;
 const { storage } = __storage;
 
 const PENTATONIC = [0, 2, 4, 7, 9];
+const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const EPS = 0.0001;
 
 class AudioEngine {
@@ -6454,7 +6990,8 @@ class AudioEngine {
 
   evolve(stage) {
     if (!this.ready) return;
-    const root = [196, 220, 247, 262, 294][stage] || 262;
+    // Jede Stufe klingt einen Ton höher (Dur-Tonleiter, über gut zweieinhalb Oktaven)
+    const root = 110 * 2 ** ((MAJOR[stage % 7] + 12 * Math.floor(stage / 7)) / 12);
     [0, 4, 7, 11, 14, 19].forEach((n, i) =>
       this.tone({ freq: root * 2 ** (n / 12), type: 'triangle', dur: 1.3, gain: 0.07, attack: 0.01, when: i * 0.07, send: 0.65 }));
     this.tone({ freq: root / 2, dur: 1.6, gain: 0.16, attack: 0.35, send: 0.3 });
@@ -6527,7 +7064,7 @@ class AudioEngine {
     this.slingOsc.frequency.setTargetAtTime(110 + c * 340, t, 0.05);
     this.slingFilter.frequency.setTargetAtTime(500 + c * 2200, t, 0.05);
     this.holeGain.gain.setTargetAtTime(on ? state.hole * state.hole * 0.5 : 0, t, 0.3);
-    this.ambFilter.frequency.setTargetAtTime(170 + state.stage * 45, t, 2);
+    this.ambFilter.frequency.setTargetAtTime(170 + (state.stage / (STAGES.length - 1)) * 220, t, 2);
   }
 
   // --- Lautstärke -------------------------------------------------------------------
@@ -6905,21 +7442,40 @@ class UI {
     this.mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  /** Stufen-Vorschau im Startbildschirm — gerendert mit demselben Code wie im Spiel. */
+  /**
+   * Stufen-Vorschau im Startbildschirm — gerendert mit demselben Code wie im
+   * Spiel. Die Bilder entstehen nacheinander: alle 19 auf einmal würden den
+   * Start spürbar verzögern (ein Planet kostet ~20 ms).
+   */
   buildStages(thumb) {
     const list = this.$('stages');
+    const caption = this.$('stages-caption');
+    const idle = `${STAGES.length} Stufen – vom Asteroiden bis zur Galaxie. Zeig auf eine.`;
+    const describe = i => `${String(i + 1).padStart(2, '0')} · ${STAGES[i].name} · ${i === 0 ? 'Start' : `ab ${fmt(STAGES[i].min)} Masse`}`;
     list.innerHTML = '';
+    caption.textContent = idle;
+    const jobs = [];
     STAGES.forEach((s, i) => {
       const li = document.createElement('li');
-      const c = thumb(i, 56);
-      li.appendChild(c);
-      const b = document.createElement('b');
-      b.textContent = s.name;
-      const small = document.createElement('small');
-      small.textContent = i === 0 ? 'Start' : `ab ${fmt(s.min)}`;
-      li.append(b, small);
+      li.tabIndex = 0;
+      li.title = s.name;
+      li.setAttribute('aria-label', describe(i));
+      const show = () => { caption.textContent = describe(i); };
+      const hide = () => { caption.textContent = idle; };
+      li.addEventListener('pointerenter', show);
+      li.addEventListener('focus', show);
+      li.addEventListener('pointerleave', hide);
+      li.addEventListener('blur', hide);
       list.appendChild(li);
+      jobs.push(() => li.appendChild(thumb(i, 40)));
     });
+    const next = () => {
+      const job = jobs.shift();
+      if (!job) return;
+      job();
+      setTimeout(next, 16);
+    };
+    setTimeout(next, 250);
   }
 
   bind() {
@@ -6999,7 +7555,7 @@ class UI {
       r.textContent = 'Noch kein Rekord. Zeit, das zu ändern.';
       return;
     }
-    r.innerHTML = `Rekord <strong>${fmt(best.mass)}</strong> Masse · ${STAGES[best.stage].name} · ${best.kills} Kills · ${fmtTime(best.time)}`;
+    r.innerHTML = `Rekord <strong>${fmt(best.mass)}</strong> Masse · ${STAGES[best.stage]?.name ?? '–'} · ${best.kills} Kills · ${fmtTime(best.time)}`;
   }
 
   showGameOver(s) {
@@ -7030,7 +7586,7 @@ class UI {
     } else if (s.isNewBest) {
       rec.innerHTML = '<span class="is-new">Neuer persönlicher Rekord.</span> Höchste Masse bisher.';
     } else if (s.best) {
-      rec.innerHTML = `Persönlicher Rekord <strong>${fmt(s.best.mass)}</strong> · ${STAGES[s.best.stage].name}`;
+      rec.innerHTML = `Persönlicher Rekord <strong>${fmt(s.best.mass)}</strong> · ${STAGES[s.best.stage]?.name ?? '–'}`;
     } else {
       rec.textContent = '';
     }
@@ -7355,7 +7911,7 @@ class UI {
       const rel = canEat(b, p) ? PALETTE.threat : canEat(p, b) ? PALETTE.prey : 'rgba(236,230,214,0.6)';
       ctx.fillStyle = rel;
       ctx.beginPath();
-      ctx.arc(c + b.x * k, c + b.y * k, Math.max(1.6, b.r * k * 1.4), 0, TAU);
+      ctx.arc(c + b.x * k, c + b.y * k, clamp(b.r * k * 1.4, 1.6, 6), 0, TAU);
       ctx.fill();
     }
 
@@ -7369,7 +7925,7 @@ class UI {
     ctx.stroke();
     ctx.fillStyle = PALETTE.amber;
     ctx.beginPath();
-    ctx.arc(px, py, Math.max(2.5, p.r * k * 1.4), 0, TAU);
+    ctx.arc(px, py, clamp(p.r * k * 1.4, 2.5, 7), 0, TAU);
     ctx.fill();
   }
 
@@ -7423,9 +7979,23 @@ const { TAU, clamp, fmt, random, randRange } = __utils;
 const { BlackHole, maxOrbiters } = __entities;
 const { storage } = __storage;
 
-const STAGE_ALIASES = {
-  asteroid: 0, mond: 1, moon: 1, planet: 2, gasriese: 3, riese: 3, giant: 3, stern: 4, star: 4, sonne: 4,
-};
+/** "Roter Überriese" → "roterueberriese" — so findet /stufe Namen mit und ohne Umlaute. */
+const normalize = s => s.toLowerCase()
+  .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+  .replace(/[^a-z0-9]/g, '');
+
+const STAGE_ALIASES = (() => {
+  const map = {};
+  STAGES.forEach((s, i) => { map[normalize(s.name)] = i; map[s.key] = i; });
+  // Spitznamen aus dem Sonnensystem und Kurzformen
+  const nick = {
+    europa: 'icemoon', io: 'lavamoon', mars: 'desert', erde: 'ocean', planet: 'ocean', venus: 'cloud',
+    uranus: 'icegiant', neptun: 'icegiant', jupiter: 'gasgiant', riese: 'gasgiant', saturn: 'ringgiant',
+    stern: 'sun', star: 'sun', pulsar: 'neutron', loch: 'blackhole', bh: 'blackhole',
+  };
+  for (const [n, key] of Object.entries(nick)) map[n] = STAGES.findIndex(s => s.key === key);
+  return map;
+})();
 
 /** Zahl aus einem Argument; akzeptiert deutsches Komma ("0,5"). */
 function num(arg, fallback) {
@@ -7639,18 +8209,20 @@ class AdminConsole {
       cmd('masse', ['mass', 'm'], '<zahl>', 'eigene Masse setzen', (a, p) => {
         const v = num(a[0]);
         if (!Number.isFinite(v)) return err('Beispiel: /masse 500');
-        const m = clamp(v, BODY.minMass, 20000);
+        const m = clamp(v, BODY.minMass, BODY.maxMass);
         p.mass = m;
         if (m > p.maxMass) p.maxMass = m;
         return `Masse auf ${fmt(m)} gesetzt.`;
       }),
 
-      cmd('stufe', ['stage'], '<1–5 | name>', 'direkt auf eine Stufe springen', (a, p) => {
-        const arg = (a[0] || '').toLowerCase();
+      cmd('stufe', ['stage'], `<1–${STAGES.length} | name>`, 'direkt auf eine Stufe springen', (a, p) => {
+        const arg = normalize(a.join(''));
         let i = STAGE_ALIASES[arg];
         if (i === undefined) i = num(arg) - 1;
-        if (!Number.isInteger(i) || i < 0 || i >= STAGES.length) return err('Beispiel: /stufe 4 oder /stufe gasriese');
-        const m = i === 0 ? 40 : Math.round(STAGES[i].min * 1.1);
+        if (!Number.isInteger(i) || i < 0 || i >= STAGES.length) {
+          return err(`Beispiel: /stufe 13, /stufe quasar oder /stufe roter zwerg (1–${STAGES.length})`);
+        }
+        const m = i === 0 ? 30 : Math.round(STAGES[i].min * 1.1);
         p.mass = m;
         if (m > p.maxMass) p.maxMass = m;
         return `${STAGES[i].name}: Masse ${fmt(m)}.`;
@@ -7917,7 +8489,7 @@ function toggleDebug() {
 ui.buildStages((stage, size) => renderer.stageThumbnail(stage, size));
 ui.setMode(input.mode);
 ui.setAudio(audio.muted, audio.volume);
-ui.showRecord(storage.get('best', null));
+ui.showRecord(loadBest());
 ui.show('start');
 document.getElementById('meta-count').textContent = String(game.bodies.length);
 
@@ -7990,7 +8562,7 @@ function toMenu() {
   state = 'menu';
   audio.setDuck(1);
   ui.resetHints();
-  ui.showRecord(storage.get('best', null));
+  ui.showRecord(loadBest());
   ui.show('start');
 }
 
@@ -8007,6 +8579,21 @@ function warp(scale, duration) {
   warpTime = Math.max(warpTime, duration);
 }
 
+/**
+ * Persönlicher Rekord. Rekorde aus der ersten Version (5 Stufen) werden auf
+ * die heutigen 19 Stufen umgerechnet, damit dort nicht plötzlich "Lavamond"
+ * statt "Gasriese" steht.
+ */
+function loadBest() {
+  const best = storage.get('best', null);
+  if (best && best.v !== 2) {
+    best.stage = [0, 1, 5, 8, 12][best.stage] ?? 0;
+    best.v = 2;
+    storage.set('best', best);
+  }
+  return best;
+}
+
 function onPlayerDeath(e) {
   const p = e.body;
   state = 'dead';
@@ -8017,7 +8604,7 @@ function onPlayerDeath(e) {
   ui.resetHints();
   ui.show('dead');
 
-  const best = storage.get('best', null);
+  const best = loadBest();
   const run = {
     cause: e.cause,
     killer: e.killer ? e.killer.name : null,
@@ -8031,7 +8618,7 @@ function onPlayerDeath(e) {
   };
   run.isNewBest = !run.cheated && (!best || run.maxMass > best.mass);
   if (run.isNewBest) {
-    storage.set('best', { mass: Math.round(run.maxMass), stage: run.stage, kills: run.kills, time: run.time, date: Date.now() });
+    storage.set('best', { v: 2, mass: Math.round(run.maxMass), stage: run.stage, kills: run.kills, time: run.time, date: Date.now() });
   }
   run.best = best;
   lastStats = run;

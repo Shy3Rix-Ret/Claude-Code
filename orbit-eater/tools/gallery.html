@@ -5,23 +5,26 @@
   <title>Orbit Eater · Asset-Galerie</title>
   <style>
     body { margin: 0; padding: 24px; background: #05070b; color: #ece6d6; font: 12px ui-monospace, monospace; }
-    h1 { font: 600 13px ui-monospace, monospace; letter-spacing: .2em; text-transform: uppercase; color: #ffb347; }
+    h1 { margin: 0 0 4px; font: 600 13px ui-monospace, monospace; letter-spacing: .2em; text-transform: uppercase; color: #ffb347; }
+    p { margin: 0 0 16px; color: rgba(236, 230, 214, .6); }
     canvas { display: block; }
   </style>
 </head>
 <body>
-  <h1>Prozedurale Körper · 5 Stufen × 4 Seeds</h1>
+  <h1>Prozedurale Körper · alle Stufen</h1>
+  <p>?seed=123 zeigt andere Varianten. Jede Stufe wird mit demselben Code gezeichnet wie im Spiel.</p>
   <canvas id="c"></canvas>
   <script type="module">
     // Entwickler-Werkzeug: zeigt jede Stufe groß, um die prozedurale Kunst zu beurteilen.
     import { Renderer } from '../js/renderer.js';
     import { buildBodyArt } from '../js/sprites.js';
-    const cell = 240, cols = 4, rows = 5, dpr = Math.min(devicePixelRatio || 1, 2);
+    import { STAGES } from '../js/config.js';
+    const seed = Number(new URLSearchParams(location.search).get('seed') || 1000);
+    const cell = 220, cols = 5, rows = Math.ceil(STAGES.length / cols), dpr = Math.min(devicePixelRatio || 1, 2);
     const c = document.getElementById('c');
     c.width = cell * cols * dpr; c.height = cell * rows * dpr;
     c.style.width = `${cell * cols}px`; c.style.height = `${cell * rows}px`;
-    const off = document.createElement('canvas');
-    const r = new Renderer(off, null);
+    const r = new Renderer(document.createElement('canvas'), null);
     const ctx = c.getContext('2d');
     const shade = (() => {
       const g = ctx.createRadialGradient(-0.42, -0.48, 0.02, -0.08, -0.08, 1.22);
@@ -29,16 +32,20 @@
       g.addColorStop(0.6, 'rgba(0,0,0,0.1)'); g.addColorStop(0.84, 'rgba(0,0,0,0.6)'); g.addColorStop(1, 'rgba(0,0,0,0.9)');
       return g;
     })();
-    const arts = [];
-    for (let s = 0; s < rows; s++) for (let k = 0; k < cols; k++) arts.push({ s, k, art: buildBodyArt(1000 + k, s) });
+    const arts = STAGES.map((s, i) => ({ i, s, art: buildBodyArt(seed + i * 3, i) }));
     function draw(t) {
       r.time = t / 1000;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, cell * cols, cell * rows);
       for (const a of arts) {
-        const x = a.k * cell + cell / 2, y = a.s * cell + cell / 2;
-        const rad = a.s === 3 ? 52 : a.s === 4 ? 50 : 76;
-        r.drawBody(ctx, a.art, x, y, rad, t / 4000, shade, 1);
+        const x = (a.i % cols) * cell + cell / 2, y = Math.floor(a.i / cols) * cell + cell / 2 - 10;
+        const rad = cell * Math.min(0.3, a.art.thumb || 0.34);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x - cell / 2, y - cell / 2 + 10, cell, cell); ctx.clip();
+        r.drawBody(ctx, a.art, x, y, rad, t / 4000, shade, 1, 0);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(236,230,214,.7)'; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center';
+        ctx.fillText(`${String(a.i + 1).padStart(2, '0')} ${a.s.name.toUpperCase()}`, x, y + cell / 2 - 4);
       }
       requestAnimationFrame(draw);
     }

@@ -12,9 +12,23 @@ import { TAU, clamp, fmt, random, randRange } from './utils.js';
 import { BlackHole, maxOrbiters } from './entities.js';
 import { storage } from './storage.js';
 
-const STAGE_ALIASES = {
-  asteroid: 0, mond: 1, moon: 1, planet: 2, gasriese: 3, riese: 3, giant: 3, stern: 4, star: 4, sonne: 4,
-};
+/** "Roter Überriese" → "roterueberriese" — so findet /stufe Namen mit und ohne Umlaute. */
+const normalize = s => s.toLowerCase()
+  .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+  .replace(/[^a-z0-9]/g, '');
+
+const STAGE_ALIASES = (() => {
+  const map = {};
+  STAGES.forEach((s, i) => { map[normalize(s.name)] = i; map[s.key] = i; });
+  // Spitznamen aus dem Sonnensystem und Kurzformen
+  const nick = {
+    europa: 'icemoon', io: 'lavamoon', mars: 'desert', erde: 'ocean', planet: 'ocean', venus: 'cloud',
+    uranus: 'icegiant', neptun: 'icegiant', jupiter: 'gasgiant', riese: 'gasgiant', saturn: 'ringgiant',
+    stern: 'sun', star: 'sun', pulsar: 'neutron', loch: 'blackhole', bh: 'blackhole',
+  };
+  for (const [n, key] of Object.entries(nick)) map[n] = STAGES.findIndex(s => s.key === key);
+  return map;
+})();
 
 /** Zahl aus einem Argument; akzeptiert deutsches Komma ("0,5"). */
 function num(arg, fallback) {
@@ -228,18 +242,20 @@ export class AdminConsole {
       cmd('masse', ['mass', 'm'], '<zahl>', 'eigene Masse setzen', (a, p) => {
         const v = num(a[0]);
         if (!Number.isFinite(v)) return err('Beispiel: /masse 500');
-        const m = clamp(v, BODY.minMass, 20000);
+        const m = clamp(v, BODY.minMass, BODY.maxMass);
         p.mass = m;
         if (m > p.maxMass) p.maxMass = m;
         return `Masse auf ${fmt(m)} gesetzt.`;
       }),
 
-      cmd('stufe', ['stage'], '<1–5 | name>', 'direkt auf eine Stufe springen', (a, p) => {
-        const arg = (a[0] || '').toLowerCase();
+      cmd('stufe', ['stage'], `<1–${STAGES.length} | name>`, 'direkt auf eine Stufe springen', (a, p) => {
+        const arg = normalize(a.join(''));
         let i = STAGE_ALIASES[arg];
         if (i === undefined) i = num(arg) - 1;
-        if (!Number.isInteger(i) || i < 0 || i >= STAGES.length) return err('Beispiel: /stufe 4 oder /stufe gasriese');
-        const m = i === 0 ? 40 : Math.round(STAGES[i].min * 1.1);
+        if (!Number.isInteger(i) || i < 0 || i >= STAGES.length) {
+          return err(`Beispiel: /stufe 13, /stufe quasar oder /stufe roter zwerg (1–${STAGES.length})`);
+        }
+        const m = i === 0 ? 30 : Math.round(STAGES[i].min * 1.1);
         p.mass = m;
         if (m > p.maxMass) p.maxMass = m;
         return `${STAGES[i].name}: Masse ${fmt(m)}.`;

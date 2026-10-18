@@ -126,21 +126,40 @@ export class UI {
     this.mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  /** Stufen-Vorschau im Startbildschirm — gerendert mit demselben Code wie im Spiel. */
+  /**
+   * Stufen-Vorschau im Startbildschirm — gerendert mit demselben Code wie im
+   * Spiel. Die Bilder entstehen nacheinander: alle 19 auf einmal würden den
+   * Start spürbar verzögern (ein Planet kostet ~20 ms).
+   */
   buildStages(thumb) {
     const list = this.$('stages');
+    const caption = this.$('stages-caption');
+    const idle = `${STAGES.length} Stufen – vom Asteroiden bis zur Galaxie. Zeig auf eine.`;
+    const describe = i => `${String(i + 1).padStart(2, '0')} · ${STAGES[i].name} · ${i === 0 ? 'Start' : `ab ${fmt(STAGES[i].min)} Masse`}`;
     list.innerHTML = '';
+    caption.textContent = idle;
+    const jobs = [];
     STAGES.forEach((s, i) => {
       const li = document.createElement('li');
-      const c = thumb(i, 56);
-      li.appendChild(c);
-      const b = document.createElement('b');
-      b.textContent = s.name;
-      const small = document.createElement('small');
-      small.textContent = i === 0 ? 'Start' : `ab ${fmt(s.min)}`;
-      li.append(b, small);
+      li.tabIndex = 0;
+      li.title = s.name;
+      li.setAttribute('aria-label', describe(i));
+      const show = () => { caption.textContent = describe(i); };
+      const hide = () => { caption.textContent = idle; };
+      li.addEventListener('pointerenter', show);
+      li.addEventListener('focus', show);
+      li.addEventListener('pointerleave', hide);
+      li.addEventListener('blur', hide);
       list.appendChild(li);
+      jobs.push(() => li.appendChild(thumb(i, 40)));
     });
+    const next = () => {
+      const job = jobs.shift();
+      if (!job) return;
+      job();
+      setTimeout(next, 16);
+    };
+    setTimeout(next, 250);
   }
 
   bind() {
@@ -220,7 +239,7 @@ export class UI {
       r.textContent = 'Noch kein Rekord. Zeit, das zu ändern.';
       return;
     }
-    r.innerHTML = `Rekord <strong>${fmt(best.mass)}</strong> Masse · ${STAGES[best.stage].name} · ${best.kills} Kills · ${fmtTime(best.time)}`;
+    r.innerHTML = `Rekord <strong>${fmt(best.mass)}</strong> Masse · ${STAGES[best.stage]?.name ?? '–'} · ${best.kills} Kills · ${fmtTime(best.time)}`;
   }
 
   showGameOver(s) {
@@ -251,7 +270,7 @@ export class UI {
     } else if (s.isNewBest) {
       rec.innerHTML = '<span class="is-new">Neuer persönlicher Rekord.</span> Höchste Masse bisher.';
     } else if (s.best) {
-      rec.innerHTML = `Persönlicher Rekord <strong>${fmt(s.best.mass)}</strong> · ${STAGES[s.best.stage].name}`;
+      rec.innerHTML = `Persönlicher Rekord <strong>${fmt(s.best.mass)}</strong> · ${STAGES[s.best.stage]?.name ?? '–'}`;
     } else {
       rec.textContent = '';
     }
@@ -576,7 +595,7 @@ export class UI {
       const rel = canEat(b, p) ? PALETTE.threat : canEat(p, b) ? PALETTE.prey : 'rgba(236,230,214,0.6)';
       ctx.fillStyle = rel;
       ctx.beginPath();
-      ctx.arc(c + b.x * k, c + b.y * k, Math.max(1.6, b.r * k * 1.4), 0, TAU);
+      ctx.arc(c + b.x * k, c + b.y * k, clamp(b.r * k * 1.4, 1.6, 6), 0, TAU);
       ctx.fill();
     }
 
@@ -590,7 +609,7 @@ export class UI {
     ctx.stroke();
     ctx.fillStyle = PALETTE.amber;
     ctx.beginPath();
-    ctx.arc(px, py, Math.max(2.5, p.r * k * 1.4), 0, TAU);
+    ctx.arc(px, py, clamp(p.r * k * 1.4, 2.5, 7), 0, TAU);
     ctx.fill();
   }
 

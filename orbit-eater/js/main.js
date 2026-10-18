@@ -77,7 +77,7 @@ function toggleDebug() {
 ui.buildStages((stage, size) => renderer.stageThumbnail(stage, size));
 ui.setMode(input.mode);
 ui.setAudio(audio.muted, audio.volume);
-ui.showRecord(storage.get('best', null));
+ui.showRecord(loadBest());
 ui.show('start');
 document.getElementById('meta-count').textContent = String(game.bodies.length);
 
@@ -150,7 +150,7 @@ function toMenu() {
   state = 'menu';
   audio.setDuck(1);
   ui.resetHints();
-  ui.showRecord(storage.get('best', null));
+  ui.showRecord(loadBest());
   ui.show('start');
 }
 
@@ -167,6 +167,21 @@ function warp(scale, duration) {
   warpTime = Math.max(warpTime, duration);
 }
 
+/**
+ * Persönlicher Rekord. Rekorde aus der ersten Version (5 Stufen) werden auf
+ * die heutigen 19 Stufen umgerechnet, damit dort nicht plötzlich "Lavamond"
+ * statt "Gasriese" steht.
+ */
+function loadBest() {
+  const best = storage.get('best', null);
+  if (best && best.v !== 2) {
+    best.stage = [0, 1, 5, 8, 12][best.stage] ?? 0;
+    best.v = 2;
+    storage.set('best', best);
+  }
+  return best;
+}
+
 function onPlayerDeath(e) {
   const p = e.body;
   state = 'dead';
@@ -177,7 +192,7 @@ function onPlayerDeath(e) {
   ui.resetHints();
   ui.show('dead');
 
-  const best = storage.get('best', null);
+  const best = loadBest();
   const run = {
     cause: e.cause,
     killer: e.killer ? e.killer.name : null,
@@ -191,7 +206,7 @@ function onPlayerDeath(e) {
   };
   run.isNewBest = !run.cheated && (!best || run.maxMass > best.mass);
   if (run.isNewBest) {
-    storage.set('best', { mass: Math.round(run.maxMass), stage: run.stage, kills: run.kills, time: run.time, date: Date.now() });
+    storage.set('best', { v: 2, mass: Math.round(run.maxMass), stage: run.stage, kills: run.kills, time: run.time, date: Date.now() });
   }
   run.best = best;
   lastStats = run;

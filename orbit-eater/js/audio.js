@@ -12,11 +12,12 @@
  * Ereignisse anderer Körper werden nach Entfernung leiser und im Stereobild
  * verortet.
  */
-import { AUDIO } from './config.js';
+import { AUDIO, STAGES } from './config.js';
 import { clamp } from './utils.js';
 import { storage } from './storage.js';
 
 const PENTATONIC = [0, 2, 4, 7, 9];
+const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const EPS = 0.0001;
 
 export class AudioEngine {
@@ -359,7 +360,8 @@ export class AudioEngine {
 
   evolve(stage) {
     if (!this.ready) return;
-    const root = [196, 220, 247, 262, 294][stage] || 262;
+    // Jede Stufe klingt einen Ton höher (Dur-Tonleiter, über gut zweieinhalb Oktaven)
+    const root = 110 * 2 ** ((MAJOR[stage % 7] + 12 * Math.floor(stage / 7)) / 12);
     [0, 4, 7, 11, 14, 19].forEach((n, i) =>
       this.tone({ freq: root * 2 ** (n / 12), type: 'triangle', dur: 1.3, gain: 0.07, attack: 0.01, when: i * 0.07, send: 0.65 }));
     this.tone({ freq: root / 2, dur: 1.6, gain: 0.16, attack: 0.35, send: 0.3 });
@@ -432,7 +434,7 @@ export class AudioEngine {
     this.slingOsc.frequency.setTargetAtTime(110 + c * 340, t, 0.05);
     this.slingFilter.frequency.setTargetAtTime(500 + c * 2200, t, 0.05);
     this.holeGain.gain.setTargetAtTime(on ? state.hole * state.hole * 0.5 : 0, t, 0.3);
-    this.ambFilter.frequency.setTargetAtTime(170 + state.stage * 45, t, 2);
+    this.ambFilter.frequency.setTargetAtTime(170 + (state.stage / (STAGES.length - 1)) * 220, t, 2);
   }
 
   // --- Lautstärke -------------------------------------------------------------------
