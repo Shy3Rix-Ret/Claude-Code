@@ -561,11 +561,18 @@ export class UI {
       ctx.strokeRect(c + view.x0 * k, c + view.y0 * k, (view.x1 - view.x0) * k, (view.y1 - view.y0) * k);
     }
 
-    // Umkreis, in dem Körper angezeigt werden
+    // Umkreis, in dem Körper angezeigt werden: mindestens MAP_RANGE, für große
+    // Körper (weit herausgezoomt) bis deutlich über den Bildrand hinaus
+    const span = view ? Math.max(view.x1 - view.x0, view.y1 - view.y0) * 0.75 : 0;
+    const range = Math.max(MAP_RANGE, Math.ceil(span / 400) * 400);
+    if (range !== this.mapRangeShown) {
+      this.mapRangeShown = range;
+      this.el.mapRange.textContent = fmt(range);
+    }
     ctx.setLineDash([2, 3]);
     ctx.strokeStyle = 'rgba(236,230,214,0.16)';
     ctx.beginPath();
-    ctx.arc(c + p.x * k, c + p.y * k, MAP_RANGE * k, 0, TAU);
+    ctx.arc(c + p.x * k, c + p.y * k, range * k, 0, TAU);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -591,7 +598,7 @@ export class UI {
 
     for (const b of game.bodies) {
       if (!b.alive || b === p) continue;
-      if (Math.hypot(b.x - p.x, b.y - p.y) > MAP_RANGE) continue;
+      if (Math.hypot(b.x - p.x, b.y - p.y) > range) continue;
       const rel = canEat(b, p) ? PALETTE.threat : canEat(p, b) ? PALETTE.prey : 'rgba(236,230,214,0.6)';
       ctx.fillStyle = rel;
       ctx.beginPath();
@@ -625,6 +632,7 @@ export class UI {
       r.key = '';
       r.dot.style.visibility = '';
     }
+    this.mapRangeShown = MAP_RANGE;
     this.el.mapRange.textContent = fmt(MAP_RANGE);
     this.el.drain.hidden = true;
   }

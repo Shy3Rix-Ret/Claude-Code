@@ -14,7 +14,7 @@ Inspiriert vom Spielgefühl von slither.io und agar.io, aber mit eigener Mechani
 
 - Vanilla JavaScript (ES-Module) und Canvas 2D, ohne Framework und ohne Build-Schritt.
 - **Keine einzige Asset-Datei:** Grafik, Texturen und Sounds entstehen zur Laufzeit im Code.
-- 20 KI-Gegner, über 1.500 Objekte gleichzeitig, fester 60-Hz-Physiktakt.
+- Große Arena mit 80 KI-Gegnern und über 5.000 Objekten gleichzeitig, fester 60-Hz-Physiktakt.
 
 ---
 
@@ -121,7 +121,15 @@ Admin-Konsole benutzt).
 
 ![Alle 19 Stufen aus der Asset-Galerie](docs/stufen.jpg)
 
-Jeder Körper kann höchstens 25.000 Masse haben. Darüber wäre er größer als die halbe Arena.
+Jeder Körper kann höchstens 25.000 Masse haben. Ohne Grenze würde ein Riese irgendwann die
+ganze Arena verstopfen.
+
+**Die Arena** hat einen Radius von 8.000 Einheiten. Gestartet ist sie mit 4.000, und dort
+wurde auch die Balance gemacht. Seit sie vier Mal so viel Fläche hat, wachsen Staub,
+Asteroiden, Bots, Kometen und Schwarze Löcher automatisch mit der Fläche mit (`AREA` in
+`config.js`). Die Dichte bleibt also gleich: Die Welt ist nicht leerer, sie ist nur weiter.
+Die Minimap ist ein Radar. Sie zeigt Körper im Umkreis von 2.400 Einheiten und reicht weiter,
+wenn die Kamera für große Körper weiter herauszoomt.
 
 **Reibung.** Ab 250 Masse kostet Bewegung etwas Masse. Bei voller Fahrt sind das 0,5 % der
 Masse über 250 pro Sekunde, also bei 600 Masse etwa 1,7 pro Sekunde. Langsamer heißt weniger
@@ -156,7 +164,7 @@ dürfen ein deutsches Komma haben (`/zeit 0,5`). In Klammern stehen die englisch
 | `/gott` (`/god`) | unverwundbar an/aus |
 | `/tempo <faktor>` (`/speed`) | eigenes Tempo, 1 = normal, bis 5 |
 | `/bot [masse] [anzahl]` (`/spawn`) | Bots neben dir erzeugen |
-| `/bots <anzahl>` | Bot-Anzahl in der Arena festlegen (0–60) |
+| `/bots <anzahl>` | Bot-Anzahl in der Arena festlegen (0–160) |
 | `/loch` (`/blackhole`) | Schwarzes Loch vor dir erzeugen |
 | `/komet [anzahl]` (`/comet`) | Kometen auf dich zu schicken |
 | `/orbit [anzahl]` | Orbit mit Asteroiden füllen |
@@ -206,9 +214,11 @@ nur zu. Dadurch lässt sich die komplette Welt ohne Browser in Node testen (sieh
 - **Kinematische Umlaufbahnen.** Eingefangene Asteroiden laufen auf Kreisbahnen mit weichem
   Einschwenken (Easing), innen schneller als außen. Ihre Bahnhöhe sinkt langsam ab.
 - **Spatial Hash.** Ein festes Raster (160 Einheiten pro Zelle) wird jeden Tick neu
-  aufgebaut. Es beantwortet alle Fragen der Art „was ist in meinem Gravitationsradius?“. Die
-  rund 20 großen Körper werden direkt paarweise geprüft, bei dieser Anzahl ist das schneller
-  als jede Datenstruktur.
+  aufgebaut. Es beantwortet alle Fragen der Art „was ist in meinem Gravitationsradius?“.
+  Gespeichert wird es wie bei einem Counting Sort: alle Einträge in einem Array, nach Zelle
+  sortiert, dazu ein Startindex pro Zelle. Das war mit der größeren Arena sechsmal schneller
+  als ein Array pro Zelle. Die 80 großen Körper werden direkt paarweise geprüft, bei dieser
+  Anzahl ist das immer noch schneller als jede Datenstruktur.
 - **Object Pooling** für Staub, Asteroiden, Kometen und alle Partikel. Im laufenden Spiel
   entsteht dadurch kaum Garbage.
 
@@ -254,7 +264,9 @@ und fBm) und als Offscreen-Canvas gecacht.
   Nachtseite.
 - **Textur-Cache mit Vorwärmen.** Eine Planetentextur kostet rund 20 ms. Deshalb wird höchstens
   eine pro Frame gebaut, und zwar schon, wenn ein Körper sich der nächsten Stufe nähert. Beim
-  Evolutions-Moment liegt sie bereit, es gibt keinen Ruckler.
+  Evolutions-Moment liegt sie bereit, es gibt keinen Ruckler. Vorgewärmt wird nur in der Nähe
+  des Bildes, und verdrängt wird, was am längsten nicht zu sehen war (LRU). So bleibt der
+  Cache auch bei 80 Bots klein.
 - **Hintergrund.** Ein Nebel in der Hubble-Palette (Teal/Gold), drei Sternebenen mit
   Parallaxe und einzelne Sterne mit Beugungsspikes.
 - **Arena wie eine Sternkarte.** Ein polares Gitter, eine Gradskala am Rand und ein
@@ -336,7 +348,7 @@ Der **Simulationstest** lässt die Welt in Node laufen und steuert einen Spieler
 - Orbiter gehören dem richtigen Körper
 - es entstehen nie mehr Bots als vorgesehen
 
-Am Ende berichtet er Tick-Zeit (im Schnitt ~0,3 ms, Budget 16,7 ms), Fortschritt des
+Am Ende berichtet er Tick-Zeit (im Schnitt ~1,3 ms in der großen Arena, Budget 16,7 ms), Fortschritt des
 Autopiloten und Ereignisstatistik. Mit diesem Test ist die Balance entstanden. Ein Beispiel:
 Er zeigte, dass sich die Welt ohne Massenverlust innerhalb von fünf Minuten mit Riesen füllt
 (Median der Bot-Masse von 85 auf über 1.000). Mit der Reibung pendelt sie sich bei einem

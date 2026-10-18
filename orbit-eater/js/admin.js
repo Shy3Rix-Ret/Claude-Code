@@ -7,7 +7,7 @@
  * Fairness: Sobald ein Befehl das Spiel verändert, gilt die Runde als
  * "Admin-Runde" — sie zählt nicht für den persönlichen Rekord.
  */
-import { BODY, STAGES, BLACK_HOLE, WORLD } from './config.js';
+import { BODY, BOTS, STAGES, BLACK_HOLE, WORLD } from './config.js';
 import { TAU, clamp, fmt, random, randRange } from './utils.js';
 import { BlackHole, maxOrbiters } from './entities.js';
 import { storage } from './storage.js';
@@ -289,10 +289,10 @@ export class AdminConsole {
         return `${count} Bot${count > 1 ? 's' : ''} mit Masse ${fmt(clamp(m, 12, 20000))} erzeugt.`;
       }),
 
-      cmd('bots', [], '<anzahl>', 'Anzahl der Bots in der Arena (0–60)', a => {
+      cmd('bots', [], '<anzahl>', `Anzahl der Bots in der Arena (0–${BOTS.count * 2})`, a => {
         const n = num(a[0]);
-        if (!Number.isFinite(n)) return err('Beispiel: /bots 30');
-        const target = clamp(Math.round(n), 0, 60);
+        if (!Number.isFinite(n)) return err(`Beispiel: /bots ${Math.round(BOTS.count / 2)}`);
+        const target = clamp(Math.round(n), 0, BOTS.count * 2);
         const bots = game.bodies.filter(b => !b.isPlayer && b.alive);
         game.respawnAt.length = 0;
         if (bots.length < target) {

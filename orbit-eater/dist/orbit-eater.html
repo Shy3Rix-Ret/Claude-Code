@@ -1814,10 +1814,18 @@ const SIM = {
 };
 
 const WORLD = {
-  radius: 4000,           // kreisförmige Arena
+  radius: 8000,           // kreisförmige Arena
   gridCell: 160,          // Zellgröße des Spatial Hash
   wallBounce: 0.35,
 };
+
+/**
+ * Fläche im Verhältnis zur 4000er-Arena, auf der alle Mengen ausbalanciert
+ * wurden. Staub, Asteroiden, Bots, Kometen und Löcher skalieren damit, so
+ * bleibt die Dichte gleich — eine größere Welt ist nicht leerer, nur weiter.
+ */
+const AREA = (WORLD.radius / 4000) ** 2;
+const perArea = n => Math.round(n * AREA);
 
 const BODY = {
   radiusK: 4.2,
@@ -1846,7 +1854,7 @@ const BODY = {
   gravityAdd: 36,
   bodyPull: 150,          // Sog großer Körper auf fressbare kleinere (Einheiten/s² am Rand der Oberfläche)
   spawnShield: 3,         // Sekunden Schutz nach dem Spawn
-  maxMass: 25000,         // Obergrenze — darüber würde ein Körper größer als die halbe Arena
+  maxMass: 25000,         // Obergrenze — sonst verstopft ein Riese irgendwann die ganze Arena
   spawnFade: 0.6,
 };
 
@@ -1917,13 +1925,13 @@ const SLING = {
 };
 
 const DUST = {
-  count: 1800,
+  count: perArea(1800),
   mass: 1,
   radius: 4,
   clusterMin: 4,
   clusterMax: 14,
   clusterSpread: 80,
-  clustersPerSecond: 3.4,
+  clustersPerSecond: 3.4 * AREA,
   drift: 10,
   drag: 1.4,
   pullFactor: 1.5,        // Einfallgeschwindigkeit als Vielfaches des Gravitationsradius pro Sekunde
@@ -1934,21 +1942,21 @@ const DUST = {
 };
 
 const ASTEROID = {
-  count: 130,
+  count: perArea(130),
   massMin: 3,
   massMax: 9,
   radiusK: 3.6,           // r = radiusK * sqrt(Masse)
   drift: 26,
   drag: 0.35,
-  spawnPerSecond: 2,
+  spawnPerSecond: 2 * AREA,
   pullFactor: 0.8,
   variants: 12,
 };
 
 const COMET = {
-  max: 3,
-  intervalMin: 5,
-  intervalMax: 11,
+  max: perArea(3),
+  intervalMin: 5 / AREA,
+  intervalMax: 11 / AREA,
   firstDelay: 4,
   speedMin: 360,
   speedMax: 500,
@@ -1959,10 +1967,10 @@ const COMET = {
 };
 
 const BLACK_HOLE = {
-  max: 2,
+  max: perArea(2),
   firstDelay: 45,
-  intervalMin: 40,
-  intervalMax: 80,
+  intervalMin: 40 / AREA,
+  intervalMax: 80 / AREA,
   lifeMin: 70,
   lifeMax: 110,
   formTime: 3.5,
@@ -1980,7 +1988,7 @@ const BLACK_HOLE = {
 };
 
 const BOTS = {
-  count: 20,
+  count: perArea(20),
   respawnMin: 2,
   respawnMax: 5,
   thinkMin: 0.12,
@@ -2569,13 +2577,16 @@ const __spatial_hash = (() => {
 /**
  * Uniformes Raster für Nachbarschaftsabfragen.
  *
- * Die Arena ist begrenzt, also reicht ein festes Array statt einer Hash-Map:
+ * Die Arena ist begrenzt, also reicht ein festes Raster statt einer Hash-Map:
  * Zelle = (floor(x / size) + offset, floor(y / size) + offset). Jedes Objekt
  * landet anhand seines Mittelpunkts in genau einer Zelle; Abfragen erweitern
  * den Suchradius um `margin`, damit kleine Objekte am Zellrand nicht fehlen.
  *
- * Wird jeden Tick komplett neu aufgebaut — bei ~2000 Einträgen günstiger als
- * jedes bewegte Objekt einzeln umzusortieren.
+ * Wird jeden Tick komplett neu aufgebaut — bei mehreren tausend Einträgen
+ * günstiger als jedes bewegte Objekt einzeln umzusortieren. Gespeichert wird
+ * wie bei einem Counting Sort: alle Einträge in einem Array, nach Zelle
+ * sortiert, plus ein Startindex pro Zelle. Keine tausend kleinen Arrays, die
+ * der Garbage Collector und der Cache hassen.
  */
 class SpatialHash {
   constructor(cellSize, extent, margin = 16) {
@@ -2584,14 +2595,19 @@ class SpatialHash {
     this.half = Math.ceil(extent / cellSize) + 1;
     this.cols = this.half * 2;
     this.margin = margin;
-    this.cells = Array.from({ length: this.cols * this.cols }, () => []);
-    this.used = [];
+    const cells = this.cols * this.cols;
+    this.start = new Int32Array(cells + 1);   // Einträge der Zelle c: sorted[start[c] … start[c + 1])
+    this.fill = new Int32Array(cells);
+    this.cellOf = new Int32Array(1024);
+    this.items = [];
+    this.sorted = [];
+    this.n = 0;
+    this.dirty = false;
   }
 
   clear() {
-    const { cells, used } = this;
-    for (let i = 0; i < used.length; i++) cells[used[i]].length = 0;
-    used.length = 0;
+    this.n = 0;
+    this.dirty = true;
   }
 
   _col(v) {
@@ -2600,10 +2616,28 @@ class SpatialHash {
   }
 
   insert(e) {
-    const i = this._col(e.y) * this.cols + this._col(e.x);
-    const cell = this.cells[i];
-    if (cell.length === 0) this.used.push(i);
-    cell.push(e);
+    if (this.n === this.cellOf.length) {
+      const grown = new Int32Array(this.n * 2);
+      grown.set(this.cellOf);
+      this.cellOf = grown;
+    }
+    this.cellOf[this.n] = this._col(e.y) * this.cols + this._col(e.x);
+    this.items[this.n++] = e;
+    this.dirty = true;
+  }
+
+  /** Sortiert die Einträge nach Zelle — passiert automatisch vor der ersten Abfrage. */
+  build() {
+    const { start, fill, cellOf, items, sorted, n } = this;
+    start.fill(0);
+    for (let i = 0; i < n; i++) start[cellOf[i] + 1]++;
+    for (let c = 1; c < start.length; c++) start[c] += start[c - 1];
+    fill.set(start.subarray(0, fill.length));
+    sorted.length = n;
+    for (let i = 0; i < n; i++) sorted[fill[cellOf[i]]++] = items[i];
+    // alte Verweise loslassen, damit freigegebene Trümmer nicht im Raster hängen
+    for (let i = n; i < items.length; i++) items[i] = undefined;
+    this.dirty = false;
   }
 
   /**
@@ -2612,17 +2646,16 @@ class SpatialHash {
    * `out` wird wiederverwendet, um Garbage zu vermeiden.
    */
   query(x, y, r, out) {
+    if (this.dirty) this.build();
     out.length = 0;
     const rr = r + this.margin;
     const x0 = this._col(x - rr), x1 = this._col(x + rr);
     const y0 = this._col(y - rr), y1 = this._col(y + rr);
-    const { cells, cols } = this;
+    const { start, sorted, cols } = this;
     for (let cy = y0; cy <= y1; cy++) {
       const row = cy * cols;
-      for (let cx = x0; cx <= x1; cx++) {
-        const cell = cells[row + cx];
-        for (let i = 0; i < cell.length; i++) out.push(cell[i]);
-      }
+      const a = start[row + x0], b = start[row + x1 + 1];
+      for (let i = a; i < b; i++) out.push(sorted[i]);
     }
     return out;
   }
@@ -2926,6 +2959,13 @@ const BOT_NAMES = [
   'Saturn-Ringo', 'Vollmond Vroni', 'Weltraumschrott', 'Orbitbrötchen', 'Sonnensturm Stefan',
   'Kuiper Kai', 'Roter Riese Rolf', 'Weißer Zwerg Willi', 'Neutronen-Nadine', 'Quasar Qualle',
   'Bratwurst Nebula', 'Hubble Bubble', 'Mondfinsternis', 'Krater Kevin', 'Schwerkraft Schorsch',
+  'Asteroiden-Achim', 'Polarlicht Paula', 'Ereignishorizont Ede', 'Venus Vibes', 'Mars Macchiato',
+  'Kosmo Klaus', 'Sternbild Steffi', 'Umlaufbahn Udo', 'Gravitations-Gerd', 'Andromeda Andrea',
+  'Raumstation Rüdiger', 'Pulsar Pia', 'Orion Ottokar', 'Lightspeed Lena', 'Meteorit Moritz',
+  'Mondlandung Manni', 'Kosmischer Keks', 'Zentrifugen-Zoe', 'Nebula Nadja', 'Rotverschiebung',
+  'Galaxis Gustav', 'Planetenpaule', 'Space Spätzle', 'Schwarzloch Schmidt', 'Trabant Torsten',
+  'Fixstern Fritz', 'Astronautin Anke', 'Satelliten-Sabine', 'Cosmic Kartoffel', 'Eisriese Ingo',
+  'Tim Teleskop', 'Big Dipper Dieter', 'Sonnenwind Sina', 'Raketen-Rainer', 'Hyperraum Hanna',
 ];
 
 class NamePool {
@@ -5196,6 +5236,10 @@ const LABEL = {
   neutral: 'rgba(236,230,214,0.72)',
 };
 
+/** Höchstzahl gecachter Körpertexturen (~0,3 MB pro Stück). */
+const ART_CACHE = 128;
+const artKey = (seed, stage) => seed * 32 + stage;
+
 class Renderer {
   constructor(canvas, events) {
     this.canvas = canvas;
@@ -5357,8 +5401,13 @@ class Renderer {
    * bleibt das Aussehen der vorigen Stufe stehen.
    */
   artFor(b) {
-    let art = this.artCache.get(b.seed * 8 + b.stage);
-    if (!art && this.artBudget > 0) {
+    const key = artKey(b.seed, b.stage);
+    let art = this.artCache.get(key);
+    if (art) {
+      // zuletzt benutzt ans Ende — verdrängt wird, was am längsten nicht im Bild war
+      this.artCache.delete(key);
+      this.artCache.set(key, art);
+    } else if (this.artBudget > 0) {
       this.artBudget--;
       art = this.buildArt(b.seed, b.stage);
     }
@@ -5368,8 +5417,8 @@ class Renderer {
 
   buildArt(seed, stage) {
     const art = buildBodyArt(seed, stage);
-    this.artCache.set(seed * 8 + stage, art);
-    if (this.artCache.size > 96) this.artCache.delete(this.artCache.keys().next().value);
+    this.artCache.set(artKey(seed, stage), art);
+    if (this.artCache.size > ART_CACHE) this.artCache.delete(this.artCache.keys().next().value);
     return art;
   }
 
@@ -5377,16 +5426,20 @@ class Renderer {
    * Nutzt ein ungenutztes Frame-Budget, um Texturen vorab zu bauen: erst die
    * aktuelle Stufe aller Körper, dann die nächste Stufe, sobald ein Körper
    * kurz davor ist. So steht beim Evolutions-Moment alles bereit — kein Ruckler.
+   * Nur für Körper in der Nähe des Bildes: Die Arena ist zu groß, um jeden
+   * Bot vorzuhalten, und der Cache würde sonst ständig gegen sich selbst bauen.
    */
   prewarm(game) {
     if (this.artBudget <= 0) return;
     const p = game.player && game.player.alive ? game.player : null;
     const list = p ? [p, ...game.bodies] : game.bodies;
+    const v = this.view, mx = (v.x1 - v.x0) * 0.5, my = (v.y1 - v.y0) * 0.5;
     for (const b of list) {
       if (!b.alive) continue;
+      if (b !== p && (b.x < v.x0 - mx || b.x > v.x1 + mx || b.y < v.y0 - my || b.y > v.y1 + my)) continue;
       for (let s = b.stage; s <= b.stage + 1 && s < STAGES.length; s++) {
         if (s > b.stage && b.mass < STAGES[s].min * 0.82) continue;
-        if (this.artCache.has(b.seed * 8 + s)) continue;
+        if (this.artCache.has(artKey(b.seed, s))) continue;
         this.buildArt(b.seed, s);
         this.artBudget--;
         return;
@@ -7877,11 +7930,18 @@ class UI {
       ctx.strokeRect(c + view.x0 * k, c + view.y0 * k, (view.x1 - view.x0) * k, (view.y1 - view.y0) * k);
     }
 
-    // Umkreis, in dem Körper angezeigt werden
+    // Umkreis, in dem Körper angezeigt werden: mindestens MAP_RANGE, für große
+    // Körper (weit herausgezoomt) bis deutlich über den Bildrand hinaus
+    const span = view ? Math.max(view.x1 - view.x0, view.y1 - view.y0) * 0.75 : 0;
+    const range = Math.max(MAP_RANGE, Math.ceil(span / 400) * 400);
+    if (range !== this.mapRangeShown) {
+      this.mapRangeShown = range;
+      this.el.mapRange.textContent = fmt(range);
+    }
     ctx.setLineDash([2, 3]);
     ctx.strokeStyle = 'rgba(236,230,214,0.16)';
     ctx.beginPath();
-    ctx.arc(c + p.x * k, c + p.y * k, MAP_RANGE * k, 0, TAU);
+    ctx.arc(c + p.x * k, c + p.y * k, range * k, 0, TAU);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -7907,7 +7967,7 @@ class UI {
 
     for (const b of game.bodies) {
       if (!b.alive || b === p) continue;
-      if (Math.hypot(b.x - p.x, b.y - p.y) > MAP_RANGE) continue;
+      if (Math.hypot(b.x - p.x, b.y - p.y) > range) continue;
       const rel = canEat(b, p) ? PALETTE.threat : canEat(p, b) ? PALETTE.prey : 'rgba(236,230,214,0.6)';
       ctx.fillStyle = rel;
       ctx.beginPath();
@@ -7941,6 +8001,7 @@ class UI {
       r.key = '';
       r.dot.style.visibility = '';
     }
+    this.mapRangeShown = MAP_RANGE;
     this.el.mapRange.textContent = fmt(MAP_RANGE);
     this.el.drain.hidden = true;
   }
@@ -7974,7 +8035,7 @@ const __admin = (() => {
  * Fairness: Sobald ein Befehl das Spiel verändert, gilt die Runde als
  * "Admin-Runde" — sie zählt nicht für den persönlichen Rekord.
  */
-const { BODY, STAGES, BLACK_HOLE, WORLD } = __config;
+const { BODY, BOTS, STAGES, BLACK_HOLE, WORLD } = __config;
 const { TAU, clamp, fmt, random, randRange } = __utils;
 const { BlackHole, maxOrbiters } = __entities;
 const { storage } = __storage;
@@ -8256,10 +8317,10 @@ class AdminConsole {
         return `${count} Bot${count > 1 ? 's' : ''} mit Masse ${fmt(clamp(m, 12, 20000))} erzeugt.`;
       }),
 
-      cmd('bots', [], '<anzahl>', 'Anzahl der Bots in der Arena (0–60)', a => {
+      cmd('bots', [], '<anzahl>', `Anzahl der Bots in der Arena (0–${BOTS.count * 2})`, a => {
         const n = num(a[0]);
-        if (!Number.isFinite(n)) return err('Beispiel: /bots 30');
-        const target = clamp(Math.round(n), 0, 60);
+        if (!Number.isFinite(n)) return err(`Beispiel: /bots ${Math.round(BOTS.count / 2)}`);
+        const target = clamp(Math.round(n), 0, BOTS.count * 2);
         const bots = game.bodies.filter(b => !b.isPlayer && b.alive);
         game.respawnAt.length = 0;
         if (bots.length < target) {

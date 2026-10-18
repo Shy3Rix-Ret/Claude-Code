@@ -16,6 +16,13 @@ export const BOT_NAMES = [
   'Saturn-Ringo', 'Vollmond Vroni', 'Weltraumschrott', 'Orbitbrötchen', 'Sonnensturm Stefan',
   'Kuiper Kai', 'Roter Riese Rolf', 'Weißer Zwerg Willi', 'Neutronen-Nadine', 'Quasar Qualle',
   'Bratwurst Nebula', 'Hubble Bubble', 'Mondfinsternis', 'Krater Kevin', 'Schwerkraft Schorsch',
+  'Asteroiden-Achim', 'Polarlicht Paula', 'Ereignishorizont Ede', 'Venus Vibes', 'Mars Macchiato',
+  'Kosmo Klaus', 'Sternbild Steffi', 'Umlaufbahn Udo', 'Gravitations-Gerd', 'Andromeda Andrea',
+  'Raumstation Rüdiger', 'Pulsar Pia', 'Orion Ottokar', 'Lightspeed Lena', 'Meteorit Moritz',
+  'Mondlandung Manni', 'Kosmischer Keks', 'Zentrifugen-Zoe', 'Nebula Nadja', 'Rotverschiebung',
+  'Galaxis Gustav', 'Planetenpaule', 'Space Spätzle', 'Schwarzloch Schmidt', 'Trabant Torsten',
+  'Fixstern Fritz', 'Astronautin Anke', 'Satelliten-Sabine', 'Cosmic Kartoffel', 'Eisriese Ingo',
+  'Tim Teleskop', 'Big Dipper Dieter', 'Sonnenwind Sina', 'Raketen-Rainer', 'Hyperraum Hanna',
 ];
 
 export class NamePool {

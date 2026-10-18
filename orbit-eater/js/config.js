@@ -17,10 +17,18 @@ export const SIM = {
 };
 
 export const WORLD = {
-  radius: 4000,           // kreisförmige Arena
+  radius: 8000,           // kreisförmige Arena
   gridCell: 160,          // Zellgröße des Spatial Hash
   wallBounce: 0.35,
 };
+
+/**
+ * Fläche im Verhältnis zur 4000er-Arena, auf der alle Mengen ausbalanciert
+ * wurden. Staub, Asteroiden, Bots, Kometen und Löcher skalieren damit, so
+ * bleibt die Dichte gleich — eine größere Welt ist nicht leerer, nur weiter.
+ */
+const AREA = (WORLD.radius / 4000) ** 2;
+const perArea = n => Math.round(n * AREA);
 
 export const BODY = {
   radiusK: 4.2,
@@ -49,7 +57,7 @@ export const BODY = {
   gravityAdd: 36,
   bodyPull: 150,          // Sog großer Körper auf fressbare kleinere (Einheiten/s² am Rand der Oberfläche)
   spawnShield: 3,         // Sekunden Schutz nach dem Spawn
-  maxMass: 25000,         // Obergrenze — darüber würde ein Körper größer als die halbe Arena
+  maxMass: 25000,         // Obergrenze — sonst verstopft ein Riese irgendwann die ganze Arena
   spawnFade: 0.6,
 };
 
@@ -120,13 +128,13 @@ export const SLING = {
 };
 
 export const DUST = {
-  count: 1800,
+  count: perArea(1800),
   mass: 1,
   radius: 4,
   clusterMin: 4,
   clusterMax: 14,
   clusterSpread: 80,
-  clustersPerSecond: 3.4,
+  clustersPerSecond: 3.4 * AREA,
   drift: 10,
   drag: 1.4,
   pullFactor: 1.5,        // Einfallgeschwindigkeit als Vielfaches des Gravitationsradius pro Sekunde
@@ -137,21 +145,21 @@ export const DUST = {
 };
 
 export const ASTEROID = {
-  count: 130,
+  count: perArea(130),
   massMin: 3,
   massMax: 9,
   radiusK: 3.6,           // r = radiusK * sqrt(Masse)
   drift: 26,
   drag: 0.35,
-  spawnPerSecond: 2,
+  spawnPerSecond: 2 * AREA,
   pullFactor: 0.8,
   variants: 12,
 };
 
 export const COMET = {
-  max: 3,
-  intervalMin: 5,
-  intervalMax: 11,
+  max: perArea(3),
+  intervalMin: 5 / AREA,
+  intervalMax: 11 / AREA,
   firstDelay: 4,
   speedMin: 360,
   speedMax: 500,
@@ -162,10 +170,10 @@ export const COMET = {
 };
 
 export const BLACK_HOLE = {
-  max: 2,
+  max: perArea(2),
   firstDelay: 45,
-  intervalMin: 40,
-  intervalMax: 80,
+  intervalMin: 40 / AREA,
+  intervalMax: 80 / AREA,
   lifeMin: 70,
   lifeMax: 110,
   formTime: 3.5,
@@ -183,7 +191,7 @@ export const BLACK_HOLE = {
 };
 
 export const BOTS = {
-  count: 20,
+  count: perArea(20),
   respawnMin: 2,
   respawnMax: 5,
   thinkMin: 0.12,

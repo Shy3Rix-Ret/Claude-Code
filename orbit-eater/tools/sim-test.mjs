@@ -13,7 +13,7 @@ import { performance } from 'node:perf_hooks';
 import { Game } from '../js/game.js';
 import { BotBrain } from '../js/ai.js';
 import { Emitter, setSeed, fmtTime } from '../js/utils.js';
-import { SIM, STAGES, BOTS } from '../js/config.js';
+import { SIM, STAGES, BOTS, WORLD } from '../js/config.js';
 import { KIND, STATE } from '../js/entities.js';
 
 const seed = Number(process.argv[2] ?? 1);
@@ -72,7 +72,7 @@ function check() {
       if (!d.owner) fail('Orbiter ohne Besitzer');
       else if (!d.owner.orbiters.includes(d)) fail('Orbiter fehlt in owner.orbiters');
     }
-    if (d.state === STATE.FREE && Math.hypot(d.x, d.y) > 4500 && d.kind !== KIND.COMET) fail('Trümmer weit außerhalb der Arena');
+    if (d.state === STATE.FREE && Math.hypot(d.x, d.y) > WORLD.radius + 500 && d.kind !== KIND.COMET) fail('Trümmer weit außerhalb der Arena');
   }
   for (const k of Object.keys(counts)) {
     // Gezählt wird beim Entfernen — tote, noch nicht aufgeräumte Objekte gibt es nach cleanup() nicht.

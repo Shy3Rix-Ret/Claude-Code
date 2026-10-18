@@ -42,6 +42,10 @@ const LABEL = {
   neutral: 'rgba(236,230,214,0.72)',
 };
 
+/** Höchstzahl gecachter Körpertexturen (~0,3 MB pro Stück). */
+const ART_CACHE = 128;
+const artKey = (seed, stage) => seed * 32 + stage;
+
 export class Renderer {
   constructor(canvas, events) {
     this.canvas = canvas;
@@ -203,8 +207,13 @@ export class Renderer {
    * bleibt das Aussehen der vorigen Stufe stehen.
    */
   artFor(b) {
-    let art = this.artCache.get(b.seed * 8 + b.stage);
-    if (!art && this.artBudget > 0) {
+    const key = artKey(b.seed, b.stage);
+    let art = this.artCache.get(key);
+    if (art) {
+      // zuletzt benutzt ans Ende — verdrängt wird, was am längsten nicht im Bild war
+      this.artCache.delete(key);
+      this.artCache.set(key, art);
+    } else if (this.artBudget > 0) {
       this.artBudget--;
       art = this.buildArt(b.seed, b.stage);
     }
@@ -214,8 +223,8 @@ export class Renderer {
 
   buildArt(seed, stage) {
     const art = buildBodyArt(seed, stage);
-    this.artCache.set(seed * 8 + stage, art);
-    if (this.artCache.size > 96) this.artCache.delete(this.artCache.keys().next().value);
+    this.artCache.set(artKey(seed, stage), art);
+    if (this.artCache.size > ART_CACHE) this.artCache.delete(this.artCache.keys().next().value);
     return art;
   }
 
@@ -223,16 +232,20 @@ export class Renderer {
    * Nutzt ein ungenutztes Frame-Budget, um Texturen vorab zu bauen: erst die
    * aktuelle Stufe aller Körper, dann die nächste Stufe, sobald ein Körper
    * kurz davor ist. So steht beim Evolutions-Moment alles bereit — kein Ruckler.
+   * Nur für Körper in der Nähe des Bildes: Die Arena ist zu groß, um jeden
+   * Bot vorzuhalten, und der Cache würde sonst ständig gegen sich selbst bauen.
    */
   prewarm(game) {
     if (this.artBudget <= 0) return;
     const p = game.player && game.player.alive ? game.player : null;
     const list = p ? [p, ...game.bodies] : game.bodies;
+    const v = this.view, mx = (v.x1 - v.x0) * 0.5, my = (v.y1 - v.y0) * 0.5;
     for (const b of list) {
       if (!b.alive) continue;
+      if (b !== p && (b.x < v.x0 - mx || b.x > v.x1 + mx || b.y < v.y0 - my || b.y > v.y1 + my)) continue;
       for (let s = b.stage; s <= b.stage + 1 && s < STAGES.length; s++) {
         if (s > b.stage && b.mass < STAGES[s].min * 0.82) continue;
-        if (this.artCache.has(b.seed * 8 + s)) continue;
+        if (this.artCache.has(artKey(b.seed, s))) continue;
         this.buildArt(b.seed, s);
         this.artBudget--;
         return;

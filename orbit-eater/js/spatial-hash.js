@@ -1,13 +1,16 @@
 /**
  * Uniformes Raster für Nachbarschaftsabfragen.
  *
- * Die Arena ist begrenzt, also reicht ein festes Array statt einer Hash-Map:
+ * Die Arena ist begrenzt, also reicht ein festes Raster statt einer Hash-Map:
  * Zelle = (floor(x / size) + offset, floor(y / size) + offset). Jedes Objekt
  * landet anhand seines Mittelpunkts in genau einer Zelle; Abfragen erweitern
  * den Suchradius um `margin`, damit kleine Objekte am Zellrand nicht fehlen.
  *
- * Wird jeden Tick komplett neu aufgebaut — bei ~2000 Einträgen günstiger als
- * jedes bewegte Objekt einzeln umzusortieren.
+ * Wird jeden Tick komplett neu aufgebaut — bei mehreren tausend Einträgen
+ * günstiger als jedes bewegte Objekt einzeln umzusortieren. Gespeichert wird
+ * wie bei einem Counting Sort: alle Einträge in einem Array, nach Zelle
+ * sortiert, plus ein Startindex pro Zelle. Keine tausend kleinen Arrays, die
+ * der Garbage Collector und der Cache hassen.
  */
 export class SpatialHash {
   constructor(cellSize, extent, margin = 16) {
@@ -16,14 +19,19 @@ export class SpatialHash {
     this.half = Math.ceil(extent / cellSize) + 1;
     this.cols = this.half * 2;
     this.margin = margin;
-    this.cells = Array.from({ length: this.cols * this.cols }, () => []);
-    this.used = [];
+    const cells = this.cols * this.cols;
+    this.start = new Int32Array(cells + 1);   // Einträge der Zelle c: sorted[start[c] … start[c + 1])
+    this.fill = new Int32Array(cells);
+    this.cellOf = new Int32Array(1024);
+    this.items = [];
+    this.sorted = [];
+    this.n = 0;
+    this.dirty = false;
   }
 
   clear() {
-    const { cells, used } = this;
-    for (let i = 0; i < used.length; i++) cells[used[i]].length = 0;
-    used.length = 0;
+    this.n = 0;
+    this.dirty = true;
   }
 
   _col(v) {
@@ -32,10 +40,28 @@ export class SpatialHash {
   }
 
   insert(e) {
-    const i = this._col(e.y) * this.cols + this._col(e.x);
-    const cell = this.cells[i];
-    if (cell.length === 0) this.used.push(i);
-    cell.push(e);
+    if (this.n === this.cellOf.length) {
+      const grown = new Int32Array(this.n * 2);
+      grown.set(this.cellOf);
+      this.cellOf = grown;
+    }
+    this.cellOf[this.n] = this._col(e.y) * this.cols + this._col(e.x);
+    this.items[this.n++] = e;
+    this.dirty = true;
+  }
+
+  /** Sortiert die Einträge nach Zelle — passiert automatisch vor der ersten Abfrage. */
+  build() {
+    const { start, fill, cellOf, items, sorted, n } = this;
+    start.fill(0);
+    for (let i = 0; i < n; i++) start[cellOf[i] + 1]++;
+    for (let c = 1; c < start.length; c++) start[c] += start[c - 1];
+    fill.set(start.subarray(0, fill.length));
+    sorted.length = n;
+    for (let i = 0; i < n; i++) sorted[fill[cellOf[i]]++] = items[i];
+    // alte Verweise loslassen, damit freigegebene Trümmer nicht im Raster hängen
+    for (let i = n; i < items.length; i++) items[i] = undefined;
+    this.dirty = false;
   }
 
   /**
@@ -44,17 +70,16 @@ export class SpatialHash {
    * `out` wird wiederverwendet, um Garbage zu vermeiden.
    */
   query(x, y, r, out) {
+    if (this.dirty) this.build();
     out.length = 0;
     const rr = r + this.margin;
     const x0 = this._col(x - rr), x1 = this._col(x + rr);
     const y0 = this._col(y - rr), y1 = this._col(y + rr);
-    const { cells, cols } = this;
+    const { start, sorted, cols } = this;
     for (let cy = y0; cy <= y1; cy++) {
       const row = cy * cols;
-      for (let cx = x0; cx <= x1; cx++) {
-        const cell = cells[row + cx];
-        for (let i = 0; i < cell.length; i++) out.push(cell[i]);
-      }
+      const a = start[row + x0], b = start[row + x1 + 1];
+      for (let i = a; i < b; i++) out.push(sorted[i]);
     }
     return out;
   }
