@@ -46,6 +46,7 @@
     });
     function draw(t) {
       r.time = t / 1000;
+      r.artBudget = 1;          // damit die Monde der letzten Stufe nach und nach entstehen
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, cell * cols, cell * rows);
       for (const a of arts) {

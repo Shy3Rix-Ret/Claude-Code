@@ -166,7 +166,14 @@ Ein paar Details, die man leicht übersieht:
 - Beim Bullet-Cluster liegen Gas (pink) und Masse (blau) an verschiedenen Stellen, genau
   das hat die Dunkle Materie verraten.
 - Auf Laniakea markiert ein gelber Punkt, wo wir wohnen.
-- Die letzte Stufe ist das „O“ aus dem Logo, und der Punkt kreist.
+- Beim Großen Attraktor (The Great Attractor) strömen Galaxien auf Spiralbahnen zum
+  Norma-Haufen. Quer davor liegt die Staubscheibe der Milchstraße, die genau diese Stelle
+  des Himmels verdeckt.
+- Die letzte Stufe ist das „O“ aus dem Logo:
+  - Im O steckt ein ganzes Universum.
+  - Auf einer Gradskala wie am Arenarand kreist der Punkt mit Schweif.
+  - Außen ziehen Mond, Erde, Saturn, Sonne, Schwarzes Loch und Galaxie ihre Bahn. Alles, was
+    man einmal war.
 
 Jeder Körper kann höchstens 75.000 Masse haben. Ohne Grenze würde ein Riese irgendwann die
 ganze Arena verstopfen.
@@ -191,6 +198,10 @@ kostet die Reibung nie. Sonst könnte man die Galaxie-Ära gar nicht halten.
 - Wer den Horizont berührt, ist weg. Große Körper verlieren dort laufend Masse.
 - Mit Boost kommt man raus, wenn man früh genug reagiert.
 - Am Ende ihres Lebens verdampfen sie und spucken Staub aus.
+- **Gezeitenkräfte:** Wer einem Loch zu nahe kommt, wird zu ihm hin gestreckt und quer
+  gestaucht (Spaghettifizierung). Der Körper zittert unter der Spannung und verliert Fäden in
+  Richtung Horizont. Beim Spieler dunkelt außerdem der Bildrand ein, und der Bildschirm
+  bebt leicht. Der Effekt beginnt bei 70 % des Sogradius und wächst mit der Nähe hoch 1,5.
 
 **Kombo.** Wer schnell hintereinander frisst, baut eine Kombo auf (bis ×1,6 Masse). Die
 Fress-Töne steigen dabei eine pentatonische Leiter hinauf.

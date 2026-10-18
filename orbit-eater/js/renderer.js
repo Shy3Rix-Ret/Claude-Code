@@ -45,6 +45,8 @@ const LABEL = {
 
 /** Höchstzahl gecachter Körpertexturen (~0,3 MB pro Stück). */
 const ART_CACHE = 128;
+/** Diese Stufen kreisen als Monde um die allerletzte. */
+const LOGO_MOONS = ['moon', 'ocean', 'ringgiant', 'sun', 'blackhole', 'galaxy'];
 const artKey = (seed, stage) => seed * 32 + stage;
 
 export class Renderer {
@@ -128,6 +130,7 @@ export class Renderer {
   render(game, alpha, dt, view) {
     const ctx = this.ctx;
     this.time += dt;
+    this.frameDt = dt;
     this.artBudget = 1;
     this.player = game.player && game.player.alive ? game.player : null;
 
@@ -170,6 +173,11 @@ export class Renderer {
     this.fx.draw(ctx, z, v);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const tide = this.player ? this.player.tideK || 0 : 0;
+    if (tide > 0.02) {
+      this.drawTideVignette(tide);
+      if (tide > 0.3) this.camera.shake(dt * tide * 0.7);
+    }
     if (view.labels) this.drawLabels(game, alpha, z, cx, cy);
     this.drawTexts(z, cx, cy);
     if (view.input) this.drawJoystick(view.input);
@@ -610,6 +618,7 @@ export class Renderer {
       const r = b.r * scale;
       const rot = lerp(b.pAngle, b.angle, alpha);
       const art = this.artFor(b);
+      const tide = b.alive ? this.updateTide(b, x, y, game, alpha) : 0;
 
       if (stretch > 0 && b.consumer) {
         // Spaghettifizierung: in Richtung Loch gestreckt
@@ -618,6 +627,16 @@ export class Renderer {
         ctx.translate(x, y);
         ctx.rotate(a);
         ctx.scale(1 + stretch * 1.8, 1 - stretch * 0.6);
+        ctx.rotate(-a);
+        this.drawBody(ctx, art, 0, 0, r, rot, this.shade, z, b.surface);
+        ctx.restore();
+      } else if (tide > 0.01) {
+        // Gezeitenkräfte: zum Loch hin gestreckt, quer gestaucht, leicht zitternd vor Spannung
+        const k = tide * (1 + Math.sin(this.time * 17 + b.seed) * 0.06), a = b.tideA, off = k * r * 0.18;
+        ctx.save();
+        ctx.translate(x + Math.cos(a) * off, y + Math.sin(a) * off);
+        ctx.rotate(a);
+        ctx.scale(1 + k * 1.1, 1 - k * 0.38);
         ctx.rotate(-a);
         this.drawBody(ctx, art, 0, 0, r, rot, this.shade, z, b.surface);
         ctx.restore();
@@ -1014,6 +1033,44 @@ export class Renderer {
     ctx.restore();
   }
 
+  /**
+   * Gezeitenkräfte: Nahe am Schwarzen Loch zieht es an der zugewandten Seite
+   * stärker als an der abgewandten. Der Körper wird zum Loch hin gestreckt und
+   * quer gestaucht — Spaghettifizierung, bevor es ernst wird. Reine Optik; der
+   * Sog selbst steckt in game.js. `tideK`/`tideA` gehören dem Renderer.
+   */
+  updateTide(b, x, y, game, alpha) {
+    let target = 0, ang = b.tideA || 0;
+    for (const h of game.blackHoles) {
+      if (!(h.strength > 0)) continue;
+      const hx = lerp(h.px, h.x, alpha), hy = lerp(h.py, h.y, alpha);
+      const d = Math.hypot(hx - x, hy - y), reach = h.pullR * 0.7;
+      if (d >= reach) continue;
+      const q = clamp((reach - d) / (reach - h.r), 0, 1);
+      // Riesen, die das Loch weit überragen, verbiegen sich weniger sichtbar
+      const k = h.strength * q ** 1.5 * clamp((h.r * 4) / b.r, 0.3, 1);
+      if (k > target) {
+        target = k;
+        ang = Math.atan2(hy - y, hx - x);
+      }
+    }
+    const cur = b.tideK || 0;
+    b.tideK = cur + (target - cur) * (1 - Math.exp(-7 * (this.frameDt || 0.016)));
+    b.tideA = ang;
+    return b.tideK;
+  }
+
+  /** Der Bildrand dunkelt ein, wenn der Spieler gestreckt wird — der Horizont rückt näher. */
+  drawTideVignette(k) {
+    const ctx = this.ctx, { w, h } = this;
+    const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.22, w / 2, h / 2, Math.hypot(w, h) / 2);
+    g.addColorStop(0, 'rgba(6,3,2,0)');
+    g.addColorStop(0.55, `rgba(60,18,4,${0.32 * k})`);
+    g.addColorStop(1, `rgba(4,2,1,${0.92 * k})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+
   /** Gleißender Kern (Seyfert, Blazar): pulsierender Schein mit Beugungsspikes. */
   drawFlare(ctx, f, x, y, r) {
     const k = 1 + f.pulse * Math.sin(this.time * f.rate) * Math.sin(this.time * f.rate * 0.37 + 1);
@@ -1040,25 +1097,78 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Die letzte Stufe: das „O“ aus dem Titel, der Punkt kreist auf seiner Bahn. */
+  /**
+   * Die letzte Stufe: das „O“ aus dem Titel. Drumherum eine Gradskala wie am
+   * Arenarand, darauf kreist der Punkt mit Schweif. Weiter außen ziehen frühere
+   * Stufen ihre Bahn — alles, was man einmal war, kreist jetzt um einen herum.
+   */
   drawLogo(ctx, L, x, y, r) {
+    const t = this.time, R = r * L.orbit, ro = r * L.ring, w = r * L.width, hair = Math.max(r * 0.008, 0.75);
     ctx.save();
     ctx.translate(x, y);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = 'rgba(236,230,214,0.32)';
-    ctx.lineWidth = Math.max(r * 0.012, 1);
+    ctx.lineCap = 'round';
+
+    if (!this.thumbMode) this.drawLogoMoons(ctx, L, r, t);
+
+    // Gradskala
+    ctx.save();
+    ctx.rotate(t * 0.02);
+    ctx.strokeStyle = 'rgba(236,230,214,0.42)';
+    ctx.lineWidth = hair;
     ctx.beginPath();
-    ctx.arc(0, 0, r * L.orbit, 0, TAU);
+    for (let i = 0; i < 72; i++) {
+      const a = (i / 72) * TAU, len = r * (i % 6 === 0 ? 0.1 : 0.045);
+      ctx.moveTo(Math.cos(a) * R, Math.sin(a) * R);
+      ctx.lineTo(Math.cos(a) * (R + len), Math.sin(a) * (R + len));
+    }
     ctx.stroke();
-    ctx.strokeStyle = PALETTE.paper;
-    ctx.lineWidth = r * L.width;
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(236,230,214,0.3)';
+    ctx.lineWidth = hair;
     ctx.beginPath();
-    ctx.arc(0, 0, r * L.ring, 0, TAU);
+    ctx.arc(0, 0, R, 0, TAU);
     ctx.stroke();
-    const a = this.time * L.speed + L.phase, dx = Math.cos(a) * r * L.orbit, dy = Math.sin(a) * r * L.orbit;
-    const gl = r * L.dot * 4;
+
+    // Das O: warmer Schein, Ring mit Licht von links oben, feine Kanten, Glanzlicht
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.7;
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(glowSprite('#ffd9a0', 128), -ro * 1.7, -ro * 1.7, ro * 3.4, ro * 3.4);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    const g = ctx.createLinearGradient(-ro, -ro, ro, ro);
+    g.addColorStop(0, '#fffaf0');
+    g.addColorStop(0.55, PALETTE.paper);
+    g.addColorStop(1, '#bdb29a');
+    ctx.strokeStyle = g;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(0, 0, ro, 0, TAU);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(5,7,11,0.4)';
+    ctx.lineWidth = hair * 1.5;
+    for (const rr of [ro - w / 2, ro + w / 2]) {
+      ctx.beginPath();
+      ctx.arc(0, 0, rr, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(255,255,255,0.38)';
+    ctx.lineWidth = w * 0.16;
+    ctx.beginPath();
+    ctx.arc(0, 0, ro + w * 0.2, -2.75, -1.7);
+    ctx.stroke();
+
+    // Der Punkt mit Schweif
+    const a = t * L.speed + L.phase;
+    for (let i = 0; i < 16; i++) {
+      ctx.strokeStyle = `rgba(255,179,71,${0.45 * (1 - i / 16)})`;
+      ctx.lineWidth = r * L.dot * 1.1 * (1 - i / 18);
+      ctx.beginPath();
+      ctx.arc(0, 0, R, a - (i + 1) * 0.055, a - i * 0.055);
+      ctx.stroke();
+    }
+    const dx = Math.cos(a) * R, dy = Math.sin(a) * R, gl = r * L.dot * 4.5;
+    ctx.globalAlpha = 0.7 + 0.2 * Math.sin(t * 3);
     ctx.drawImage(glowSprite(PALETTE.amber, 128), dx - gl, dy - gl, gl * 2, gl * 2);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
@@ -1066,7 +1176,32 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(dx, dy, r * L.dot, 0, TAU);
     ctx.fill();
+    ctx.fillStyle = 'rgba(255,244,220,0.75)';
+    ctx.beginPath();
+    ctx.arc(dx - r * L.dot * 0.3, dy - r * L.dot * 0.3, r * L.dot * 0.32, 0, TAU);
+    ctx.fill();
     ctx.restore();
+  }
+
+  /** Frühere Stufen als kleine Monde — die Bilder entstehen nach und nach (eins pro Frame). */
+  drawLogoMoons(ctx, L, r, t) {
+    const moons = (this.logoMoons ||= []);
+    if (moons.length < LOGO_MOONS.length && this.artBudget > 0) {
+      this.artBudget--;
+      moons.push(this.stageThumbnail(STAGES.findIndex(s => s.key === LOGO_MOONS[moons.length]), 96));
+    }
+    const R = r * L.outer, s = r * 0.24;
+    ctx.strokeStyle = 'rgba(236,230,214,0.14)';
+    ctx.lineWidth = Math.max(r * 0.006, 0.75);
+    ctx.setLineDash([r * 0.02, r * 0.05]);
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    moons.forEach((img, i) => {
+      const a = -t * 0.1 + (i / LOGO_MOONS.length) * TAU;
+      ctx.drawImage(img, Math.cos(a) * R - s, Math.sin(a) * R - s, s * 2, s * 2);
+    });
   }
 
   /** Eine Hälfte einer gekippten Akkretionsscheibe (hinten oder vorne). */
@@ -1352,6 +1487,16 @@ export class Renderer {
         }
       }
     }
+    // Spaghetti: Gestreckte Körper verlieren Fäden in Richtung Loch
+    for (const b of game.bodies) {
+      const k = b.tideK || 0;
+      if (!b.alive || k < 0.18 || random() > dt * k * 45 || !this.near(b.x, b.y, b.r * 2)) continue;
+      const a = b.tideA + (random() - 0.5) * 0.8, rr = b.r * (1 + k * 0.6);
+      const col = b.isPlayer ? PALETTE.amber : (b.art && b.art.tint) || PALETTE.paper;
+      const sp = 160 + k * 340;
+      const p = fx.spawn(PT.SPARK, b.x + Math.cos(a) * rr, b.y + Math.sin(a) * rr, Math.cos(b.tideA) * sp, Math.sin(b.tideA) * sp, 0.45 + random() * 0.4, 1.4, col);
+      p.drag = 0.2;
+    }
     for (const h of game.blackHoles) {
       if (!this.near(h.x, h.y, h.pullR)) continue;
       const forming = h.age < BLACK_HOLE.formTime;
@@ -1516,7 +1661,9 @@ export class Renderer {
     ctx.scale(dpr, dpr);
     const art = buildBodyArt(seed + stage, stage, true);
     const r = size * (art.thumb || 0.34);
+    this.thumbMode = true;          // im Vorschaubild keine Monde ums Logo (das wären Vorschaubilder in Vorschaubildern)
     this.drawBody(ctx, art, size / 2, size / 2, r, 0.4, makeShade(ctx), 2);
+    this.thumbMode = false;
     // Ränder weich ausblenden, damit Korona und Ringe nicht an der Canvas-Kante abreißen
     const m = ctx.createRadialGradient(size / 2, size / 2, size * 0.32, size / 2, size / 2, size / 2);
     m.addColorStop(0, 'rgba(0,0,0,1)');

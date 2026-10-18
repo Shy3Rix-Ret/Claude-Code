@@ -134,7 +134,7 @@ export const STAGES = [
   { key: 'bullet',       name: 'Bullet-Cluster',            min: 38500, line: 'Dunkle Materie, beim Überholen erwischt.' },
   { key: 'supercluster', name: 'Superhaufen',               min: 40000, line: 'Haufen von Haufen. Es wird unübersichtlich.' },
   { key: 'laniakea',     name: 'Laniakea',                  min: 41500, line: 'Hawaiianisch für „unermesslicher Himmel“. Der gelbe Punkt bist du.' },
-  { key: 'attractor',    name: 'Großer Attraktor',          min: 43000, line: 'Zieht alles an. Was genau, verdeckt die Milchstraße.' },
+  { key: 'attractor',    name: 'Großer Attraktor',          min: 43000, line: 'The Great Attractor. Zieht alles an – was genau, verdeckt die Milchstraße.' },
   { key: 'wall',         name: 'Große Mauer',               min: 45000, line: 'Eine Mauer aus Galaxien. Wer hat die bezahlt?' },
   { key: 'filament',     name: 'Kosmisches Filament',       min: 46500, line: 'Ein Faden aus Galaxien. Bitte nicht dran ziehen.' },
   { key: 'web',          name: 'Kosmisches Netz',           min: 48500, line: 'Das Universum ist ein Spinnennetz. Und du bist die Spinne.' },

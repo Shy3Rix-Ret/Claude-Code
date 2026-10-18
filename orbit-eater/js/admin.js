@@ -29,6 +29,7 @@ const STAGE_ALIASES = (() => {
     zigarre: 'm82', blackeye: 'm64', hoag: 'hoag', wagenrad: 'cartwheel', magellan: 'lmc', triangulum: 'm33',
     haufen: 'cluster', virgo: 'virgo', coma: 'coma', linse: 'lens', bullet: 'bullet', netz: 'web', leere: 'void',
     universum: 'universe', multiversum: 'multiverse', logo: 'orbiteater', ende: 'orbiteater', final: 'orbiteater',
+    greatattractor: 'attractor', attraktor: 'attractor', thegreatattractor: 'attractor',
   };
   for (const [n, key] of Object.entries(nick)) map[n] = STAGES.findIndex(s => s.key === key);
   return map;
@@ -259,9 +260,10 @@ export class AdminConsole {
         if (!Number.isInteger(i) || i < 0 || i >= STAGES.length) {
           return err(`Beispiel: /stufe 13, /stufe andromeda oder /stufe roter zwerg (1–${STAGES.length})`);
         }
-        // Mitten in die Stufe — in der eng gestaffelten Galaxie-Ära wären +10 % schon zwei Stufen weiter
+        // Ein Viertel in die Stufe hinein: Platz zum Wachsen, ohne gleich die nächste zu erreichen.
+        // Ein fester Aufschlag (+10 %) wäre in der eng gestaffelten Galaxie-Ära schon zwei Stufen weiter.
         const next = STAGES[i + 1];
-        const m = i === 0 ? 30 : Math.round(next ? (STAGES[i].min + next.min) / 2 : STAGES[i].min * 1.1);
+        const m = i === 0 ? 30 : Math.round(next ? STAGES[i].min + (next.min - STAGES[i].min) * 0.25 : STAGES[i].min * 1.1);
         p.mass = m;
         if (m > p.maxMass) p.maxMass = m;
         return `${STAGES[i].name}: Masse ${fmt(m)}.`;

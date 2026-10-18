@@ -458,7 +458,7 @@ function flow(P, o = {}) {
     for (let k = 0; k < 90; k++) {
       const dx = ax - x, dy = ay - y, d = Math.hypot(dx, dy);
       if (d < R * 0.03) break;
-      const sw = (o.swirl ?? 0.6) * (fbm(x / R * 2 + 11, y / R * 2 + 5, P.seed, 3) - 0.5) * 2;
+      const sw = (o.twist ?? 0) + (o.swirl ?? 0.6) * (fbm(x / R * 2 + 11, y / R * 2 + 5, P.seed, 3) - 0.5) * 2;
       const step = R * 0.016;
       x += (dx / d - (dy / d) * sw) * step;
       y += (dy / d + (dx / d) * sw) * step;
@@ -582,7 +582,7 @@ function finish(rng, layers, o = {}) {
   let reach = 1;
   for (const L of layers) reach = Math.max(reach, Math.hypot(L.dx, L.dy) + L.size);
   if (o.jets) reach = Math.max(reach, o.jets.len);
-  if (o.logo) reach = Math.max(reach, o.logo.orbit + o.logo.dot * 3);
+  if (o.logo) reach = Math.max(reach, o.logo.outer + 0.3);
   return {
     kind: 'galaxy', layers, tint: o.tint ?? '#cfd8ff', rot0: o.rot0 ?? rng() * TAU,
     jets: o.jets ?? null, flare: o.flare ?? null, logo: o.logo ?? null,
@@ -1096,26 +1096,56 @@ export const GALAXY_ART = {
     return finish(rng, [layer(P.c, 1.8, { spin: spinOf(rng, 0.004) })], { tint: '#f0e6ff' });
   },
   attractor(seed, rng, lite) {
+    // The Great Attractor: Hunderte Galaxien strömen auf Spiralbahnen zum Norma-Haufen.
+    // Genau davor liegt die Scheibe der Milchstraße und versperrt die Sicht.
     const P = canvasFor(seed, rng, lite);
-    flow(P, { lines: 110, swirl: 0.35, color: [220, 230, 255] });
-    glow(P, 0, 0, P.R * 0.14, GOLD, 0.9);
-    crowd(P, lite ? 10 : 18, { spread: 0.06, scale: 0.6 });
-    // Die Zone der Vermeidung: Die Scheibe der Milchstraße verdeckt genau diese Ecke des Himmels
-    const { ctx, R } = P;
+    gas(P, [[0, 0, 0.3, 1.4], [0.35, -0.2, 0.22, 0.6], [-0.3, 0.35, 0.25, 0.5], [-0.45, -0.3, 0.2, 0.4]], [255, 150, 70], 0.7);
+    gas(P, [[0.55, 0.4, 0.3], [-0.6, 0.05, 0.25], [0.1, -0.65, 0.25]], [60, 100, 255], 0.35, { seed: 6 });
+    flow(P, { lines: 150, twist: 0.55, swirl: 0.5, color: [235, 238, 255] });
+    const infall = miniSpiral(P, P.R * 0.16, { arms: 2, stars: 500 });
+    for (let i = 0; i < 16; i++) {
+      const a = P.rng() * TAU, r = 0.3 + P.rng() * 0.6;
+      put(P, infall, Math.cos(a) * r, Math.sin(a) * r, 0.025 + P.rng() * 0.02, P.rng() * TAU, 0.6);
+    }
+    glow(P, 0, 0, P.R * 0.2, GOLD, 0.95);
+    crowd(P, lite ? 14 : 30, { spread: 0.09, scale: 0.7 });
+    glow(P, 0, 0, P.R * 0.05, WHITE, 1);
+
+    const { ctx, R, g } = P;
     ctx.save();
     ctx.rotate(0.35);
     ctx.globalCompositeOperation = 'source-over';
-    const band = ctx.createLinearGradient(0, -0.16 * R, 0, 0.16 * R);
+    const band = ctx.createLinearGradient(0, -0.2 * R, 0, 0.2 * R);
     band.addColorStop(0, 'rgba(6,4,3,0)');
-    band.addColorStop(0.5, 'rgba(6,4,3,0.8)');
+    band.addColorStop(0.5, 'rgba(6,4,3,0.85)');
     band.addColorStop(1, 'rgba(6,4,3,0)');
     ctx.fillStyle = band;
-    ctx.fillRect(-R, -0.16 * R, R * 2, 0.32 * R);
+    ctx.fillRect(-R, -0.2 * R, R * 2, 0.4 * R);
+    // Staubschwaden in der Milchstraßenscheibe
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 7; i++) {
+      const y0 = g() * 0.04 * R, amp = 0.02 * R + P.rng() * 0.03 * R, ph = P.rng() * TAU;
+      ctx.strokeStyle = rgba([60, 26, 14], 0.35 + P.rng() * 0.25);
+      ctx.lineWidth = R * (0.01 + P.rng() * 0.02);
+      ctx.beginPath();
+      for (let x = -1; x <= 1.001; x += 0.05) {
+        const y = y0 + Math.sin(x * 5 + ph) * amp;
+        if (x === -1) ctx.moveTo(x * R, y);
+        else ctx.lineTo(x * R, y);
+      }
+      ctx.stroke();
+    }
     ctx.globalCompositeOperation = 'lighter';
-    scatter(P, 3000, p => {
+    ctx.strokeStyle = rgba(WARM, 0.1);
+    ctx.lineWidth = R * 0.07;
+    ctx.beginPath();
+    ctx.moveTo(-R, 0);
+    ctx.lineTo(R, 0);
+    ctx.stroke();
+    scatter(P, 6000, p => {
       p.x = (P.rng() * 2 - 1) * R;
-      p.y = P.g() * 0.05 * R;
-    }, [[WHITE, 0.6], [WARM, 0.4]], [0.5, 1.3], [0.2, 0.7]);
+      p.y = g() * 0.06 * R;
+    }, [[WHITE, 0.5], [WARM, 0.3], [[255, 190, 160], 0.2]], [0.5, 1.4], [0.2, 0.8]);
     ctx.restore();
     return finish(rng, [layer(P.c, 1.8, { spin: spinOf(rng, 0.003) })], { tint: '#ffe8c8' });
   },
@@ -1207,12 +1237,20 @@ export const GALAXY_ART = {
     return finish(rng, [layer(P.c, 1.8, { spin: spinOf(rng, 0.004) })], { tint: '#e8d8ff' });
   },
   orbiteater(seed, rng, lite) {
-    // Die letzte Stufe ist das Logo des Spiels — vor einem stillen kosmischen Netz
+    // Die letzte Stufe ist das Logo des Spiels: im O ein ganzes Universum, dahinter das
+    // kosmische Netz, außen herum die eigene Vergangenheit (Renderer: drawLogo)
     const P = canvasFor(seed, rng, lite);
     web(P, { nodes: 30, radius: 0.92, minDist: 0.13, color: [150, 100, 255], node: [255, 205, 130], dots: 300, haze: 0.7 });
-    return finish(rng, [layer(P.c, 2.2, { spin: spinOf(rng, 0.004), alpha: 0.55 })], {
-      logo: { ring: 0.8, width: 0.34, orbit: 1.28, dot: 0.17, speed: 0.55, phase: rng() * TAU },
-      tint: '#ffb347', extent: 1.5, thumb: 0.24,
+    const U = canvasFor(seed, rng, lite, 0.5);
+    web(U, { nodes: 14, radius: 0.74, minDist: 0.17, color: [150, 100, 255], node: [255, 205, 130], dots: 320 });
+    cmb(U, 0.82, 0.97);
+    return finish(rng, [
+      layer(P.c, 2.5, { spin: spinOf(rng, 0.004), alpha: 0.45 }),
+      shine('#ffe2b0', 1.7, 0.18),
+      layer(U.c, 0.64, { spin: spinOf(rng, 0.03) }),
+    ], {
+      logo: { ring: 0.8, width: 0.34, orbit: 1.22, outer: 1.85, dot: 0.15, speed: 0.55, phase: rng() * TAU },
+      tint: '#ffb347', extent: 2.1, thumb: 0.26,
     });
   },
 };
