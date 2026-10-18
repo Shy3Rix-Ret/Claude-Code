@@ -20,9 +20,10 @@ import { WORLD, CAMERA, RENDER, PALETTE, DUST, BLACK_HOLE, STAGES } from './conf
 import { TAU, clamp, lerp, rgba, fmt, easeOutBack, easeInCubic, random, valueNoise } from './utils.js';
 import { KIND, STATE, gravityRadius, canEat } from './entities.js';
 import { Camera } from './camera.js';
+import { makeCanvas } from './canvas.js';
 import { Particles, PT } from './particles.js';
 import {
-  STRIP_H, makeCanvas, buildBodyArt, buildAsteroidSprites, glowSprite, dustSprite, auraSprite,
+  STRIP_H, buildBodyArt, buildAsteroidSprites, glowSprite, dustSprite, auraSprite,
   buildBlackHoleDisk, buildStarTile, buildNebulaTile, buildHatchTile,
 } from './sprites.js';
 
@@ -944,23 +945,128 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Galaxie: gekippte, langsam rotierende Spiralscheibe mit hellem Kern. */
+  /**
+   * Galaxien (siehe galaxies.js): Ebenen mit eigener Neigung und Drehung,
+   * dazu optional Jets, ein Blazar-Blitz oder — ganz am Ende — das Logo.
+   */
   drawGalaxy(ctx, art, x, y, r) {
-    const s = r * 1.6;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(art.rot0);
-    ctx.scale(1, art.tilt);
-    ctx.rotate(this.time * art.spin);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.drawImage(art.sprite, -s, -s, s * 2, s * 2);
-    ctx.restore();
-    const c = r * 0.55;
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.75;
-    ctx.drawImage(glowSprite('#ffe8c0', 128), x - c, y - c, c * 2, c * 2);
+    for (const L of art.layers) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(art.rot0);
+      if (L.dx || L.dy) ctx.translate(L.dx * r, L.dy * r);
+      if (L.rot) ctx.rotate(L.rot);
+      ctx.scale(1, L.tilt);
+      const s = r * L.size;
+      ctx.globalAlpha = L.alpha;
+      if (L.glow) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.drawImage(glowSprite(L.glow, 128), -s, -s, s * 2, s * 2);
+      } else {
+        if (L.half) {
+          ctx.beginPath();
+          ctx.rect(-s, L.half > 0 ? 0 : -s, s * 2, s);
+          ctx.clip();
+        }
+        if (L.spin) ctx.rotate(this.time * L.spin + L.phase);
+        ctx.globalCompositeOperation = L.mode;
+        ctx.drawImage(L.img, -s, -s, s * 2, s * 2);
+      }
+      ctx.restore();
+    }
+    if (art.jets) this.drawGalaxyJets(ctx, art, x, y, r);
+    if (art.flare) this.drawFlare(ctx, art.flare, x, y, r);
+    if (art.logo) this.drawLogo(ctx, art.logo, x, y, r);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Jets aktiver Galaxien: ein- oder zweiseitig, M87 mit Knoten. */
+  drawGalaxyJets(ctx, art, x, y, r) {
+    const j = art.jets, len = r * j.len, w = r * j.width, [cr, cg, cb] = j.color;
+    const flicker = 0.85 + 0.15 * Math.sin(this.time * 9) * Math.sin(this.time * 5.3);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(art.rot0 + j.rot);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const side of j.sides === 1 ? [1] : [-1, 1]) {
+      const g = ctx.createLinearGradient(0, 0, 0, side * len);
+      g.addColorStop(0, `rgba(240,248,255,${0.9 * flicker})`);
+      g.addColorStop(0.2, `rgba(${cr},${cg},${cb},${0.55 * flicker})`);
+      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.3, 0);
+      ctx.lineTo(-w, side * len);
+      ctx.lineTo(w, side * len);
+      ctx.lineTo(w * 0.3, 0);
+      ctx.closePath();
+      ctx.fill();
+      if (j.knots) {
+        for (let k = 1; k <= 5; k++) {
+          const t = k / 6, c = w * 1.8 * (1 - t * 0.4);
+          ctx.globalAlpha = 0.75 * (1 - t) * flicker;
+          ctx.drawImage(glowSprite('#d8e8ff', 64), -c, side * len * t - c, c * 2, c * 2);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.restore();
+  }
+
+  /** Gleißender Kern (Seyfert, Blazar): pulsierender Schein mit Beugungsspikes. */
+  drawFlare(ctx, f, x, y, r) {
+    const k = 1 + f.pulse * Math.sin(this.time * f.rate) * Math.sin(this.time * f.rate * 0.37 + 1);
+    const s = r * f.size * k;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(glowSprite(f.color, 128), x - s, y - s, s * 2, s * 2);
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4);
+    for (let i = 0; i < f.spikes; i++) {
+      ctx.rotate(TAU / f.spikes);
+      const len = s * 1.7, w = Math.max(s * 0.035, 0.5);
+      const g = ctx.createLinearGradient(0, 0, len, 0);
+      g.addColorStop(0, 'rgba(235,244,255,0.75)');
+      g.addColorStop(1, 'rgba(235,244,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, -w);
+      ctx.lineTo(len, 0);
+      ctx.lineTo(0, w);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /** Die letzte Stufe: das „O“ aus dem Titel, der Punkt kreist auf seiner Bahn. */
+  drawLogo(ctx, L, x, y, r) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(236,230,214,0.32)';
+    ctx.lineWidth = Math.max(r * 0.012, 1);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * L.orbit, 0, TAU);
+    ctx.stroke();
+    ctx.strokeStyle = PALETTE.paper;
+    ctx.lineWidth = r * L.width;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * L.ring, 0, TAU);
+    ctx.stroke();
+    const a = this.time * L.speed + L.phase, dx = Math.cos(a) * r * L.orbit, dy = Math.sin(a) * r * L.orbit;
+    const gl = r * L.dot * 4;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(glowSprite(PALETTE.amber, 128), dx - gl, dy - gl, gl * 2, gl * 2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = PALETTE.amber;
+    ctx.beginPath();
+    ctx.arc(dx, dy, r * L.dot, 0, TAU);
+    ctx.fill();
+    ctx.restore();
   }
 
   /** Eine Hälfte einer gekippten Akkretionsscheibe (hinten oder vorne). */
@@ -1408,7 +1514,7 @@ export class Renderer {
     const c = makeCanvas(size * dpr, size * dpr);
     const ctx = c.getContext('2d');
     ctx.scale(dpr, dpr);
-    const art = buildBodyArt(seed + stage, stage);
+    const art = buildBodyArt(seed + stage, stage, true);
     const r = size * (art.thumb || 0.34);
     this.drawBody(ctx, art, size / 2, size / 2, r, 0.4, makeShade(ctx), 2);
     // Ränder weich ausblenden, damit Korona und Ringe nicht an der Canvas-Kante abreißen

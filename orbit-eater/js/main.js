@@ -432,7 +432,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) pause();
 });
 
-if (debug) window.__OE = { game, renderer, audio, input, ui, get state() { return state; } };
+if (debug) window.__OE = { game, renderer, audio, input, ui, STAGES, get state() { return state; } };
 window.__oeBooted = true;
 requestAnimationFrame(t => {
   last = t;

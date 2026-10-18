@@ -5,7 +5,7 @@
  * Das HUD wird jeden Frame aktualisiert, aber nur dort, wo sich etwas
  * ändert — Rangliste mit 4 Hz, Minimap mit 15 Hz, Texte nur bei neuem Wert.
  */
-import { STAGES, BODY, COMBO, WORLD, PALETTE } from './config.js';
+import { STAGES, GALAXY_STAGE, BODY, COMBO, WORLD, PALETTE } from './config.js';
 import { TAU, fmt, fmtTime, clamp, damp } from './utils.js';
 import { canEat, maxOrbiters } from './entities.js';
 import { storage } from './storage.js';
@@ -128,38 +128,87 @@ export class UI {
 
   /**
    * Stufen-Vorschau im Startbildschirm — gerendert mit demselben Code wie im
-   * Spiel. Die Bilder entstehen nacheinander: alle 19 auf einmal würden den
-   * Start spürbar verzögern (ein Planet kostet ~20 ms).
+   * Spiel. Die Bilder entstehen nacheinander: alle auf einmal würden den
+   * Start spürbar verzögern (ein Planet kostet ~20 ms). Die 50 Stufen der
+   * Galaxie-Ära sind eingeklappt und werden erst beim Aufklappen gezeichnet.
    */
   buildStages(thumb) {
     const list = this.$('stages');
     const caption = this.$('stages-caption');
-    const idle = `${STAGES.length} Stufen – vom Asteroiden bis zur Galaxie. Zeig auf eine.`;
+    const era = GALAXY_STAGE + 1;
+    const extra = STAGES.length - era;
+    const idle = `${STAGES.length} Stufen – vom Asteroiden bis weit hinter die Galaxie. Zeig auf eine.`;
     const describe = i => `${String(i + 1).padStart(2, '0')} · ${STAGES[i].name} · ${i === 0 ? 'Start' : `ab ${fmt(STAGES[i].min)} Masse`}`;
     list.innerHTML = '';
     caption.textContent = idle;
-    const jobs = [];
+    const jobs = [], eraJobs = [], eraItems = [];
+    const hover = (el, text) => {
+      const show = () => { caption.textContent = text(); };
+      const hide = () => { caption.textContent = idle; };
+      el.addEventListener('pointerenter', show);
+      el.addEventListener('focus', show);
+      el.addEventListener('pointerleave', hide);
+      el.addEventListener('blur', hide);
+    };
+    let more = null, open = false;
     STAGES.forEach((s, i) => {
+      if (i === era) {
+        // Platz 20 im Raster: der Schalter für die Galaxie-Ära
+        more = document.createElement('li');
+        more.className = 'stages__more';
+        more.tabIndex = 0;
+        more.setAttribute('role', 'button');
+        more.setAttribute('aria-expanded', 'false');
+        more.textContent = `+${extra}`;
+        hover(more, () => (open
+          ? 'Galaxie-Ära einklappen.'
+          : `Galaxie-Ära: ${extra} weitere Stufen, von der Zwerggalaxie bis zum Ende. Klick zum Aufklappen.`));
+        list.appendChild(more);
+      }
       const li = document.createElement('li');
       li.tabIndex = 0;
       li.title = s.name;
       li.setAttribute('aria-label', describe(i));
-      const show = () => { caption.textContent = describe(i); };
-      const hide = () => { caption.textContent = idle; };
-      li.addEventListener('pointerenter', show);
-      li.addEventListener('focus', show);
-      li.addEventListener('pointerleave', hide);
-      li.addEventListener('blur', hide);
+      hover(li, () => describe(i));
       list.appendChild(li);
-      jobs.push(() => li.appendChild(thumb(i, 40)));
+      const job = () => li.appendChild(thumb(i, 40));
+      if (i >= era) {
+        li.hidden = true;
+        eraItems.push(li);
+        eraJobs.push(job);
+      } else {
+        jobs.push(job);
+      }
     });
-    const next = () => {
-      const job = jobs.shift();
-      if (!job) return;
-      job();
-      setTimeout(next, 16);
+    const run = queue => {
+      const next = () => {
+        const job = queue.shift();
+        if (!job) return;
+        job();
+        setTimeout(next, 16);
+      };
+      next();
     };
-    setTimeout(next, 250);
+    const toggle = () => {
+      open = !open;
+      for (const li of eraItems) li.hidden = !open;
+      more.textContent = open ? '−' : `+${extra}`;
+      more.setAttribute('aria-expanded', String(open));
+      caption.textContent = open ? 'Galaxie-Ära einklappen.' : idle;
+      if (open) {
+        if (eraJobs.length) run(eraJobs);
+        // Das Raster wächst über den Bildschirmrand: hinscrollen, damit man sieht, was passiert ist
+        eraItems[eraItems.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    };
+    more?.addEventListener('click', toggle);
+    more?.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    });
+    setTimeout(() => run(jobs), 250);
   }
 
   bind() {
@@ -245,7 +294,9 @@ export class UI {
   showGameOver(s) {
     const $ = this.$;
     const titles = { eaten: 'Verschlungen.', blackhole: 'Spaghettifiziert.', shot: 'Zerschossen.' };
-    $('over-title').textContent = titles[s.cause] || 'Aus.';
+    const title = titles[s.cause] || 'Aus.';
+    $('over-title').textContent = title;
+    $('over-title').style.setProperty('--fit', title.length);
     const by = $('over-by');
     if (s.cause === 'eaten' && s.killer) {
       by.innerHTML = `Von <strong></strong> · Masse ${fmt(s.killerMass)}`;
@@ -294,6 +345,7 @@ export class UI {
     const t = this.el.toast;
     this.el.toastKicker.textContent = kicker;
     this.el.toastTitle.textContent = title;
+    this.el.toastTitle.style.setProperty('--fit', Math.max(...title.split(/\s+/).map(w => w.length)));
     this.el.toastLine.textContent = line;
     t.classList.remove('is-on');
     void t.offsetWidth;          // Animation neu starten

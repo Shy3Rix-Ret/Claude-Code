@@ -12,15 +12,19 @@
 </head>
 <body>
   <h1>Prozedurale Körper · alle Stufen</h1>
-  <p>?seed=123 zeigt andere Varianten. Jede Stufe wird mit demselben Code gezeichnet wie im Spiel.</p>
+  <p>?seed=123 zeigt andere Varianten, ?from=20&amp;to=69 einen Ausschnitt, ?cols=7&amp;cell=180 ein anderes Raster. Jede Stufe wird mit demselben Code gezeichnet wie im Spiel.</p>
   <canvas id="c"></canvas>
   <script type="module">
     // Entwickler-Werkzeug: zeigt jede Stufe groß, um die prozedurale Kunst zu beurteilen.
     import { Renderer } from '../js/renderer.js';
     import { buildBodyArt } from '../js/sprites.js';
     import { STAGES } from '../js/config.js';
-    const seed = Number(new URLSearchParams(location.search).get('seed') || 1000);
-    const cell = 220, cols = 5, rows = Math.ceil(STAGES.length / cols), dpr = Math.min(devicePixelRatio || 1, 2);
+    const params = new URLSearchParams(location.search);
+    const seed = Number(params.get('seed') || 1000);
+    const from = Number(params.get('from') || 1) - 1, to = Number(params.get('to') || STAGES.length);
+    const list = STAGES.map((s, i) => ({ s, i })).slice(from, to);
+    const cell = Number(params.get('cell') || 220), cols = Number(params.get('cols') || 5);
+    const rows = Math.ceil(list.length / cols), dpr = Math.min(devicePixelRatio || 1, 2);
     const c = document.getElementById('c');
     c.width = cell * cols * dpr; c.height = cell * rows * dpr;
     c.style.width = `${cell * cols}px`; c.style.height = `${cell * rows}px`;
@@ -32,13 +36,20 @@
       g.addColorStop(0.6, 'rgba(0,0,0,0.1)'); g.addColorStop(0.84, 'rgba(0,0,0,0.6)'); g.addColorStop(1, 'rgba(0,0,0,0.9)');
       return g;
     })();
-    const arts = STAGES.map((s, i) => ({ i, s, art: buildBodyArt(seed + i * 3, i) }));
+    // Bauzeit je Stufe mitschreiben — eine Textur darf das Spiel nicht spürbar anhalten
+    window.__times = [];
+    const arts = list.map(({ s, i }, k) => {
+      const t0 = performance.now();
+      const art = buildBodyArt(seed + i * 3, i);
+      window.__times.push([s.key, Math.round(performance.now() - t0)]);
+      return { k, i, s, art };
+    });
     function draw(t) {
       r.time = t / 1000;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, cell * cols, cell * rows);
       for (const a of arts) {
-        const x = (a.i % cols) * cell + cell / 2, y = Math.floor(a.i / cols) * cell + cell / 2 - 10;
+        const x = (a.k % cols) * cell + cell / 2, y = Math.floor(a.k / cols) * cell + cell / 2 - 10;
         const rad = cell * Math.min(0.3, a.art.thumb || 0.34);
         ctx.save();
         ctx.beginPath(); ctx.rect(x - cell / 2, y - cell / 2 + 10, cell, cell); ctx.clip();

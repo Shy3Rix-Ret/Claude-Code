@@ -379,7 +379,7 @@ export class Game {
     // verliert nichts (Boost hat seine eigenen Kosten, deshalb höchstens Faktor 1).
     if (b.mass > BODY.decayStart) {
       const motion = Math.min(1, Math.hypot(b.vx, b.vy) / maxSpeed(b.mass));
-      b.drain = (b.mass - BODY.decayStart) * BODY.decayRate * motion;
+      b.drain = Math.min(BODY.decayMax, (b.mass - BODY.decayStart) * BODY.decayRate) * motion;
       b.mass -= b.drain * dt;
     } else {
       b.drain = 0;

@@ -25,6 +25,10 @@ const STAGE_ALIASES = (() => {
     europa: 'icemoon', io: 'lavamoon', mars: 'desert', erde: 'ocean', planet: 'ocean', venus: 'cloud',
     uranus: 'icegiant', neptun: 'icegiant', jupiter: 'gasgiant', riese: 'gasgiant', saturn: 'ringgiant',
     stern: 'sun', star: 'sun', pulsar: 'neutron', loch: 'blackhole', bh: 'blackhole',
+    andromeda: 'm31', sombrero: 'm104', strudel: 'm51', whirlpool: 'm51', sonnenblume: 'm63', feuerrad: 'm101',
+    zigarre: 'm82', blackeye: 'm64', hoag: 'hoag', wagenrad: 'cartwheel', magellan: 'lmc', triangulum: 'm33',
+    haufen: 'cluster', virgo: 'virgo', coma: 'coma', linse: 'lens', bullet: 'bullet', netz: 'web', leere: 'void',
+    universum: 'universe', multiversum: 'multiverse', logo: 'orbiteater', ende: 'orbiteater', final: 'orbiteater',
   };
   for (const [n, key] of Object.entries(nick)) map[n] = STAGES.findIndex(s => s.key === key);
   return map;
@@ -253,9 +257,11 @@ export class AdminConsole {
         let i = STAGE_ALIASES[arg];
         if (i === undefined) i = num(arg) - 1;
         if (!Number.isInteger(i) || i < 0 || i >= STAGES.length) {
-          return err(`Beispiel: /stufe 13, /stufe quasar oder /stufe roter zwerg (1–${STAGES.length})`);
+          return err(`Beispiel: /stufe 13, /stufe andromeda oder /stufe roter zwerg (1–${STAGES.length})`);
         }
-        const m = i === 0 ? 30 : Math.round(STAGES[i].min * 1.1);
+        // Mitten in die Stufe — in der eng gestaffelten Galaxie-Ära wären +10 % schon zwei Stufen weiter
+        const next = STAGES[i + 1];
+        const m = i === 0 ? 30 : Math.round(next ? (STAGES[i].min + next.min) / 2 : STAGES[i].min * 1.1);
         p.mass = m;
         if (m > p.maxMass) p.maxMass = m;
         return `${STAGES[i].name}: Masse ${fmt(m)}.`;

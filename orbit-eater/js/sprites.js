@@ -15,15 +15,11 @@
  */
 import { ASTEROID, STAGES } from './config.js';
 import { TAU, clamp, lerp, fbm, valueNoise, hexToRgb, mixRgb, mulberry32, smoothstep } from './utils.js';
+import { makeCanvas } from './canvas.js';
+import { GALAXY_ART } from './galaxies.js';
 
 export const STRIP_H = 128;
 
-export function makeCanvas(w, h) {
-  const c = document.createElement('canvas');
-  c.width = Math.max(1, Math.ceil(w));
-  c.height = Math.max(1, Math.ceil(h));
-  return c;
-}
 
 // --- Paletten ----------------------------------------------------------------
 
@@ -195,7 +191,7 @@ function crater(ctx, x, y, rx, ry, light) {
 // Exoten wie Pulsar, Schwarzes Loch und Galaxie haben eigene Zeichenarten.
 //
 // Felder, die der Renderer auswertet:
-//   kind      'rock' | 'sphere' | 'star' | 'pulsar' | 'hole' | 'quasar' | 'galaxy'
+//   kind      'rock' | 'sphere' | 'star' | 'pulsar' | 'hole' | 'quasar' | 'galaxy' (siehe galaxies.js)
 //   surface   Oberflächentextur (Kugelstreifen bzw. Quadrat bei 'rock')
 //   clouds    zweite, halbtransparente Schicht, dreht `cloudRate`-mal so schnell
 //   emissive  Leuchtschicht (Lava, Glut) — leuchtet auch auf der Nachtseite
@@ -234,27 +230,19 @@ const STAGE_ART = {
   neutron: (seed, rng) => pulsarArt(seed, rng),
   blackhole: (seed, rng) => holeArt(seed, rng, false),
   quasar: (seed, rng) => holeArt(seed, rng, true),
-  galaxy: (seed, rng) => galaxyArt(seed, rng),
 };
 
 /**
  * Erzeugt das Aussehen eines Körpers für eine Stufe. Deterministisch aus dem
  * Seed — derselbe Bot sieht nach einem Stufenwechsel "verwandt" aus.
+ * Ab der Galaxie übernimmt galaxies.js; `lite` baut dort kleinere Vorschaubilder.
  */
-export function buildBodyArt(seed, stage) {
+export function buildBodyArt(seed, stage, lite = false) {
   const rng = mulberry32(seed + stage * 7919);
-  const art = STAGE_ART[STAGES[stage].key](seed, rng);
+  const key = STAGES[stage].key;
+  const art = STAGE_ART[key] ? STAGE_ART[key](seed, rng) : GALAXY_ART[key](seed, rng, lite);
   art.stage = stage;
   return art;
-}
-
-/** Zufallsquelle mit Normalverteilung für die Generatoren (unabhängig vom Spiel-Zufall). */
-function gaussFrom(rng) {
-  return () => {
-    let u = 0;
-    while (u === 0) u = rng();
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * rng());
-  };
 }
 
 function rockArt(seed, rng) {
@@ -560,88 +548,6 @@ function holeArt(seed, rng, jets) {
     kind: jets ? 'quasar' : 'hole', tint: jets ? '#bfe6ff' : '#ffb070',
     rot: -0.5 + rng() * 0.6, tilt: 0.26 + rng() * 0.08, spinDir: rng() < 0.5 ? -1 : 1,
     thumb: jets ? 0.17 : 0.2, extent: 1.1, reach: jets ? 9 : 3.6,
-  };
-}
-
-/** Galaxie: Spiralarme aus Tausenden Sternen, Staubbahnen und ein heller Kern. */
-function galaxyArt(seed, rng) {
-  const gauss = gaussFrom(rng);
-  const S = 384, R = S / 2;
-  const c = makeCanvas(S, S);
-  const ctx = c.getContext('2d');
-  ctx.translate(R, R);
-  const arms = rng() < 0.55 ? 2 : 3;
-  const twist = 2.4 + rng() * 1.2;
-  const armAngle = (arm, t) => (arm * TAU) / arms + t * twist;
-  const radius = t => (0.06 + t * 0.9) * R;
-
-  const disk = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
-  disk.addColorStop(0, 'rgba(255,236,200,0.9)');
-  disk.addColorStop(0.08, 'rgba(255,214,160,0.5)');
-  disk.addColorStop(0.3, 'rgba(170,190,255,0.2)');
-  disk.addColorStop(0.7, 'rgba(120,150,255,0.07)');
-  disk.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = disk;
-  ctx.fillRect(-R, -R, S, S);
-
-  // Nebliger Schimmer entlang der Arme (breite, sehr transparente Striche)
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.lineCap = 'round';
-  for (let arm = 0; arm < arms; arm++) {
-    for (const [w, a, col] of [[R * 0.22, 0.05, '150,175,255'], [R * 0.1, 0.08, '190,205,255'], [R * 0.04, 0.12, '255,235,215']]) {
-      ctx.strokeStyle = `rgba(${col},${a})`;
-      ctx.lineWidth = w;
-      ctx.beginPath();
-      for (let k = 0; k <= 45; k++) {
-        const t = 0.04 + k * 0.02;
-        const ang = armAngle(arm, t), rr = radius(t);
-        if (k === 0) ctx.moveTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
-        else ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
-      }
-      ctx.stroke();
-    }
-  }
-  for (let i = 0; i < 8000; i++) {
-    const arm = i % arms;
-    const t = Math.pow(rng(), 0.8);
-    const a = armAngle(arm, t) + gauss() * 0.22 * (1 - t * 0.5);
-    const rr = radius(t) * (1 + gauss() * 0.04);
-    const roll = rng();
-    const col = t < 0.22 ? '255,226,180' : roll < 0.04 ? '255,140,190' : roll < 0.5 ? '200,220,255' : '255,250,240';
-    const size = roll < 0.04 ? 1.8 : 0.5 + rng() * 1.1;
-    ctx.fillStyle = `rgba(${col},${0.25 + rng() * 0.6})`;
-    ctx.fillRect(Math.cos(a) * rr, Math.sin(a) * rr, size, size);
-  }
-
-  // Staubbahnen an der Innenkante der Arme
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.strokeStyle = 'rgba(30,14,10,0.35)';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-  for (let arm = 0; arm < arms; arm++) {
-    ctx.beginPath();
-    for (let k = 0; k <= 38; k++) {
-      const t = 0.1 + k * 0.02;
-      const a = armAngle(arm, t) - 0.18;
-      const x = Math.cos(a) * radius(t), y = Math.sin(a) * radius(t);
-      if (k === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  ctx.globalCompositeOperation = 'lighter';
-  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.16);
-  core.addColorStop(0, 'rgba(255,248,230,1)');
-  core.addColorStop(0.4, 'rgba(255,224,170,0.6)');
-  core.addColorStop(1, 'rgba(255,200,140,0)');
-  ctx.fillStyle = core;
-  ctx.fillRect(-R, -R, S, S);
-
-  return {
-    kind: 'galaxy', sprite: c, tint: '#cfd8ff',
-    spin: (rng() < 0.5 ? -1 : 1) * (0.035 + rng() * 0.02), tilt: 0.72 + rng() * 0.2, rot0: rng() * TAU,
-    thumb: 0.32, extent: 1.45, reach: 1.8,
   };
 }
 

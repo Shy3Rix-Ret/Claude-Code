@@ -3,8 +3,9 @@
 **Ein Browserspiel über Schwerkraft und Appetit.** Du bist ein kleiner Himmelskörper in einer
 kreisrunden Arena. Friss, was kleiner ist, meide, was größer ist, und nutze deine eigene
 Schwerkraft: Staub fällt in Spiralen auf dich zu, Asteroiden gehen in deine Umlaufbahn und
-werden zu Munition. 19 Stufen: vom Asteroiden über Monde, Planeten, Riesen und Sterne bis zum
-Schwarzen Loch, zum Quasar und am Ende zur ganzen Galaxie.
+werden zu Munition. 69 Stufen: vom Asteroiden über Monde, Planeten, Riesen und Sterne bis zum
+Schwarzen Loch und zur Galaxie. Danach geht es weiter, durch 50 echte Galaxientypen, Haufen
+und das kosmische Netz bis zum Multiversum. Die letzte Stufe ist das Spiel selbst.
 
 Inspiriert vom Spielgefühl von slither.io und agar.io, aber mit eigener Mechanik
 (Gravitation, Orbits, Schleuder) und eigener Gestaltung.
@@ -92,10 +93,11 @@ als Munition verwenden?
 **Boost.** Schneller, kostet aber laufend Masse. Sie bleibt als Staubspur hinter dir zurück
 und kann von anderen gefressen werden. Unter 30 Masse gibt es keinen Boost.
 
-**Evolution.** 19 Stufen, jede mit eigener prozeduraler Optik. Die Abstände wachsen um etwa
-30 % pro Stufe: Am Anfang kommt alle paar Sekunden eine neue Stufe, später alle ein bis zwei
-Minuten. Die letzten fünf Stufen erreicht nur, wer die Arena dominiert (oder die
-Admin-Konsole benutzt).
+**Evolution.** 69 Stufen, jede mit eigener prozeduraler Optik. Bis zur Galaxie (Stufe 19)
+wachsen die Abstände um etwa 30 % pro Stufe: Am Anfang kommt alle paar Sekunden eine neue
+Stufe, später alle ein bis zwei Minuten. Die letzten fünf davon erreicht nur, wer die Arena
+dominiert (oder die Admin-Konsole benutzt). Danach folgt die Galaxie-Ära mit 50 eng
+gestaffelten Stufen.
 
 | # | Stufe | ab Masse | Aussehen |
 |---|---|---|---|
@@ -119,9 +121,54 @@ Admin-Konsole benutzt).
 | 18 | Quasar | 6.000 | Schwarzes Loch mit relativistischen Jets |
 | 19 | Galaxie | 8.000 | rotierende Spiralgalaxie mit Staubbahnen |
 
-![Alle 19 Stufen aus der Asset-Galerie](docs/stufen.jpg)
+![Die ersten 19 Stufen aus der Asset-Galerie](docs/stufen.jpg)
 
-Jeder Körper kann höchstens 25.000 Masse haben. Ohne Grenze würde ein Riese irgendwann die
+**Galaxie-Ära.** Nach der Galaxie kommen 50 weitere Stufen, jede etwa 4 % schwerer als die
+vorige. Das ist reines Endgame: Alle Bots zusammen wiegen ungefähr so viel wie die letzte
+Stufe. Ohne viel Geduld oder die Admin-Konsole kommt man nicht ans Ende. Jede Stufe ist ein
+echter Galaxientyp oder ein echtes Objekt. Die Masse-Grenze steht in der Tabelle, das
+Aussehen im Bild darunter.
+
+| # | Stufe | ab Masse | | # | Stufe | ab Masse |
+|---|---|---|---|---|---|---|
+| 20 | Zwerggalaxie | 8.300 | | 45 | Galaxienpaar | 22.250 |
+| 21 | Kleine Magellansche Wolke | 8.700 | | 46 | Mäusegalaxien | 23.000 |
+| 22 | Große Magellansche Wolke | 9.000 | | 47 | Kaulquappengalaxie | 24.000 |
+| 23 | Dreiecksgalaxie | 9.400 | | 48 | Antennengalaxien | 25.000 |
+| 24 | Milchstraße | 9.700 | | 49 | Galaxienverschmelzung | 26.000 |
+| 25 | Sonnenblumengalaxie | 10.000 | | 50 | cD-Riesengalaxie | 27.000 |
+| 26 | Feuerradgalaxie | 10.500 | | 51 | IC 1101 | 28.000 |
+| 27 | Strudelgalaxie | 11.000 | | 52 | Lokale Gruppe | 29.250 |
+| 28 | Andromedagalaxie | 11.500 | | 53 | Stephans Quintett | 30.500 |
+| 29 | Black-Eye-Galaxie | 11.750 | | 54 | Seyferts Sextett | 31.500 |
+| 30 | Sombrerogalaxie | 12.250 | | 55 | Galaxienhaufen | 33.000 |
+| 31 | Spindelgalaxie | 12.750 | | 56 | Virgo-Haufen | 34.000 |
+| 32 | Balkenspiralgalaxie | 13.250 | | 57 | Coma-Haufen | 35.500 |
+| 33 | Linsengalaxie | 13.750 | | 58 | Gravitationslinse | 37.000 |
+| 34 | Hoags Objekt | 14.500 | | 59 | Bullet-Cluster | 38.500 |
+| 35 | Wagenradgalaxie | 15.000 | | 60 | Superhaufen | 40.000 |
+| 36 | Polarringgalaxie | 15.500 | | 61 | Laniakea | 41.500 |
+| 37 | Zigarrengalaxie | 16.250 | | 62 | Großer Attraktor | 43.000 |
+| 38 | Elliptische Galaxie | 16.750 | | 63 | Große Mauer | 45.000 |
+| 39 | Schalengalaxie | 17.500 | | 64 | Kosmisches Filament | 46.500 |
+| 40 | Centaurus A | 18.250 | | 65 | Kosmisches Netz | 48.500 |
+| 41 | Messier 87 | 19.000 | | 66 | Kosmische Leere | 50.500 |
+| 42 | Seyfert-Galaxie | 19.750 | | 67 | Beobachtbares Universum | 52.500 |
+| 43 | Radiogalaxie | 20.500 | | 68 | Multiversum | 54.500 |
+| 44 | Blazar | 21.250 | | 69 | Orbit Eater | 57.000 |
+
+![Die 50 Stufen der Galaxie-Ära](docs/galaxien.jpg)
+
+Ein paar Details, die man leicht übersieht:
+- Hoags Objekt hat in seiner Lücke eine zweite, viel weiter entfernte Ringgalaxie, wie das
+  echte.
+- Bei der Sombrerogalaxie läuft das Staubband vor dem Bulge vorbei.
+- Beim Bullet-Cluster liegen Gas (pink) und Masse (blau) an verschiedenen Stellen, genau
+  das hat die Dunkle Materie verraten.
+- Auf Laniakea markiert ein gelber Punkt, wo wir wohnen.
+- Die letzte Stufe ist das „O“ aus dem Logo, und der Punkt kreist.
+
+Jeder Körper kann höchstens 75.000 Masse haben. Ohne Grenze würde ein Riese irgendwann die
 ganze Arena verstopfen.
 
 **Die Arena** hat einen Radius von 8.000 Einheiten. Gestartet ist sie mit 4.000, und dort
@@ -135,7 +182,8 @@ wenn die Kamera für große Körper weiter herauszoomt.
 Masse über 250 pro Sekunde, also bei 600 Masse etwa 1,7 pro Sekunde. Langsamer heißt weniger
 Verlust, **wer stillsteht, verliert nichts**. Das HUD zeigt den aktuellen Verlust live unter
 der Stufenanzeige an. So können Riesen nicht dauerhaft uneinholbar über die Karte rollen,
-und trotzdem schrumpft niemand, nur weil er kurz durchatmet.
+und trotzdem schrumpft niemand, nur weil er kurz durchatmet. Mehr als 120 pro Sekunde
+kostet die Reibung nie. Sonst könnte man die Galaxie-Ära gar nicht halten.
 
 **Schwarze Löcher** entstehen selten, wandern langsam und leben etwa anderthalb Minuten:
 
@@ -160,7 +208,7 @@ dürfen ein deutsches Komma haben (`/zeit 0,5`). In Klammern stehen die englisch
 |---|---|
 | `/hilfe` (`/help`) | alle Befehle anzeigen |
 | `/masse <zahl>` (`/mass`) | eigene Masse setzen |
-| `/stufe <1–19 \| name>` (`/stage`) | direkt auf eine Stufe springen, z. B. `/stufe 13`, `/stufe quasar`, `/stufe saturn` |
+| `/stufe <1–69 \| name>` (`/stage`) | direkt auf eine Stufe springen, z. B. `/stufe 13`, `/stufe saturn`, `/stufe andromeda`, `/stufe logo` |
 | `/gott` (`/god`) | unverwundbar an/aus |
 | `/tempo <faktor>` (`/speed`) | eigenes Tempo, 1 = normal, bis 5 |
 | `/bot [masse] [anzahl]` (`/spawn`) | Bots neben dir erzeugen |
@@ -255,10 +303,23 @@ und fBm) und als Offscreen-Canvas gecacht.
 - **Aus einem Seed.** Viele Stufen haben mehrere Paletten (Erde, Türkis, Violett; zwei
   Wüsten; Uranus- und Neptun-Blau …). Bots sehen über ihren Seed nach jeder Evolution
   „verwandt“ aus.
-- **Parametrisierte Generatoren.** 19 Stufen bedeuten nicht 19 Zeichenprogramme. Planeten,
+- **Parametrisierte Generatoren.** 69 Stufen bedeuten nicht 69 Zeichenprogramme. Planeten,
   Riesen und Sterne entstehen aus je einem Generator mit Optionen (Meeresspiegel, Wolken,
   Bandfrequenz, Sturm, Ring, Korona, Zellgröße). Eigene Zeichenarten haben nur die Exoten:
   Pulsar, Schwarzes Loch, Quasar und Galaxie.
+- **Galaxien aus Malwerkzeugen.** Die 51 Galaxie-Stufen (`galaxies.js`) setzen sich aus
+  wenigen Werkzeugen zusammen:
+  - Spiralarme, durchgehend oder flockig
+  - elliptisches Sérsic-Profil
+  - irreguläre Sternwolken
+  - Ringe und Gezeitenschweife
+  - heißes Gas, Stromlinien und das kosmische Netz
+
+  Das Ergebnis ist ein Stapel von Ebenen, jede mit eigener Neigung, Drehung und Mischart.
+  So kann der Ring einer Polarringgalaxie hinter der Scheibe durch und vorne wieder
+  herauslaufen. Galaxienhaufen verwenden wenige vorgerenderte Mitglieder viele Male, gedreht
+  und skaliert. 70 eigene Galaxien wären zu teuer. Die Vorschaubilder im Startbildschirm
+  entstehen in einer kleineren Variante mit weniger Sternen.
 - **Leuchtschichten.** Lava und die Glut des Braunen Zwergs liegen in einer eigenen Textur,
   die nach der Schattierung additiv gezeichnet wird. Sie leuchten deshalb auch auf der
   Nachtseite.
@@ -313,6 +374,8 @@ orbit-eater/
 │   ├── names.js          Bot-Namen
 │   ├── renderer.js       Zeichnen: Hintergrund, Welt, Körper, Effekte, Labels
 │   ├── sprites.js        prozedurale Texturen und Sprites
+│   ├── galaxies.js       die Galaxie-Ära: Malwerkzeuge und 51 Galaxie-Baupläne
+│   ├── canvas.js         Offscreen-Canvas-Fabrik
 │   ├── particles.js      Partikelsystem mit Objekt-Pool
 │   ├── camera.js         Folgen, Auto-Zoom, Screen Shake (Trauma-Modell)
 │   ├── input.js          Maus, Tastatur, Touch-Joystick
@@ -356,8 +419,13 @@ Median um 450–600 ein, mit vereinzelten Sternen. Als die Reibung später gesen
 derselbe Test, dass dafür etwas weniger Staub nachwachsen muss.
 
 Im Browser zeigen `?debug` in der Adresse oder **F3** die FPS, die Zeit für Simulation und
-Zeichnen sowie alle Objektzahlen an. `tools/gallery.html` rendert alle 19 Stufen
-groß (mit `?seed=123` in anderen Varianten), um die prozedurale Grafik zu beurteilen.
+Zeichnen sowie alle Objektzahlen an. `tools/gallery.html` rendert alle 69 Stufen
+groß, um die prozedurale Grafik zu beurteilen:
+- `?seed=123` zeigt andere Varianten.
+- `?from=20&to=69` zeigt nur einen Ausschnitt.
+- `?cols=7&cell=210` ändert das Raster.
+
+Die Galerie misst außerdem, wie lange jede Textur zum Bauen braucht (`window.__times`).
 
 ## Bewusste Entscheidungen
 
