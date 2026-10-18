@@ -818,6 +818,25 @@ kbd {
   color: var(--paper-3);
 }
 
+.hud__drain {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #ff8f84;
+}
+
+.hud__admin {
+  margin-top: 8px;
+  padding: 2px 6px 1px;
+  border: 1px solid rgba(255, 91, 79, 0.6);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ff8f84;
+}
+
 .hud__tools {
   position: absolute;
   top: calc(16px + var(--safe-top));
@@ -1013,6 +1032,134 @@ kbd {
 .minimap canvas {
   width: 172px;
   height: 172px;
+}
+
+/* Admin-Konsole: Protokoll bleibt kurz stehen, Eingabezeile nur, wenn offen */
+.console {
+  position: absolute;
+  left: 22px;
+  bottom: calc(112px + var(--safe-bottom));
+  display: grid;
+  gap: 6px;
+  width: min(560px, calc(100vw - 44px));
+  text-shadow: none;
+}
+
+.console__log {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--paper-2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.console.is-open .console__log {
+  max-height: 42vh;
+  padding: 8px 14px;
+  overflow-y: auto;
+  background: rgba(5, 7, 11, 0.8);
+  pointer-events: auto;
+  scrollbar-width: thin;
+}
+
+.console__log:empty {
+  display: none;
+}
+
+.console:not(.is-open) .console__log li {
+  animation: console-fade 7s var(--ease) forwards;
+}
+
+.console:not(.is-open) .console__log li:nth-last-child(n + 4) {
+  display: none;
+}
+
+/* Während getippt wird, stören Toasts und Hinweise nur */
+body.console-open .toast,
+body.console-open .hint {
+  visibility: hidden;
+}
+
+@keyframes console-fade {
+  0%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.console__log .cmd { color: var(--paper-3); }
+.console__log .ok { color: var(--amber-hi); }
+.console__log .err { color: #ff8f84; }
+
+.console__suggest,
+.console__line {
+  display: none;
+  pointer-events: auto;
+}
+
+.console.is-open .console__suggest {
+  display: grid;
+  gap: 1px;
+}
+
+.console.is-open .console__line {
+  display: flex;
+}
+
+.console__suggest button {
+  padding: 5px 12px;
+  border: 0;
+  background: rgba(5, 7, 11, 0.78);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: left;
+  color: var(--paper-3);
+  cursor: pointer;
+}
+
+.console__suggest button b {
+  font-weight: 500;
+  color: var(--paper-2);
+}
+
+.console__suggest button.is-first b,
+.console__suggest button:hover b {
+  color: var(--amber);
+}
+
+.console__line {
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--hair-strong);
+  border-left: 2px solid var(--amber);
+  background: rgba(5, 7, 11, 0.86);
+}
+
+.console__prompt {
+  font-family: var(--font-mono);
+  color: var(--amber);
+}
+
+.console__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--paper);
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.console__input::placeholder {
+  color: var(--paper-3);
 }
 
 .feed {
@@ -1255,6 +1402,34 @@ kbd {
 }
 
 @media (max-width: 760px) {
+  /* Oben statt unten: dort verdeckt die Bildschirmtastatur nichts */
+  .console {
+    top: calc(176px + var(--safe-top));
+    bottom: auto;
+    left: 16px;
+    width: calc(100vw - 32px);
+    z-index: 2;
+  }
+
+  .console.is-open .console__log {
+    max-height: 28vh;
+  }
+
+  /* Oben ist am Handy kein Platz (Masse, Knöpfe, Rangliste) — die Kombo wandert unter den Spieler */
+  .combo {
+    top: auto;
+    bottom: calc(230px + var(--safe-bottom));
+  }
+
+  .combo__mult {
+    font-size: 26px;
+  }
+
+  /* Viele Orbit-Plätze würden in die Touch-Knöpfe laufen — die Zahl reicht */
+  .pips {
+    display: none;
+  }
+
   .topbar__meta {
     display: none;
   }

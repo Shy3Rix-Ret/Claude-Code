@@ -19,7 +19,7 @@ import { maxSpeed, steerRate } from './entities.js';
 /** Wunschrichtung × Gas → Zielgeschwindigkeit, weich angenähert. */
 export function steerBody(b, dt) {
   const boost = b.boosting ? BODY.boostMul : 1;
-  const vmax = maxSpeed(b.mass) * boost * b.throttle;
+  const vmax = maxSpeed(b.mass) * boost * b.throttle * b.speedMul;
   const k = 1 - Math.exp(-steerRate(b.mass) * (b.boosting ? 1.5 : 1) * dt);
   b.vx += (b.dirX * vmax - b.vx) * k;
   b.vy += (b.dirY * vmax - b.vy) * k;

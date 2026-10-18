@@ -42,8 +42,9 @@ export const BODY = {
   boostMinMass: 30,       // darunter kein Boost
   boostCostRate: 0.012,   // Anteil der Masse pro Sekunde
   boostCostMin: 0.9,      // Mindestkosten pro Sekunde
-  decayStart: 150,        // ab hier verdunstet Masse langsam (hält Riesen in Bewegung)
-  decayRate: 0.007,       // Anteil der Masse über decayStart pro Sekunde
+  decayStart: 250,        // ab hier kostet Bewegung Masse ("Reibung") — hält Riesen in Schach
+  decayRate: 0.005,       // Anteil der Masse über decayStart pro Sekunde, bei voller Fahrt.
+                          // Skaliert mit dem Tempo: Wer stillsteht, verliert nichts.
   gravityMul: 2.6,        // Gravitationsradius = r * gravityMul + gravityAdd
   gravityAdd: 36,
   bodyPull: 150,          // Sog großer Körper auf fressbare kleinere (Einheiten/s² am Rand der Oberfläche)
@@ -104,7 +105,7 @@ export const DUST = {
   clusterMin: 4,
   clusterMax: 14,
   clusterSpread: 80,
-  clustersPerSecond: 4,
+  clustersPerSecond: 3.4,
   drift: 10,
   drag: 1.4,
   pullFactor: 1.5,        // Einfallgeschwindigkeit als Vielfaches des Gravitationsradius pro Sekunde

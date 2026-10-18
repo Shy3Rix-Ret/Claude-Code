@@ -829,6 +829,25 @@ kbd {
   color: var(--paper-3);
 }
 
+.hud__drain {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #ff8f84;
+}
+
+.hud__admin {
+  margin-top: 8px;
+  padding: 2px 6px 1px;
+  border: 1px solid rgba(255, 91, 79, 0.6);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ff8f84;
+}
+
 .hud__tools {
   position: absolute;
   top: calc(16px + var(--safe-top));
@@ -1024,6 +1043,134 @@ kbd {
 .minimap canvas {
   width: 172px;
   height: 172px;
+}
+
+/* Admin-Konsole: Protokoll bleibt kurz stehen, Eingabezeile nur, wenn offen */
+.console {
+  position: absolute;
+  left: 22px;
+  bottom: calc(112px + var(--safe-bottom));
+  display: grid;
+  gap: 6px;
+  width: min(560px, calc(100vw - 44px));
+  text-shadow: none;
+}
+
+.console__log {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--paper-2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.console.is-open .console__log {
+  max-height: 42vh;
+  padding: 8px 14px;
+  overflow-y: auto;
+  background: rgba(5, 7, 11, 0.8);
+  pointer-events: auto;
+  scrollbar-width: thin;
+}
+
+.console__log:empty {
+  display: none;
+}
+
+.console:not(.is-open) .console__log li {
+  animation: console-fade 7s var(--ease) forwards;
+}
+
+.console:not(.is-open) .console__log li:nth-last-child(n + 4) {
+  display: none;
+}
+
+/* Während getippt wird, stören Toasts und Hinweise nur */
+body.console-open .toast,
+body.console-open .hint {
+  visibility: hidden;
+}
+
+@keyframes console-fade {
+  0%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.console__log .cmd { color: var(--paper-3); }
+.console__log .ok { color: var(--amber-hi); }
+.console__log .err { color: #ff8f84; }
+
+.console__suggest,
+.console__line {
+  display: none;
+  pointer-events: auto;
+}
+
+.console.is-open .console__suggest {
+  display: grid;
+  gap: 1px;
+}
+
+.console.is-open .console__line {
+  display: flex;
+}
+
+.console__suggest button {
+  padding: 5px 12px;
+  border: 0;
+  background: rgba(5, 7, 11, 0.78);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: left;
+  color: var(--paper-3);
+  cursor: pointer;
+}
+
+.console__suggest button b {
+  font-weight: 500;
+  color: var(--paper-2);
+}
+
+.console__suggest button.is-first b,
+.console__suggest button:hover b {
+  color: var(--amber);
+}
+
+.console__line {
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--hair-strong);
+  border-left: 2px solid var(--amber);
+  background: rgba(5, 7, 11, 0.86);
+}
+
+.console__prompt {
+  font-family: var(--font-mono);
+  color: var(--amber);
+}
+
+.console__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--paper);
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.console__input::placeholder {
+  color: var(--paper-3);
 }
 
 .feed {
@@ -1266,6 +1413,34 @@ kbd {
 }
 
 @media (max-width: 760px) {
+  /* Oben statt unten: dort verdeckt die Bildschirmtastatur nichts */
+  .console {
+    top: calc(176px + var(--safe-top));
+    bottom: auto;
+    left: 16px;
+    width: calc(100vw - 32px);
+    z-index: 2;
+  }
+
+  .console.is-open .console__log {
+    max-height: 28vh;
+  }
+
+  /* Oben ist am Handy kein Platz (Masse, Knöpfe, Rangliste) — die Kombo wandert unter den Spieler */
+  .combo {
+    top: auto;
+    bottom: calc(230px + var(--safe-bottom));
+  }
+
+  .combo__mult {
+    font-size: 26px;
+  }
+
+  /* Viele Orbit-Plätze würden in die Touch-Knöpfe laufen — die Zahl reicht */
+  .pips {
+    display: none;
+  }
+
   .topbar__meta {
     display: none;
   }
@@ -1448,11 +1623,13 @@ kbd {
           <div><dt><kbd>Shift</kbd></dt><dd>Boost – kostet Masse</dd></div>
           <div><dt><kbd>Klick halten</kbd></dt><dd>Schleuder laden, loslassen feuert</dd></div>
           <div><dt><kbd>Esc</kbd> <kbd>M</kbd></dt><dd>Pause · Ton</dd></div>
+          <div><dt><kbd>T</kbd> <kbd>/</kbd></dt><dd>Admin-Konsole, z.&nbsp;B. /hilfe</dd></div>
         </dl>
         <dl class="keys keys--touch">
           <div><dt><kbd>Ziehen</kbd></dt><dd>Steuern wie ein Joystick</dd></div>
           <div><dt><kbd>2. Finger</kbd></dt><dd>Boost – kostet Masse</dd></div>
           <div><dt><kbd>Schleuder</kbd></dt><dd>Halten, loslassen feuert</dd></div>
+          <div><dt><kbd>›_</kbd></dt><dd>Admin-Konsole (oben rechts)</dd></div>
         </dl>
       </div>
       <div class="sheet__col">
@@ -1478,6 +1655,8 @@ kbd {
       <div class="hud__stage"><span id="hud-stage">Asteroid</span><span class="hud__stagenum" id="hud-stagenum">1 / 5</span></div>
       <div class="ruler" id="hud-ruler" aria-hidden="true"></div>
       <div class="hud__next" id="hud-next">Mond bei 60</div>
+      <div class="hud__drain" id="hud-drain" hidden></div>
+      <span class="hud__admin" id="hud-admin" hidden>Admin-Runde</span>
     </div>
 
     <div class="combo" id="combo" aria-hidden="true">
@@ -1488,6 +1667,9 @@ kbd {
     </div>
 
     <div class="hud__tools">
+      <button class="iconbtn" type="button" data-action="console" aria-label="Admin-Konsole öffnen" title="Admin-Konsole (T)">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7l5 5-5 5M12 18h7"/></svg>
+      </button>
       <button class="iconbtn" type="button" data-action="mute" aria-label="Ton aus">
         <svg class="icon icon--sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="icon__wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="icon__cross" d="M16 9l6 6M22 9l-6 6"/></svg>
       </button>
@@ -1521,6 +1703,15 @@ kbd {
       <canvas id="minimap" aria-label="Übersichtskarte"></canvas>
       <figcaption class="label">Karte · Umkreis <span id="map-range">2.400</span> AE</figcaption>
     </figure>
+
+    <div class="console" id="console">
+      <ol class="console__log" id="console-log" aria-live="polite"></ol>
+      <div class="console__suggest" id="console-suggest"></div>
+      <form class="console__line" id="console-form" autocomplete="off">
+        <span class="console__prompt" aria-hidden="true">›</span>
+        <input class="console__input" id="console-input" aria-label="Admin-Befehl" spellcheck="false" autocapitalize="off" autocomplete="off" enterkeyhint="send" placeholder="/hilfe">
+      </form>
+    </div>
 
     <div class="feed" id="feed" aria-live="polite"></div>
     <p class="hint" id="hint" aria-live="polite"></p>
@@ -1649,8 +1840,9 @@ const BODY = {
   boostMinMass: 30,       // darunter kein Boost
   boostCostRate: 0.012,   // Anteil der Masse pro Sekunde
   boostCostMin: 0.9,      // Mindestkosten pro Sekunde
-  decayStart: 150,        // ab hier verdunstet Masse langsam (hält Riesen in Bewegung)
-  decayRate: 0.007,       // Anteil der Masse über decayStart pro Sekunde
+  decayStart: 250,        // ab hier kostet Bewegung Masse ("Reibung") — hält Riesen in Schach
+  decayRate: 0.005,       // Anteil der Masse über decayStart pro Sekunde, bei voller Fahrt.
+                          // Skaliert mit dem Tempo: Wer stillsteht, verliert nichts.
   gravityMul: 2.6,        // Gravitationsradius = r * gravityMul + gravityAdd
   gravityAdd: 36,
   bodyPull: 150,          // Sog großer Körper auf fressbare kleinere (Einheiten/s² am Rand der Oberfläche)
@@ -1711,7 +1903,7 @@ const DUST = {
   clusterMin: 4,
   clusterMax: 14,
   clusterSpread: 80,
-  clustersPerSecond: 4,
+  clustersPerSecond: 3.4,
   drift: 10,
   drag: 1.4,
   pullFactor: 1.5,        // Einfallgeschwindigkeit als Vielfaches des Gravitationsradius pro Sekunde
@@ -2103,6 +2295,11 @@ class Body {
 
     this.orbiters = [];
     this.shield = 0;
+    this.drain = 0;      // aktueller Massenverlust durch Reibung (pro Sekunde), fürs HUD
+
+    // Admin-Konsole
+    this.god = false;
+    this.speedMul = 1;
 
     // Tod
     this.consumer = null;
@@ -2253,7 +2450,7 @@ const { maxSpeed, steerRate } = __entities;
 /** Wunschrichtung × Gas → Zielgeschwindigkeit, weich angenähert. */
 function steerBody(b, dt) {
   const boost = b.boosting ? BODY.boostMul : 1;
-  const vmax = maxSpeed(b.mass) * boost * b.throttle;
+  const vmax = maxSpeed(b.mass) * boost * b.throttle * b.speedMul;
   const k = 1 - Math.exp(-steerRate(b.mass) * (b.boosting ? 1.5 : 1) * dt);
   b.vx += (b.dirX * vmax - b.vx) * k;
   b.vy += (b.dirY * vmax - b.vy) * k;
@@ -2770,7 +2967,7 @@ const __game = (() => {
  */
 const { WORLD, BODY, ORBIT, SLING, DUST, ASTEROID, COMET, BLACK_HOLE, BOTS, COMBO } = __config;
 const { TAU, clamp, lerp, invLerp, damp, smoothstep, easeOutCubic, easeInCubic, angleDiff, random, randRange, randInt, gaussian, chance } = __utils;
-const { KIND, STATE, Body, BlackHole, DebrisPool, radiusForMass, debrisRadius, gravityRadius, maxOrbiters, stageFor, canEat } = __entities;
+const { KIND, STATE, Body, BlackHole, DebrisPool, radiusForMass, debrisRadius, gravityRadius, maxOrbiters, stageFor, canEat, maxSpeed } = __entities;
 const { steerBody, integrate, containCircle, spiralPull, gravitate, bounceBodies } = __physics;
 const { SpatialHash } = __spatial_hash;
 const { BotBrain, updateBot } = __ai;
@@ -2793,6 +2990,8 @@ class Game {
 
     this.time = 0;
     this.difficulty = 0;
+    this.freezeBots = false;   // Admin: Bots anhalten
+    this.cheated = false;      // Admin-Befehle in dieser Runde → kein Rekord
     this.playerAggro = 1;
     this.counts = { dust: 0, asteroid: 0, comet: 0 };
     this.combo = { count: 0, timer: 0, gained: 0 };
@@ -3035,7 +3234,16 @@ class Game {
     this.snapshot();
     this.updateDifficulty();
 
-    for (const b of this.bodies) if (b.alive && b.brain) updateBot(this, b, dt);
+    for (const b of this.bodies) {
+      if (!b.alive || !b.brain) continue;
+      if (this.freezeBots) {
+        b.throttle = 0;
+        b.wantBoost = false;
+        b.slingHeld = false;
+      } else {
+        updateBot(this, b, dt);
+      }
+    }
     for (const b of this.bodies) this.updateBody(b, dt);
     this.updateBlackHoles(dt);
 
@@ -3085,6 +3293,7 @@ class Game {
     }
     b.spawnT = Math.min(1, b.spawnT + dt / BODY.spawnFade);
     if (b.shield > 0) b.shield = Math.max(0, b.shield - dt);
+    if (b.god) b.shield = Math.max(b.shield, 1);   // Admin: Dauerschild
 
     // Boost kostet Masse — die bleibt als Staubspur zurück (und andere fressen sie).
     const wasBoosting = b.boosting;
@@ -3100,8 +3309,16 @@ class Game {
     }
     if (b.boosting !== wasBoosting) this.events.emit(b.boosting ? 'boostStart' : 'boostEnd', b);
 
-    // Riesen verdunsten langsam, damit niemand dauerhaft uneinholbar wird.
-    if (b.mass > BODY.decayStart) b.mass -= (b.mass - BODY.decayStart) * BODY.decayRate * dt;
+    // Reibung: Große Körper verlieren in Bewegung langsam Masse, damit niemand
+    // dauerhaft uneinholbar wird. Der Verlust wächst mit dem Tempo — wer stillsteht,
+    // verliert nichts (Boost hat seine eigenen Kosten, deshalb höchstens Faktor 1).
+    if (b.mass > BODY.decayStart) {
+      const motion = Math.min(1, Math.hypot(b.vx, b.vy) / maxSpeed(b.mass));
+      b.drain = (b.mass - BODY.decayStart) * BODY.decayRate * motion;
+      b.mass -= b.drain * dt;
+    } else {
+      b.drain = 0;
+    }
 
     this.updateSling(b, dt);
     steerBody(b, dt);
@@ -3382,6 +3599,7 @@ class Game {
           continue;
         }
         const edge = dist - b.r;
+        if (b.god) continue;
         if (s > 0.5 && edge < h.r * 0.5) {
           const loss = b.mass * BLACK_HOLE.drainRate * s * dt;
           b.mass -= loss;
@@ -3467,7 +3685,7 @@ class Game {
   }
 
   killBody(b, cause, killer = null, hole = null) {
-    if (!b.alive) return;
+    if (!b.alive || b.god) return;
     b.alive = false;
     b.cause = cause;
     b.killer = killer;
@@ -4648,6 +4866,7 @@ class Renderer {
     this.time = 0;
     this.artBudget = 0;
     this.artCache = new Map();
+    this.zoomMul = 1;          // Admin-Konsole: /zoom
     this.player = null;
     this.attract = null;
     this.attractT = 0;
@@ -4839,7 +5058,7 @@ class Renderer {
     const p = game.player;
     if (view.mode === 'play' && p && p.alive) {
       const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha);
-      const tz = Camera.zoomFor(p.r, this.w, this.h) * (p.boosting ? 0.93 : 1);
+      const tz = Camera.zoomFor(p.r, this.w, this.h) * (p.boosting ? 0.93 : 1) * this.zoomMul;
       cam.follow(x + p.vx * CAMERA.lead, y + p.vy * CAMERA.lead, tz, dt);
     } else if (view.mode === 'dead' && p) {
       // Kurz zeigen, wer einen gefressen hat
@@ -6385,7 +6604,7 @@ class Input {
     this.slingButton = false;
     this.boostButton = false;
 
-    /** Callbacks für Tastenkürzel: { pause, mute, confirm, debug, mode } */
+    /** Callbacks für Tastenkürzel: { pause, mute, confirm, console, debug, mode } */
     this.handlers = {};
 
     this.bind();
@@ -6443,11 +6662,17 @@ class Input {
       if (isTyping(e)) return;           // Enter im Namensfeld erledigt das Formular selbst
       if (e.code === 'Space') e.preventDefault();
       if (e.repeat) return;
+      // "/" öffnet die Admin-Konsole (Tastaturbelegung egal, deshalb e.key statt e.code)
+      if (e.key === '/' && this.handlers.console?.()) {
+        e.preventDefault();
+        return;
+      }
       this.keys.add(e.code);
       switch (e.code) {
         case 'Escape': case 'KeyP': this.handlers.pause?.(); break;
         case 'KeyM': this.handlers.mute?.(); break;
         case 'Enter': this.handlers.confirm?.(); break;
+        case 'KeyT': if (this.handlers.console?.()) e.preventDefault(); break;
         case 'F3': e.preventDefault(); this.handlers.debug?.(); break;
       }
     });
@@ -6583,6 +6808,10 @@ const HINTS = {
     touch: 'Zweiter Finger oder BOOST: schneller. Kostet etwas Masse.',
   },
   hole: 'Schwarzes Loch! Nichts kommt aus dem Horizont zurück – Abstand halten oder boosten.',
+  drain: {
+    mouse: `Ab ${BODY.decayStart} Masse kostet Bewegung etwas Masse (Reibung). Wer stillsteht, verliert nichts – Zeiger einfach auf dich legen.`,
+    touch: `Ab ${BODY.decayStart} Masse kostet Bewegung etwas Masse (Reibung). Wer stillsteht, verliert nichts – Daumen einfach loslassen.`,
+  },
   comet: 'Komet! Schnell, aber 24 Masse wert. Fang ihn ab.',
 };
 
@@ -6598,6 +6827,7 @@ class UI {
     this.hud = $('hud');
     this.el = {
       mass: $('hud-mass'), stage: $('hud-stage'), stageNum: $('hud-stagenum'), ruler: $('hud-ruler'), next: $('hud-next'),
+      drain: $('hud-drain'), admin: $('hud-admin'),
       combo: $('combo'), comboMult: $('combo-mult'), comboCount: $('combo-count'), comboBar: $('combo-bar'),
       board: $('board'), boardCount: $('board-count'),
       orbit: $('ab-orbit'), pips: $('orbit-pips'), orbitVal: $('orbit-val'),
@@ -6795,7 +7025,9 @@ class UI {
     this.countUp($('st-max'), s.maxMass);
 
     const rec = $('over-record');
-    if (s.isNewBest) {
+    if (s.cheated) {
+      rec.textContent = 'Admin-Runde – zählt nicht für den Rekord.';
+    } else if (s.isNewBest) {
       rec.innerHTML = '<span class="is-new">Neuer persönlicher Rekord.</span> Höchste Masse bisher.';
     } else if (s.best) {
       rec.innerHTML = `Persönlicher Rekord <strong>${fmt(s.best.mass)}</strong> · ${STAGES[s.best.stage].name}`;
@@ -6938,6 +7170,14 @@ class UI {
     } else {
       this.set('next', this.el.next, 'Höchste Stufe erreicht');
     }
+    // Reibung: nur anzeigen, wenn sie spürbar ist
+    const drain = p.drain >= 0.1 ? `−${p.drain.toFixed(1).replace('.', ',')} / s Reibung` : '';
+    if (drain !== this.cache.drain) {
+      this.cache.drain = drain;
+      this.el.drain.textContent = drain;
+      this.el.drain.hidden = !drain;
+    }
+
     const on = Math.round(prog * RULER_TICKS);
     if (on !== this.cache.ruler) {
       this.cache.ruler = on;
@@ -7146,6 +7386,11 @@ class UI {
       r.dot.style.visibility = '';
     }
     this.el.mapRange.textContent = fmt(MAP_RANGE);
+    this.el.drain.hidden = true;
+  }
+
+  setAdmin(on) {
+    this.el.admin.hidden = !on;
   }
 
   debug(text) {
@@ -7160,6 +7405,435 @@ class UI {
 }
 
 return { UI };
+})();
+
+// ---- js/admin.js ----
+const __admin = (() => {
+/**
+ * Admin-Konsole: Befehle zum Testen, Ausprobieren und Angeben.
+ *
+ * Öffnen mit T, Enter oder / (am Handy über den Konsolen-Knopf oben rechts).
+ * Tab vervollständigt, ↑/↓ blättert durch den Verlauf, Esc schließt.
+ *
+ * Fairness: Sobald ein Befehl das Spiel verändert, gilt die Runde als
+ * "Admin-Runde" — sie zählt nicht für den persönlichen Rekord.
+ */
+const { BODY, STAGES, BLACK_HOLE, WORLD } = __config;
+const { TAU, clamp, fmt, random, randRange } = __utils;
+const { BlackHole, maxOrbiters } = __entities;
+const { storage } = __storage;
+
+const STAGE_ALIASES = {
+  asteroid: 0, mond: 1, moon: 1, planet: 2, gasriese: 3, riese: 3, giant: 3, stern: 4, star: 4, sonne: 4,
+};
+
+/** Zahl aus einem Argument; akzeptiert deutsches Komma ("0,5"). */
+function num(arg, fallback) {
+  if (arg === undefined || arg === '') return fallback;
+  const v = Number(String(arg).replace(',', '.'));
+  return Number.isFinite(v) ? v : NaN;
+}
+
+const de = v => String(Math.round(v * 100) / 100).replace('.', ',');
+
+class AdminConsole {
+  /**
+   * @param ctx {
+   *   game, renderer, ui, audio,
+   *   isPlaying(): boolean,
+   *   setTimeScale(v), getTimeScale(),
+   *   toggleDebug(): boolean,
+   * }
+   */
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.el = document.getElementById('console');
+    this.log = document.getElementById('console-log');
+    this.form = document.getElementById('console-form');
+    this.input = document.getElementById('console-input');
+    this.suggest = document.getElementById('console-suggest');
+    this.history = storage.get('console-history', []);
+    this.histIndex = -1;
+    this.isOpen = false;
+    this.commands = this.buildCommands();
+    this.bind();
+  }
+
+  // --- Öffnen, Schließen, Eingabe ---------------------------------------------
+
+  bind() {
+    this.form.addEventListener('submit', e => {
+      e.preventDefault();
+      const line = this.input.value.trim();
+      if (line && line !== '/') this.execute(line);
+      this.close();
+    });
+    this.input.addEventListener('input', () => this.updateSuggest());
+    this.input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.close();
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        this.complete();
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.browse(e.key === 'ArrowUp' ? 1 : -1);
+      }
+    });
+    this.suggest.addEventListener('click', e => {
+      const b = e.target.closest('button[data-cmd]');
+      if (!b) return;
+      this.input.value = `/${b.dataset.cmd} `;
+      this.input.focus();
+      this.updateSuggest();
+    });
+  }
+
+  open(prefill = '/') {
+    if (!this.ctx.isPlaying()) return;
+    this.isOpen = true;
+    this.el.classList.add('is-open');
+    document.body.classList.add('console-open');
+    if (!this.input.value || this.input.value === '/') this.input.value = prefill;
+    this.histIndex = -1;
+    this.updateSuggest();
+    this.log.scrollTop = this.log.scrollHeight;
+    // Fokus erst im nächsten Frame — sonst landet der auslösende Tastendruck im Feld
+    requestAnimationFrame(() => {
+      this.input.focus({ preventScroll: true });
+      const n = this.input.value.length;
+      this.input.setSelectionRange(n, n);
+    });
+  }
+
+  close() {
+    this.isOpen = false;
+    this.el.classList.remove('is-open');
+    document.body.classList.remove('console-open');
+    this.input.value = '';
+    this.suggest.innerHTML = '';
+    this.input.blur();
+  }
+
+  browse(dir) {
+    if (!this.history.length) return;
+    this.histIndex = clamp(this.histIndex + dir, -1, this.history.length - 1);
+    this.input.value = this.histIndex < 0 ? '/' : this.history[this.history.length - 1 - this.histIndex];
+    this.updateSuggest();
+  }
+
+  /** Passende Befehle zum bisher Getippten (nur solange noch kein Argument da ist). */
+  matches() {
+    const raw = this.input.value.replace(/^\//, '');
+    if (raw.includes(' ')) return [];
+    const q = raw.toLowerCase();
+    return this.commands.filter(c => c.name.startsWith(q) || c.alias.some(a => a.startsWith(q)));
+  }
+
+  complete() {
+    const m = this.matches();
+    if (m.length) {
+      this.input.value = `/${m[0].name} `;
+      this.updateSuggest();
+    }
+  }
+
+  updateSuggest() {
+    const m = this.matches().slice(0, 6);
+    this.suggest.innerHTML = '';
+    m.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.cmd = c.name;
+      if (i === 0) b.className = 'is-first';
+      const name = document.createElement('b');
+      name.textContent = `/${c.name}`;
+      b.append(name, c.args ? ` ${c.args}` : '', ` — ${c.help}`);
+      this.suggest.appendChild(b);
+    });
+  }
+
+  print(text, tone = '') {
+    const li = document.createElement('li');
+    if (tone) li.className = tone;
+    li.textContent = text;
+    this.log.appendChild(li);
+    while (this.log.children.length > 40) this.log.firstChild.remove();
+    this.log.scrollTop = this.log.scrollHeight;
+  }
+
+  // --- Ausführen ------------------------------------------------------------------
+
+  execute(line) {
+    if (this.history[this.history.length - 1] !== line) {
+      this.history.push(line);
+      if (this.history.length > 30) this.history.shift();
+      storage.set('console-history', this.history);
+    }
+    this.print(line, 'cmd');
+    const parts = line.replace(/^\//, '').trim().split(/\s+/);
+    const word = (parts.shift() || '').toLowerCase();
+    const cmd = this.commands.find(c => c.name === word || c.alias.includes(word));
+    if (!cmd) {
+      this.print(`Unbekannter Befehl „${word}“. /hilfe zeigt alle.`, 'err');
+      this.ctx.audio.denied();
+      return;
+    }
+    const p = this.ctx.game.player;
+    if (cmd.needsPlayer && (!p || !p.alive)) {
+      this.print('Dafür musst du im Spiel sein.', 'err');
+      return;
+    }
+    try {
+      const out = cmd.run(parts, p);
+      if (out instanceof Error) {
+        this.print(out.message, 'err');
+        this.ctx.audio.denied();
+        return;
+      }
+      if (cmd.cheat) this.markCheated();
+      if (out) this.print(out, 'ok');
+      this.ctx.audio.ui('confirm');
+    } catch (err) {
+      this.print(`Fehler: ${err.message}`, 'err');
+    }
+  }
+
+  markCheated() {
+    this.ctx.game.cheated = true;
+    this.ctx.ui.setAdmin(true);
+  }
+
+  /** Wirken noch globale Admin-Effekte (Zeit, Zoom, eingefrorene Bots)? Dann zählt auch die nächste Runde nicht. */
+  globalEffectsActive() {
+    const { game, renderer } = this.ctx;
+    return this.ctx.getTimeScale() !== 1 || renderer.zoomMul !== 1 || game.freezeBots;
+  }
+
+  // --- Befehle ----------------------------------------------------------------------
+
+  buildCommands() {
+    const { game, renderer } = this.ctx;
+    const err = msg => new Error(msg);
+    const cmd = (name, alias, args, help, run, opts = {}) =>
+      ({ name, alias, args, help, run, cheat: opts.cheat !== false, needsPlayer: opts.needsPlayer !== false });
+
+    /** Punkt in Blickrichtung des Spielers, `dist` vor ihm. */
+    const ahead = (p, dist) => {
+      const sp = Math.hypot(p.vx, p.vy);
+      const dx = sp > 5 ? p.vx / sp : p.dirX, dy = sp > 5 ? p.vy / sp : p.dirY;
+      return { x: p.x + dx * dist, y: p.y + dy * dist };
+    };
+    const inArena = (x, y, margin) => {
+      const d = Math.hypot(x, y), lim = WORLD.radius - margin;
+      return d > lim ? { x: (x / d) * lim, y: (y / d) * lim } : { x, y };
+    };
+
+    return [
+      cmd('hilfe', ['help', '?'], '', 'alle Befehle anzeigen', () => {
+        for (const c of this.commands) this.print(`/${c.name}${c.args ? ' ' + c.args : ''} — ${c.help}`, 'info');
+        return '';
+      }, { cheat: false, needsPlayer: false }),
+
+      cmd('masse', ['mass', 'm'], '<zahl>', 'eigene Masse setzen', (a, p) => {
+        const v = num(a[0]);
+        if (!Number.isFinite(v)) return err('Beispiel: /masse 500');
+        const m = clamp(v, BODY.minMass, 20000);
+        p.mass = m;
+        if (m > p.maxMass) p.maxMass = m;
+        return `Masse auf ${fmt(m)} gesetzt.`;
+      }),
+
+      cmd('stufe', ['stage'], '<1–5 | name>', 'direkt auf eine Stufe springen', (a, p) => {
+        const arg = (a[0] || '').toLowerCase();
+        let i = STAGE_ALIASES[arg];
+        if (i === undefined) i = num(arg) - 1;
+        if (!Number.isInteger(i) || i < 0 || i >= STAGES.length) return err('Beispiel: /stufe 4 oder /stufe gasriese');
+        const m = i === 0 ? 40 : Math.round(STAGES[i].min * 1.1);
+        p.mass = m;
+        if (m > p.maxMass) p.maxMass = m;
+        return `${STAGES[i].name}: Masse ${fmt(m)}.`;
+      }),
+
+      cmd('gott', ['god', 'godmode'], '', 'unverwundbar an/aus', (a, p) => {
+        p.god = !p.god;
+        if (!p.god) p.shield = 0;
+        return p.god ? 'Gottmodus an. Nichts kann dich fressen, treffen oder verschlucken.' : 'Gottmodus aus.';
+      }),
+
+      cmd('tempo', ['speed'], '<faktor>', 'eigenes Tempo × Faktor (1 = normal)', (a, p) => {
+        const v = num(a[0], 1);
+        if (!Number.isFinite(v)) return err('Beispiel: /tempo 2');
+        p.speedMul = clamp(v, 0.2, 5);
+        return `Tempo × ${de(p.speedMul)}.`;
+      }),
+
+      cmd('bot', ['spawn'], '[masse] [anzahl]', 'Bots neben dir erzeugen', (a, p) => {
+        const m = num(a[0], Math.round(p.mass * 0.6));
+        const n = Math.round(num(a[1], 1));
+        if (!Number.isFinite(m) || !Number.isFinite(n)) return err('Beispiel: /bot 300 2');
+        const count = clamp(n, 1, 20);
+        for (let i = 0; i < count; i++) {
+          const b = game.spawnBot();
+          b.setMass(clamp(m, 12, 20000));
+          const ang = random() * TAU, dist = p.r + b.r + randRange(260, 480);
+          const pos = inArena(p.x + Math.cos(ang) * dist, p.y + Math.sin(ang) * dist, b.r + 20);
+          b.place(pos.x, pos.y);
+        }
+        return `${count} Bot${count > 1 ? 's' : ''} mit Masse ${fmt(clamp(m, 12, 20000))} erzeugt.`;
+      }),
+
+      cmd('bots', [], '<anzahl>', 'Anzahl der Bots in der Arena (0–60)', a => {
+        const n = num(a[0]);
+        if (!Number.isFinite(n)) return err('Beispiel: /bots 30');
+        const target = clamp(Math.round(n), 0, 60);
+        const bots = game.bodies.filter(b => !b.isPlayer && b.alive);
+        game.respawnAt.length = 0;
+        if (bots.length < target) {
+          for (let i = bots.length; i < target; i++) game.spawnBot();
+        } else {
+          // Überzählige verschwinden still — kleinste zuerst
+          bots.sort((x, y) => x.mass - y.mass).slice(0, bots.length - target).forEach(b => {
+            game.releaseOrbiters(b);
+            b.alive = false;
+            b.removed = true;
+          });
+        }
+        return `${target} Bots in der Arena.`;
+      }, { needsPlayer: false }),
+
+      cmd('loch', ['blackhole', 'bh'], '', 'Schwarzes Loch vor dir erzeugen', (a, p) => {
+        const h = new BlackHole(0, 0);
+        const spot = ahead(p, p.r + h.pullR * 1.15);
+        const pos = inArena(spot.x, spot.y, h.pullR * 0.4);
+        h.x = h.px = pos.x;
+        h.y = h.py = pos.y;
+        game.blackHoles.push(h);
+        game.events.emit('bhSpawn', h);
+        return 'Schwarzes Loch entsteht vor dir. Viel Glück.';
+      }),
+
+      cmd('komet', ['comet'], '[anzahl]', 'Kometen auf dich zu schicken', (a, p) => {
+        const n = clamp(Math.round(num(a[0], 1)), 1, 10);
+        for (let i = 0; i < n; i++) {
+          game.spawnComet();
+          const d = game.debris[game.debris.length - 1];
+          const ang = random() * TAU, dist = 1100 + random() * 400;
+          d.place(p.x + Math.cos(ang) * dist, p.y + Math.sin(ang) * dist);
+          d.age = 0;
+          const sp = randRange(380, 480);
+          const tx = p.x - d.x + (random() - 0.5) * 200, ty = p.y - d.y + (random() - 0.5) * 200;
+          const len = Math.hypot(tx, ty);
+          d.vx = (tx / len) * sp;
+          d.vy = (ty / len) * sp;
+          d.angle = Math.atan2(d.vy, d.vx);
+        }
+        return `${n} Komet${n > 1 ? 'en' : ''} im Anflug.`;
+      }),
+
+      cmd('orbit', [], '[anzahl]', 'deinen Orbit mit Asteroiden füllen', (a, p) => {
+        const free = Math.max(0, maxOrbiters(p.mass) - p.orbiters.length);
+        const n = clamp(Math.round(num(a[0], free || 5)), 1, 30 - p.orbiters.length);
+        if (n <= 0) return err('Mehr als 30 Orbiter gehen nicht.');
+        for (let i = 0; i < n; i++) {
+          const ang = (i / n) * TAU, dist = p.r + 30 + (i % 3) * 14;
+          const d = game.spawnAsteroid(false, randRange(4, 8));
+          d.place(p.x + Math.cos(ang) * dist, p.y + Math.sin(ang) * dist);
+          game.capture(p, d, dist);
+        }
+        return `${n} Asteroiden im Orbit. Maustaste halten, loslassen.`;
+      }),
+
+      cmd('vernichten', ['killall', 'nuke'], '[alle]', 'Bots in deiner Nähe zerlegen (mit „alle“: jeden)', (a, p) => {
+        const all = (a[0] || '').toLowerCase() === 'alle' || (a[0] || '').toLowerCase() === 'all';
+        let n = 0;
+        for (const b of game.bodies) {
+          if (b === p || !b.alive || b.isPlayer) continue;
+          if (!all && Math.hypot(b.x - p.x, b.y - p.y) > 2400) continue;
+          game.killBody(b, 'shot', p);
+          n++;
+        }
+        return n ? `${n} Bot${n > 1 ? 's' : ''} zerlegt.` : 'Niemand in der Nähe. /vernichten alle trifft jeden.';
+      }),
+
+      cmd('einfrieren', ['freeze'], '', 'Bots anhalten an/aus', () => {
+        game.freezeBots = !game.freezeBots;
+        return game.freezeBots ? 'Bots eingefroren.' : 'Bots bewegen sich wieder.';
+      }, { needsPlayer: false }),
+
+      cmd('zeit', ['time', 'slowmo'], '<faktor>', 'Zeitlupe (0,2) bis Zeitraffer (3)', a => {
+        const v = num(a[0], 1);
+        if (!Number.isFinite(v)) return err('Beispiel: /zeit 0,5');
+        this.ctx.setTimeScale(clamp(v, 0.1, 3));
+        return `Zeit × ${de(clamp(v, 0.1, 3))}.`;
+      }, { needsPlayer: false }),
+
+      cmd('zoom', [], '<faktor>', 'Kamera weiter weg (0,3) oder näher (2)', a => {
+        const v = num(a[0], 1);
+        if (!Number.isFinite(v)) return err('Beispiel: /zoom 0,5');
+        renderer.zoomMul = clamp(v, 0.15, 3);
+        return `Zoom × ${de(renderer.zoomMul)}.`;
+      }, { needsPlayer: false }),
+
+      cmd('tp', ['teleport'], '<x> <y> | mitte | zufall', 'teleportieren', (a, p) => {
+        const w = (a[0] || '').toLowerCase();
+        let x, y;
+        if (w === 'mitte' || w === 'center') {
+          x = 0; y = 0;
+        } else if (w === 'zufall' || w === 'random' || w === '') {
+          const ang = random() * TAU, r = Math.sqrt(random()) * WORLD.radius * 0.85;
+          x = Math.cos(ang) * r; y = Math.sin(ang) * r;
+        } else {
+          x = num(a[0]); y = num(a[1], 0);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return err('Beispiel: /tp 1200 -800, /tp mitte');
+        }
+        const pos = inArena(x, y, p.r + 10);
+        p.place(pos.x, pos.y);
+        p.vx = p.vy = 0;
+        renderer.camera.jump(pos.x, pos.y);
+        return `Teleportiert nach ${fmt(pos.x)} / ${fmt(pos.y)}.`;
+      }),
+
+      cmd('aufräumen', ['clear', 'aufraeumen'], '', 'alle Schwarzen Löcher auflösen', () => {
+        const n = game.blackHoles.length;
+        for (const h of game.blackHoles) h.age = Math.max(h.age, h.life - BLACK_HOLE.collapseTime);
+        return n ? `${n} Schwarze${n > 1 ? ' Löcher lösen' : 's Loch löst'} sich auf.` : 'Keine Schwarzen Löcher da.';
+      }, { needsPlayer: false }),
+
+      cmd('name', ['rename'], '<neuer name>', 'dich umbenennen', (a, p) => {
+        const name = a.join(' ').trim().slice(0, 16);
+        if (!name) return err('Beispiel: /name Planet Ömer');
+        p.name = name;
+        p.upperName = null;
+        return `Du heißt jetzt ${name}.`;
+      }, { cheat: false }),
+
+      cmd('fps', ['debug'], '', 'Leistungsanzeige an/aus', () =>
+        (this.ctx.toggleDebug() ? 'Leistungsanzeige an.' : 'Leistungsanzeige aus.'),
+      { cheat: false, needsPlayer: false }),
+
+      cmd('rekordreset', ['resetbest'], '', 'persönlichen Rekord löschen', () => {
+        storage.set('best', null);
+        return 'Rekord gelöscht.';
+      }, { cheat: false, needsPlayer: false }),
+
+      cmd('reset', [], '', 'alle Admin-Effekte zurücksetzen', (a, p) => {
+        this.ctx.setTimeScale(1);
+        renderer.zoomMul = 1;
+        game.freezeBots = false;
+        if (p) {
+          p.god = false;
+          p.shield = 0;
+          p.speedMul = 1;
+        }
+        return 'Zeit, Zoom, Tempo, Gottmodus und Bots zurückgesetzt. Diese Runde bleibt eine Admin-Runde.';
+      }, { cheat: false, needsPlayer: false }),
+    ];
+  }
+}
+
+return { AdminConsole };
 })();
 
 // ---- js/main.js ----
@@ -7182,6 +7856,7 @@ const { Renderer } = __renderer;
 const { AudioEngine } = __audio;
 const { Input } = __input;
 const { UI } = __ui;
+const { AdminConsole } = __admin;
 const { storage } = __storage;
 
 const STEP = 1 / SIM.hz;
@@ -7200,6 +7875,7 @@ let state = 'menu';
 let acc = 0;
 let last = performance.now();
 let timeScale = 1;
+let adminTime = 1;          // Zeitfaktor aus der Admin-Konsole (/zeit)
 let warpScale = 1;
 let warpTime = 0;
 let deathTimer = 0;
@@ -7221,7 +7897,22 @@ const ui = new UI({
     ui.setAudio(audio.muted, audio.volume);
   },
   click: () => audio.ui('tick'),
+  console: () => admin.open('/'),
 });
+
+const admin = new AdminConsole({
+  game, renderer, ui, audio,
+  isPlaying: () => state === 'play',
+  setTimeScale: v => { adminTime = v; },
+  getTimeScale: () => adminTime,
+  toggleDebug,
+});
+
+function toggleDebug() {
+  debug = !debug;
+  if (!debug) ui.debug(null);
+  return debug;
+}
 
 ui.buildStages((stage, size) => renderer.stageThumbnail(stage, size));
 ui.setMode(input.mode);
@@ -7234,10 +7925,15 @@ input.handlers = {
   pause: () => (state === 'pause' ? resume() : pause()),
   mute: () => toggleMute(),
   confirm: () => {
-    if (state === 'menu') startGame(ui.playerName());
-    else if (state === 'over') startGame(ui.playerName());
+    if (state === 'menu' || state === 'over') startGame(ui.playerName());
+    else if (state === 'play') admin.open('/');
   },
-  debug: () => { debug = !debug; if (!debug) ui.debug(null); },
+  console: () => {
+    if (state !== 'play') return false;
+    admin.open('/');
+    return true;
+  },
+  debug: () => toggleDebug(),
   mode: m => ui.setMode(m),
 };
 input.bindButton(document.getElementById('btn-sling'), v => { input.slingButton = v; });
@@ -7255,6 +7951,10 @@ function startGame(name) {
   audio.ui('confirm');
   if (game.player && game.player.alive) game.despawnPlayer();
   game.spawnPlayer(name);
+  // Wirken noch Zeitlupe, Zoom oder eingefrorene Bots, zählt auch diese Runde nicht.
+  game.cheated = admin.globalEffectsActive();
+  ui.setAdmin(game.cheated);
+  admin.close();
   state = 'play';
   timeScale = 1;
   warpTime = 0;
@@ -7269,6 +7969,7 @@ function startGame(name) {
 
 function pause() {
   if (state !== 'play') return;
+  admin.close();
   state = 'pause';
   input.reset();
   audio.setDuck(0.35);
@@ -7284,6 +7985,7 @@ function resume() {
 }
 
 function toMenu() {
+  admin.close();
   if (game.player && game.player.alive) game.despawnPlayer();
   state = 'menu';
   audio.setDuck(1);
@@ -7325,8 +8027,9 @@ function onPlayerDeath(e) {
     stage: p.maxStage,
     kills: p.kills,
     time: p.diedAt - p.bornAt,
+    cheated: game.cheated,
   };
-  run.isNewBest = !best || run.maxMass > best.mass;
+  run.isNewBest = !run.cheated && (!best || run.maxMass > best.mass);
   if (run.isNewBest) {
     storage.set('best', { mass: Math.round(run.maxMass), stage: run.stage, kills: run.kills, time: run.time, date: Date.now() });
   }
@@ -7438,6 +8141,7 @@ function controlPlayer() {
   // Kontext-Hinweise (nur solange sie noch nicht gezeigt wurden)
   const seen = ui.hintsSeen;
   if (!seen.has('boost') && p.mass > BODY.boostMinMass + 4) ui.hint('boost');
+  if (!seen.has('drain') && p.drain > 0.3) ui.hint('drain');
   if (!seen.has('hole')) {
     for (const hole of game.blackHoles) {
       if (Math.hypot(hole.x - p.x, hole.y - p.y) < hole.pullR * 1.1) ui.hint('hole');
@@ -7465,7 +8169,7 @@ function frame(now) {
 
   const t0 = performance.now();
   if (state !== 'pause') {
-    acc += real * timeScale;
+    acc += real * timeScale * adminTime;
     let steps = 0;
     while (acc >= STEP && steps < SIM.maxStepsPerFrame) {
       controlPlayer();

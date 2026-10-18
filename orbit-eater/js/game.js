@@ -31,7 +31,7 @@ import {
 } from './utils.js';
 import {
   KIND, STATE, Body, BlackHole, DebrisPool,
-  radiusForMass, debrisRadius, gravityRadius, maxOrbiters, stageFor, canEat,
+  radiusForMass, debrisRadius, gravityRadius, maxOrbiters, stageFor, canEat, maxSpeed,
 } from './entities.js';
 import { steerBody, integrate, containCircle, spiralPull, gravitate, bounceBodies } from './physics.js';
 import { SpatialHash } from './spatial-hash.js';
@@ -55,6 +55,8 @@ export class Game {
 
     this.time = 0;
     this.difficulty = 0;
+    this.freezeBots = false;   // Admin: Bots anhalten
+    this.cheated = false;      // Admin-Befehle in dieser Runde → kein Rekord
     this.playerAggro = 1;
     this.counts = { dust: 0, asteroid: 0, comet: 0 };
     this.combo = { count: 0, timer: 0, gained: 0 };
@@ -297,7 +299,16 @@ export class Game {
     this.snapshot();
     this.updateDifficulty();
 
-    for (const b of this.bodies) if (b.alive && b.brain) updateBot(this, b, dt);
+    for (const b of this.bodies) {
+      if (!b.alive || !b.brain) continue;
+      if (this.freezeBots) {
+        b.throttle = 0;
+        b.wantBoost = false;
+        b.slingHeld = false;
+      } else {
+        updateBot(this, b, dt);
+      }
+    }
     for (const b of this.bodies) this.updateBody(b, dt);
     this.updateBlackHoles(dt);
 
@@ -347,6 +358,7 @@ export class Game {
     }
     b.spawnT = Math.min(1, b.spawnT + dt / BODY.spawnFade);
     if (b.shield > 0) b.shield = Math.max(0, b.shield - dt);
+    if (b.god) b.shield = Math.max(b.shield, 1);   // Admin: Dauerschild
 
     // Boost kostet Masse — die bleibt als Staubspur zurück (und andere fressen sie).
     const wasBoosting = b.boosting;
@@ -362,8 +374,16 @@ export class Game {
     }
     if (b.boosting !== wasBoosting) this.events.emit(b.boosting ? 'boostStart' : 'boostEnd', b);
 
-    // Riesen verdunsten langsam, damit niemand dauerhaft uneinholbar wird.
-    if (b.mass > BODY.decayStart) b.mass -= (b.mass - BODY.decayStart) * BODY.decayRate * dt;
+    // Reibung: Große Körper verlieren in Bewegung langsam Masse, damit niemand
+    // dauerhaft uneinholbar wird. Der Verlust wächst mit dem Tempo — wer stillsteht,
+    // verliert nichts (Boost hat seine eigenen Kosten, deshalb höchstens Faktor 1).
+    if (b.mass > BODY.decayStart) {
+      const motion = Math.min(1, Math.hypot(b.vx, b.vy) / maxSpeed(b.mass));
+      b.drain = (b.mass - BODY.decayStart) * BODY.decayRate * motion;
+      b.mass -= b.drain * dt;
+    } else {
+      b.drain = 0;
+    }
 
     this.updateSling(b, dt);
     steerBody(b, dt);
@@ -644,6 +664,7 @@ export class Game {
           continue;
         }
         const edge = dist - b.r;
+        if (b.god) continue;
         if (s > 0.5 && edge < h.r * 0.5) {
           const loss = b.mass * BLACK_HOLE.drainRate * s * dt;
           b.mass -= loss;
@@ -729,7 +750,7 @@ export class Game {
   }
 
   killBody(b, cause, killer = null, hole = null) {
-    if (!b.alive) return;
+    if (!b.alive || b.god) return;
     b.alive = false;
     b.cause = cause;
     b.killer = killer;

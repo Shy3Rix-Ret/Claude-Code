@@ -58,6 +58,7 @@ JavaScript inline in eine HTML-Datei.
 | **Esc** / **P** | Pause | Pause-Knopf | Pause |
 | **M** | Ton an/aus | Lautsprecher-Knopf | Ton an/aus |
 | **Enter** | Start / Nochmal spielen | | |
+| **T**, **/** oder **Enter** im Spiel | Admin-Konsole | **›_**-Knopf oben rechts | Admin-Konsole |
 | **F3** | Leistungsanzeige (FPS, Tick-Zeit, Objektzahlen) | | |
 
 ## Spielregeln
@@ -100,8 +101,11 @@ und kann von anderen gefressen werden. Unter 30 Masse gibt es keinen Boost.
 | Gasriese | 450 | Wolkenbänder, Sturmfleck, meist Ringe |
 | Stern | 1.100 | Granulation, Korona, Strahlen |
 
-Ab 150 Masse verdunstet langsam Masse. Riesen müssen also in Bewegung bleiben und können
-nicht dauerhaft uneinholbar werden.
+**Reibung.** Ab 250 Masse kostet Bewegung etwas Masse. Bei voller Fahrt sind das 0,5 % der
+Masse über 250 pro Sekunde, also bei 600 Masse etwa 1,7 pro Sekunde. Langsamer heißt weniger
+Verlust, **wer stillsteht, verliert nichts**. Das HUD zeigt den aktuellen Verlust live unter
+der Stufenanzeige an. So können Riesen nicht dauerhaft uneinholbar über die Karte rollen,
+und trotzdem schrumpft niemand, nur weil er kurz durchatmet.
 
 **Schwarze Löcher** entstehen selten, wandern langsam und leben etwa anderthalb Minuten:
 
@@ -115,6 +119,40 @@ Fress-Töne steigen dabei eine pentatonische Leiter hinauf.
 
 **Rekord.** Gespeichert wird lokal im Browser (`localStorage`): die höchste erreichte Masse,
 dazu Stufe, Kills und Überlebenszeit.
+
+## Admin-Konsole
+
+Im Spiel öffnen **T**, **/** oder **Enter** die Konsole (am Handy der **›_**-Knopf oben rechts).
+**Tab** vervollständigt Befehle, **↑ / ↓** blättert durch den Verlauf, **Esc** schließt. Zahlen
+dürfen ein deutsches Komma haben (`/zeit 0,5`). In Klammern stehen die englischen Kurzformen.
+
+| Befehl | Wirkung |
+|---|---|
+| `/hilfe` (`/help`) | alle Befehle anzeigen |
+| `/masse <zahl>` (`/mass`) | eigene Masse setzen |
+| `/stufe <1–5 \| name>` (`/stage`) | direkt auf eine Stufe springen, z. B. `/stufe stern` |
+| `/gott` (`/god`) | unverwundbar an/aus |
+| `/tempo <faktor>` (`/speed`) | eigenes Tempo, 1 = normal, bis 5 |
+| `/bot [masse] [anzahl]` (`/spawn`) | Bots neben dir erzeugen |
+| `/bots <anzahl>` | Bot-Anzahl in der Arena festlegen (0–60) |
+| `/loch` (`/blackhole`) | Schwarzes Loch vor dir erzeugen |
+| `/komet [anzahl]` (`/comet`) | Kometen auf dich zu schicken |
+| `/orbit [anzahl]` | Orbit mit Asteroiden füllen |
+| `/vernichten [alle]` (`/killall`) | Bots in der Nähe zerlegen, mit `alle` jeden |
+| `/einfrieren` (`/freeze`) | Bots anhalten an/aus |
+| `/zeit <faktor>` (`/time`) | Zeitlupe (0,1) bis Zeitraffer (3) |
+| `/zoom <faktor>` | Kamera weiter weg (0,15) oder näher (3) |
+| `/tp <x> <y> \| mitte \| zufall` | teleportieren |
+| `/aufräumen` (`/clear`) | alle Schwarzen Löcher auflösen |
+| `/name <neuer name>` | dich umbenennen |
+| `/fps` | Leistungsanzeige an/aus |
+| `/rekordreset` | persönlichen Rekord löschen |
+| `/reset` | Zeit, Zoom, Tempo, Gottmodus und eingefrorene Bots zurücksetzen |
+
+**Fairness:** Sobald ein Befehl das Spiel verändert, steht „Admin-Runde“ im HUD. Diese Runde
+zählt nicht für den persönlichen Rekord. Wirken Zeitlupe, Zoom oder eingefrorene Bots noch
+nach, gilt auch die nächste Runde als Admin-Runde, bis `/reset` sie aufhebt. Reine
+Komfortbefehle wie `/name`, `/fps` oder `/hilfe` zählen nicht.
 
 ## Technik
 
@@ -238,6 +276,7 @@ orbit-eater/
 │   ├── input.js          Maus, Tastatur, Touch-Joystick
 │   ├── audio.js          Sounddesign mit Web Audio
 │   ├── ui.js             HUD, Rangliste, Minimap, Toasts, Hinweise, Menüs
+│   ├── admin.js          Admin-Konsole mit allen Befehlen
 │   ├── storage.js        abgesichertes localStorage
 │   └── utils.js          Mathe, Easing, seedbarer Zufall, Rauschen, Event-Bus
 ├── tools/
@@ -269,9 +308,10 @@ Der **Simulationstest** lässt die Welt in Node laufen und steuert einen Spieler
 
 Am Ende berichtet er Tick-Zeit (im Schnitt ~0,3 ms, Budget 16,7 ms), Fortschritt des
 Autopiloten und Ereignisstatistik. Mit diesem Test ist die Balance entstanden. Ein Beispiel:
-Er zeigte, dass sich die Welt ohne Massenverdunstung innerhalb von fünf Minuten mit Riesen
-füllt (Median der Bot-Masse von 85 auf über 1.000). Heute pendelt sie sich bei einem Median
-um 350–450 ein, mit vereinzelten Sternen.
+Er zeigte, dass sich die Welt ohne Massenverlust innerhalb von fünf Minuten mit Riesen füllt
+(Median der Bot-Masse von 85 auf über 1.000). Mit der Reibung pendelt sie sich bei einem
+Median um 450–600 ein, mit vereinzelten Sternen. Als die Reibung später gesenkt wurde, zeigte
+derselbe Test, dass dafür etwas weniger Staub nachwachsen muss.
 
 Im Browser zeigen `?debug` in der Adresse oder **F3** die FPS, die Zeit für Simulation und
 Zeichnen sowie alle Objektzahlen an. `tools/gallery.html` rendert jede Stufe in mehreren
@@ -290,8 +330,10 @@ Paletten groß, um die prozedurale Grafik zu beurteilen.
 - **Eine fortlaufende Welt.** Das Spiel startet nicht jedes Mal eine neue Arena. Wie auf einem
   echten .io-Server läuft die Welt weiter, der Hintergrund des Startbildschirms ist die echte
   Simulation, und „Nochmal spielen“ setzt dich in dieselbe Arena.
-- **Leichte Masseverdunstung ab 150** und ein Sog großer Körper auf kleinere. Beides war nicht
-  gefordert, verhindert aber eine erstarrte Arena voller Riesen.
+- **Reibung ab 250 Masse, nur in Bewegung**, und ein Sog großer Körper auf kleinere. Beides
+  war nicht gefordert, verhindert aber eine erstarrte Arena voller Riesen. Bots fahren immer,
+  zahlen also immer. Der Spieler kann stehen bleiben und verliert dann nichts, ist dabei
+  aber ein leichtes Ziel.
 
 ## Ideen für die Zukunft
 

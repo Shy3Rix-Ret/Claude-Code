@@ -16,6 +16,7 @@ import { Renderer } from './renderer.js';
 import { AudioEngine } from './audio.js';
 import { Input } from './input.js';
 import { UI } from './ui.js';
+import { AdminConsole } from './admin.js';
 import { storage } from './storage.js';
 
 const STEP = 1 / SIM.hz;
@@ -34,6 +35,7 @@ let state = 'menu';
 let acc = 0;
 let last = performance.now();
 let timeScale = 1;
+let adminTime = 1;          // Zeitfaktor aus der Admin-Konsole (/zeit)
 let warpScale = 1;
 let warpTime = 0;
 let deathTimer = 0;
@@ -55,7 +57,22 @@ const ui = new UI({
     ui.setAudio(audio.muted, audio.volume);
   },
   click: () => audio.ui('tick'),
+  console: () => admin.open('/'),
 });
+
+const admin = new AdminConsole({
+  game, renderer, ui, audio,
+  isPlaying: () => state === 'play',
+  setTimeScale: v => { adminTime = v; },
+  getTimeScale: () => adminTime,
+  toggleDebug,
+});
+
+function toggleDebug() {
+  debug = !debug;
+  if (!debug) ui.debug(null);
+  return debug;
+}
 
 ui.buildStages((stage, size) => renderer.stageThumbnail(stage, size));
 ui.setMode(input.mode);
@@ -68,10 +85,15 @@ input.handlers = {
   pause: () => (state === 'pause' ? resume() : pause()),
   mute: () => toggleMute(),
   confirm: () => {
-    if (state === 'menu') startGame(ui.playerName());
-    else if (state === 'over') startGame(ui.playerName());
+    if (state === 'menu' || state === 'over') startGame(ui.playerName());
+    else if (state === 'play') admin.open('/');
   },
-  debug: () => { debug = !debug; if (!debug) ui.debug(null); },
+  console: () => {
+    if (state !== 'play') return false;
+    admin.open('/');
+    return true;
+  },
+  debug: () => toggleDebug(),
   mode: m => ui.setMode(m),
 };
 input.bindButton(document.getElementById('btn-sling'), v => { input.slingButton = v; });
@@ -89,6 +111,10 @@ function startGame(name) {
   audio.ui('confirm');
   if (game.player && game.player.alive) game.despawnPlayer();
   game.spawnPlayer(name);
+  // Wirken noch Zeitlupe, Zoom oder eingefrorene Bots, zählt auch diese Runde nicht.
+  game.cheated = admin.globalEffectsActive();
+  ui.setAdmin(game.cheated);
+  admin.close();
   state = 'play';
   timeScale = 1;
   warpTime = 0;
@@ -103,6 +129,7 @@ function startGame(name) {
 
 function pause() {
   if (state !== 'play') return;
+  admin.close();
   state = 'pause';
   input.reset();
   audio.setDuck(0.35);
@@ -118,6 +145,7 @@ function resume() {
 }
 
 function toMenu() {
+  admin.close();
   if (game.player && game.player.alive) game.despawnPlayer();
   state = 'menu';
   audio.setDuck(1);
@@ -159,8 +187,9 @@ function onPlayerDeath(e) {
     stage: p.maxStage,
     kills: p.kills,
     time: p.diedAt - p.bornAt,
+    cheated: game.cheated,
   };
-  run.isNewBest = !best || run.maxMass > best.mass;
+  run.isNewBest = !run.cheated && (!best || run.maxMass > best.mass);
   if (run.isNewBest) {
     storage.set('best', { mass: Math.round(run.maxMass), stage: run.stage, kills: run.kills, time: run.time, date: Date.now() });
   }
@@ -272,6 +301,7 @@ function controlPlayer() {
   // Kontext-Hinweise (nur solange sie noch nicht gezeigt wurden)
   const seen = ui.hintsSeen;
   if (!seen.has('boost') && p.mass > BODY.boostMinMass + 4) ui.hint('boost');
+  if (!seen.has('drain') && p.drain > 0.3) ui.hint('drain');
   if (!seen.has('hole')) {
     for (const hole of game.blackHoles) {
       if (Math.hypot(hole.x - p.x, hole.y - p.y) < hole.pullR * 1.1) ui.hint('hole');
@@ -299,7 +329,7 @@ function frame(now) {
 
   const t0 = performance.now();
   if (state !== 'pause') {
-    acc += real * timeScale;
+    acc += real * timeScale * adminTime;
     let steps = 0;
     while (acc >= STEP && steps < SIM.maxStepsPerFrame) {
       controlPlayer();

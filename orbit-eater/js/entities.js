@@ -88,6 +88,11 @@ export class Body {
 
     this.orbiters = [];
     this.shield = 0;
+    this.drain = 0;      // aktueller Massenverlust durch Reibung (pro Sekunde), fürs HUD
+
+    // Admin-Konsole
+    this.god = false;
+    this.speedMul = 1;
 
     // Tod
     this.consumer = null;

@@ -35,7 +35,7 @@ export class Input {
     this.slingButton = false;
     this.boostButton = false;
 
-    /** Callbacks für Tastenkürzel: { pause, mute, confirm, debug, mode } */
+    /** Callbacks für Tastenkürzel: { pause, mute, confirm, console, debug, mode } */
     this.handlers = {};
 
     this.bind();
@@ -93,11 +93,17 @@ export class Input {
       if (isTyping(e)) return;           // Enter im Namensfeld erledigt das Formular selbst
       if (e.code === 'Space') e.preventDefault();
       if (e.repeat) return;
+      // "/" öffnet die Admin-Konsole (Tastaturbelegung egal, deshalb e.key statt e.code)
+      if (e.key === '/' && this.handlers.console?.()) {
+        e.preventDefault();
+        return;
+      }
       this.keys.add(e.code);
       switch (e.code) {
         case 'Escape': case 'KeyP': this.handlers.pause?.(); break;
         case 'KeyM': this.handlers.mute?.(); break;
         case 'Enter': this.handlers.confirm?.(); break;
+        case 'KeyT': if (this.handlers.console?.()) e.preventDefault(); break;
         case 'F3': e.preventDefault(); this.handlers.debug?.(); break;
       }
     });

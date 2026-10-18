@@ -29,6 +29,10 @@ const HINTS = {
     touch: 'Zweiter Finger oder BOOST: schneller. Kostet etwas Masse.',
   },
   hole: 'Schwarzes Loch! Nichts kommt aus dem Horizont zurück – Abstand halten oder boosten.',
+  drain: {
+    mouse: `Ab ${BODY.decayStart} Masse kostet Bewegung etwas Masse (Reibung). Wer stillsteht, verliert nichts – Zeiger einfach auf dich legen.`,
+    touch: `Ab ${BODY.decayStart} Masse kostet Bewegung etwas Masse (Reibung). Wer stillsteht, verliert nichts – Daumen einfach loslassen.`,
+  },
   comet: 'Komet! Schnell, aber 24 Masse wert. Fang ihn ab.',
 };
 
@@ -44,6 +48,7 @@ export class UI {
     this.hud = $('hud');
     this.el = {
       mass: $('hud-mass'), stage: $('hud-stage'), stageNum: $('hud-stagenum'), ruler: $('hud-ruler'), next: $('hud-next'),
+      drain: $('hud-drain'), admin: $('hud-admin'),
       combo: $('combo'), comboMult: $('combo-mult'), comboCount: $('combo-count'), comboBar: $('combo-bar'),
       board: $('board'), boardCount: $('board-count'),
       orbit: $('ab-orbit'), pips: $('orbit-pips'), orbitVal: $('orbit-val'),
@@ -241,7 +246,9 @@ export class UI {
     this.countUp($('st-max'), s.maxMass);
 
     const rec = $('over-record');
-    if (s.isNewBest) {
+    if (s.cheated) {
+      rec.textContent = 'Admin-Runde – zählt nicht für den Rekord.';
+    } else if (s.isNewBest) {
       rec.innerHTML = '<span class="is-new">Neuer persönlicher Rekord.</span> Höchste Masse bisher.';
     } else if (s.best) {
       rec.innerHTML = `Persönlicher Rekord <strong>${fmt(s.best.mass)}</strong> · ${STAGES[s.best.stage].name}`;
@@ -384,6 +391,14 @@ export class UI {
     } else {
       this.set('next', this.el.next, 'Höchste Stufe erreicht');
     }
+    // Reibung: nur anzeigen, wenn sie spürbar ist
+    const drain = p.drain >= 0.1 ? `−${p.drain.toFixed(1).replace('.', ',')} / s Reibung` : '';
+    if (drain !== this.cache.drain) {
+      this.cache.drain = drain;
+      this.el.drain.textContent = drain;
+      this.el.drain.hidden = !drain;
+    }
+
     const on = Math.round(prog * RULER_TICKS);
     if (on !== this.cache.ruler) {
       this.cache.ruler = on;
@@ -592,6 +607,11 @@ export class UI {
       r.dot.style.visibility = '';
     }
     this.el.mapRange.textContent = fmt(MAP_RANGE);
+    this.el.drain.hidden = true;
+  }
+
+  setAdmin(on) {
+    this.el.admin.hidden = !on;
   }
 
   debug(text) {

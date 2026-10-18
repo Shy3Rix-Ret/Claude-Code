@@ -57,6 +57,7 @@ export class Renderer {
     this.time = 0;
     this.artBudget = 0;
     this.artCache = new Map();
+    this.zoomMul = 1;          // Admin-Konsole: /zoom
     this.player = null;
     this.attract = null;
     this.attractT = 0;
@@ -248,7 +249,7 @@ export class Renderer {
     const p = game.player;
     if (view.mode === 'play' && p && p.alive) {
       const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha);
-      const tz = Camera.zoomFor(p.r, this.w, this.h) * (p.boosting ? 0.93 : 1);
+      const tz = Camera.zoomFor(p.r, this.w, this.h) * (p.boosting ? 0.93 : 1) * this.zoomMul;
       cam.follow(x + p.vx * CAMERA.lead, y + p.vy * CAMERA.lead, tz, dt);
     } else if (view.mode === 'dead' && p) {
       // Kurz zeigen, wer einen gefressen hat

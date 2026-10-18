@@ -51,11 +51,13 @@
           <div><dt><kbd>Shift</kbd></dt><dd>Boost – kostet Masse</dd></div>
           <div><dt><kbd>Klick halten</kbd></dt><dd>Schleuder laden, loslassen feuert</dd></div>
           <div><dt><kbd>Esc</kbd> <kbd>M</kbd></dt><dd>Pause · Ton</dd></div>
+          <div><dt><kbd>T</kbd> <kbd>/</kbd></dt><dd>Admin-Konsole, z.&nbsp;B. /hilfe</dd></div>
         </dl>
         <dl class="keys keys--touch">
           <div><dt><kbd>Ziehen</kbd></dt><dd>Steuern wie ein Joystick</dd></div>
           <div><dt><kbd>2. Finger</kbd></dt><dd>Boost – kostet Masse</dd></div>
           <div><dt><kbd>Schleuder</kbd></dt><dd>Halten, loslassen feuert</dd></div>
+          <div><dt><kbd>›_</kbd></dt><dd>Admin-Konsole (oben rechts)</dd></div>
         </dl>
       </div>
       <div class="sheet__col">
@@ -81,6 +83,8 @@
       <div class="hud__stage"><span id="hud-stage">Asteroid</span><span class="hud__stagenum" id="hud-stagenum">1 / 5</span></div>
       <div class="ruler" id="hud-ruler" aria-hidden="true"></div>
       <div class="hud__next" id="hud-next">Mond bei 60</div>
+      <div class="hud__drain" id="hud-drain" hidden></div>
+      <span class="hud__admin" id="hud-admin" hidden>Admin-Runde</span>
     </div>
 
     <div class="combo" id="combo" aria-hidden="true">
@@ -91,6 +95,9 @@
     </div>
 
     <div class="hud__tools">
+      <button class="iconbtn" type="button" data-action="console" aria-label="Admin-Konsole öffnen" title="Admin-Konsole (T)">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7l5 5-5 5M12 18h7"/></svg>
+      </button>
       <button class="iconbtn" type="button" data-action="mute" aria-label="Ton aus">
         <svg class="icon icon--sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="icon__wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="icon__cross" d="M16 9l6 6M22 9l-6 6"/></svg>
       </button>
@@ -124,6 +131,15 @@
       <canvas id="minimap" aria-label="Übersichtskarte"></canvas>
       <figcaption class="label">Karte · Umkreis <span id="map-range">2.400</span> AE</figcaption>
     </figure>
+
+    <div class="console" id="console">
+      <ol class="console__log" id="console-log" aria-live="polite"></ol>
+      <div class="console__suggest" id="console-suggest"></div>
+      <form class="console__line" id="console-form" autocomplete="off">
+        <span class="console__prompt" aria-hidden="true">›</span>
+        <input class="console__input" id="console-input" aria-label="Admin-Befehl" spellcheck="false" autocapitalize="off" autocomplete="off" enterkeyhint="send" placeholder="/hilfe">
+      </form>
+    </div>
 
     <div class="feed" id="feed" aria-live="polite"></div>
     <p class="hint" id="hint" aria-live="polite"></p>
