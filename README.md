@@ -189,3 +189,22 @@ Nicht im Spiel sichtbar, nur über URL oder Tastatur:
 Shift+1 … Shift+5   Akt wechseln
 Shift+Plus/Minus    Zeit schneller / langsamer
 ```
+
+---
+
+## Außerdem im Repo: `hydrogen/`
+
+Ein eigenständiger WebGL2-Shader, unabhängig vom Level: ein Glas-/Wasserblock als
+SDF, in dessen Kern das Wort „hydrogen“ geätzt ist. `hydrogen/index.html` per
+Doppelklick öffnen – eine Datei, keine Abhängigkeiten.
+
+- **Reines Sphere-Tracing** gegen drei Distanzfelder: Hülle (von außen und von
+  innen), Schrift, Luftbläschen. Keine Meshes, kein Fixed-Step-Marching.
+- **Float-Texturen:** Die Schrift liegt als exaktes Distanzfeld zu den
+  Buchstaben-Mittellinien in einer `R32F`- bzw. `R16F`-Textur; das Bild wird in
+  `RGBA32F`/`RGBA16F` progressiv akkumuliert (umschaltbar unter *Render*).
+- **Panel:** Material-Presets, Optik (Brechungsindex, Dispersion, Absorption),
+  Frost, Key Light, Volumen (Dicke, Rundung, Wellen, Bläschen, Ätzung).
+
+`node hydrogen/embed.mjs` schneidet daraus `hydrogen/hydrogen.embed.html` für
+Hosts, die `<html>`/`<head>`/`<body>` selbst mitbringen.
